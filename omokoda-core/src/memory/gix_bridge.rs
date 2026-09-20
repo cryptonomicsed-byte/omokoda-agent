@@ -17,7 +17,11 @@ pub use gix_core::{
     gix1_audit, gix1_merkle_root, GIX1_EMPTY_ROOT,
     GlyphNode as GixNode, GlyphEdge as GixEdge, GixKind, Gix1Entry,
 };
-pub use gix_types::{GixMemoryRef, GixMemoryTier, GixNamespace, RoutingHints};
+pub use gix_types::{
+    GixMemoryRef, GixMemoryTier, GixNamespace, RoutingHints,
+    GixVisibility, GixProvenance, GixMinipaeLocator,
+    Gix1,
+};
 
 use crate::memory::memdir::OduDirectory;
 
@@ -401,6 +405,76 @@ pub fn merkle_proof(
     Ok((leaf_hash, root_hash, siblings))
 }
 
+// ── Phase 8C — Memory → GIX envelope → minipae locator ───────────────────────
+
+/// Convert an `OduEntry` into a `Gix1` envelope + `GixMinipaeLocator` pair.
+///
+/// This is the canonical Phase 8C pattern:
+///   `OduEntry → entry_to_gix_memory_ref() → GixMemoryRef.to_gix1() → GixMinipaeLocator`
+///
+/// The returned `Gix1` has `GixKind::Memory` and `GixNamespace::TriuneMemory`.
+/// The locator slug is deterministic: `"mem/<canonical_id_hex>"`.
+///
+/// Pass the result to `CanonicalObjectStore::insert_memory()` to register both
+/// the envelope and the locator in one atomic step.
+pub fn entry_to_minipae_locator(
+    entry:       &crate::memory::memdir::OduEntry,
+    tier:        crate::memory::engine::MemoryTier,
+    agent_pubkey: &str,
+    relay_hint:  Option<String>,
+) -> (Gix1, GixMinipaeLocator) {
+    let mem_ref = entry_to_gix_memory_ref(entry, tier, 0);
+    let env     = mem_ref.to_gix1(RoutingHints {
+        primary:  relay_hint.clone(),
+        fallback: vec![],
+    });
+    let locator = GixMinipaeLocator::from_gix1(&env, agent_pubkey, relay_hint);
+    (env, locator)
+}
+
+/// Convert an `OduEntry` into a `Gix1` envelope with full `GixProvenance`.
+///
+/// Builds the provenance record from the entry's content hash plus optional
+/// lineage fields, then stamps the provenance fingerprint onto the `Gix1`
+/// envelope's `provenance` field.
+///
+/// Returns `(Gix1, GixProvenance)` so callers can store, log, or transmit
+/// the provenance record independently of the envelope.
+pub fn entry_with_provenance(
+    entry:       &crate::memory::memdir::OduEntry,
+    tier:        crate::memory::engine::MemoryTier,
+    supersedes:  Option<[u8; 32]>,
+    derived_from: Vec<[u8; 32]>,
+) -> (Gix1, GixProvenance) {
+    use gix_types::content_hash;
+
+    let content_hash_bytes = content_hash(&entry.content);
+
+    let mut provenance = GixProvenance::new(content_hash_bytes);
+    provenance.supersedes   = supersedes;
+    provenance.derived_from = derived_from;
+
+    let prov_fingerprint = provenance.fingerprint();
+
+    let mem_ref = entry_to_gix_memory_ref(entry, tier, 0);
+    let env = {
+        let ts = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap_or_default()
+            .as_millis() as u64;
+        Gix1::new(
+            GixKind::Memory,
+            GixNamespace::TriuneMemory,
+            &mem_ref.canonical_id,
+            Some(prov_fingerprint),
+            ts,
+            RoutingHints::default(),
+        )
+    };
+
+    (env, provenance)
+}
+
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 fn dir_canonical_ids(dir: &OduDirectory) -> Vec<String> {
@@ -518,6 +592,64 @@ mod gix_bridge_tests {
         let env = mref.to_gix1(RoutingHints::default());
         assert_eq!(env.namespace, GixNamespace::TriuneMemory);
         assert!(env.verify_integrity());
+    }
+
+    // ── Phase 8C tests ────────────────────────────────────────────────────────
+
+    #[test]
+    fn entry_to_minipae_locator_slug_is_deterministic() {
+        use crate::memory::engine::MemoryTier;
+        let e = entry("e1", "some memory content", "memory/core", 100, &[]);
+        let (env, locator) = super::entry_to_minipae_locator(
+            &e, MemoryTier::Working, "npub1test", None,
+        );
+        let expected_slug = format!("mem/{}", hex::encode(env.canonical_id));
+        assert_eq!(locator.slug, expected_slug);
+        assert_eq!(locator.canonical_id, hex::encode(env.canonical_id));
+        assert_eq!(locator.agent_pubkey, "npub1test");
+    }
+
+    #[test]
+    fn entry_with_provenance_stamps_fingerprint_on_envelope() {
+        use crate::memory::engine::MemoryTier;
+        let e = entry("e1", "agent decision", "memory/episodic", 200, &[]);
+        let (env, prov) = super::entry_with_provenance(
+            &e, MemoryTier::Episodic, None, vec![],
+        );
+        // Provenance fingerprint must appear on the envelope.
+        assert_eq!(env.provenance, Some(prov.fingerprint()));
+        assert_eq!(env.namespace, GixNamespace::TriuneMemory);
+        assert!(env.verify_integrity());
+    }
+
+    #[test]
+    fn entry_with_provenance_records_supersedes_lineage() {
+        use crate::memory::engine::MemoryTier;
+        use gix_types::content_hash;
+        let old_id = content_hash("old memory");
+        let e = entry("e2", "updated memory", "memory/episodic", 300, &[]);
+        let (_, prov) = super::entry_with_provenance(
+            &e, MemoryTier::Episodic, Some(old_id), vec![],
+        );
+        assert_eq!(prov.supersedes, Some(old_id));
+    }
+
+    #[test]
+    fn insert_memory_registers_locator_in_store() {
+        use crate::memory::engine::MemoryTier;
+        use gix_core::CanonicalObjectStore;
+        let e = entry("e1", "canonical memory", "memory/semantic", 400, &[]);
+        let (env, locator) = super::entry_to_minipae_locator(
+            &e, MemoryTier::Semantic, "agent-key-abc", None,
+        );
+        let canonical_id = hex::encode(env.canonical_id);
+
+        let mut store = CanonicalObjectStore::new();
+        let returned_id = store.insert_memory(env, locator);
+
+        assert_eq!(returned_id, canonical_id);
+        let resolved = store.resolve_locator(&canonical_id).expect("locator must be registered");
+        assert_eq!(resolved.slug, format!("mem/{canonical_id}"));
     }
 
     #[test]
