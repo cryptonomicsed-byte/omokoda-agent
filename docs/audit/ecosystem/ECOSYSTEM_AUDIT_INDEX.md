@@ -38,7 +38,7 @@
 | [group_h_apps_tooling.md](group_h_apps_tooling.md) | buzz-OG, omokoda-smithers, larql, zerolang, vanity-cloakseed, franken-stream | 281 |
 | [group_i_new_repos_1.md](group_i_new_repos_1.md) | Blocksim, Witness-firmware, agentic-waggle | 394 |
 | [group_i_new_repos_2.md](group_i_new_repos_2.md) | Triune-Memory, mycelium-tools | 336 |
-| [group_j_vantage_voice.md](group_j_vantage_voice.md) | Vantage-Voice- | — (pending) |
+| [group_j_vantage_voice.md](group_j_vantage_voice.md) | Vantage-Voice- | 315 |
 
 ---
 
@@ -68,7 +68,7 @@
 | **agent-phone** | Agent Infra | Python | IMPLEMENTED | ✅ | **Zero imports in Omo-Koda2 or Vantage** — complete island |
 | **organism-core** | Agent Infra | TypeScript | BROKEN | pass (all fallback) | Julia non-PIE; API route mismatch with OSOVM server.jl |
 | **Axiom** | Agent Infra | TS/Three.js | IMPLEMENTED | — | Deployed dist/ built; 7 node types degrade without archived VPS services |
-| **Vantage-Voice-** | Voice UI | TS/React | IMPLEMENTED | pending | See group_j |
+| **Vantage-Voice-** | Voice UI | TS/React | IMPLEMENTED | 27/27 ✅ | `IRANTI_MCP_CWD` hardcoded macOS path; orchestrator uses invalid Gemini model id |
 | **Zangbeto** | Security | Rust/Node | PARTIAL | SIGSEGV (env) | Arweave/BTC/Sui all manual scripts; Night Patrol SPEC_ONLY; `ZANGBETO_URL` not set in prod |
 | **omokoda-mesh-firmware** | Mesh | C++ | PARTIAL | — | NostrCryptoEngine not wired at boot; DIP adapter not started |
 | **Witness-firmware** | Mesh | Python | PARTIAL | — | BIP-340 Schnorr incompatible with ecosystem Ed25519; zero calls to Witness Rust broker |
@@ -259,5 +259,4 @@
 
 ---
 
-*Group J (Vantage-Voice-) audit pending — will be appended when complete.*  
-*Generated 2026-09-22 by 10 parallel forensic agents.*
+*Generated 2026-09-22–23 by 11 parallel forensic agents. All 37 repos covered.*
