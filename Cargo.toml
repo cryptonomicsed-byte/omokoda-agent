@@ -1,6 +1,7 @@
 [workspace]
 members = [
     "omokoda-core",
+    "omokoda-hive",
     "omokoda-hermetic",
     "omokoda-mesh",
     "omokoda-cli",
