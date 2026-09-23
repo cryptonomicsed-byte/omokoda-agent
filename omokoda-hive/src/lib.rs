@@ -11,12 +11,20 @@
 
 pub mod breath;
 pub mod epistemic;
+pub mod federation;
+pub mod goal_vector;
 pub mod lobe;
+pub mod memory_health;
 pub mod ritual;
 pub mod stewardship;
+pub mod thrones;
 
 pub use breath::{HiveBreath, HiveBreathConfig};
 pub use epistemic::{EpistemicDelta, EpistemicState};
+pub use goal_vector::{AggregatedGoal, GoalVector, GoalVectorSynthesizer, LobeGoalProposal};
 pub use lobe::{LobeAgent, OrisaLobe};
 pub use ritual::{RitualPhase, RitualTransition};
 pub use stewardship::StewardshipInvariant;
+pub use thrones::{DeliberationRequest, DeliberationResult, ThronesClient, ThroneVerdict};
+pub use federation::{HiveFederationClient, HiveFederationMessage, merge_peer_goal_vector};
+pub use memory_health::{MemoryHealthMonitor, MemoryHealthReport};
