@@ -35,6 +35,10 @@ const ALLOWED_SUBCOMMANDS: &[&str] = &[
     "skills",
     "version",
     "--version",
+    "import",  // needed for agent edit loop: import → diagnose → patch cycle
+    "doc",
+    "size",
+    "mem",
 ];
 
 /// Resolve the Zero compiler binary: `ZERO_BIN` → PATH → `~/.zero/bin/zero`.
@@ -89,6 +93,73 @@ pub fn parse_zero_args(params: &str) -> Result<Vec<String>, String> {
         return Err("too many arguments (max 64)".to_string());
     }
     Ok(args)
+}
+
+/// A structured diagnostic produced by `zero check --json`.
+#[derive(Debug, serde::Deserialize)]
+pub struct ZeroDiagnostic {
+    pub code: String,
+    pub message: Option<String>,
+    pub repair: Option<ZeroRepair>,
+}
+
+#[derive(Debug, serde::Deserialize)]
+pub struct ZeroRepair {
+    pub id: String,
+    pub description: Option<String>,
+}
+
+/// Result of `zero check --json` on a graph target.
+#[derive(Debug, serde::Deserialize)]
+pub struct ZeroCheckResult {
+    pub ok: bool,
+    #[serde(default)]
+    pub diagnostics: Vec<ZeroDiagnostic>,
+}
+
+/// Agent edit loop helper: check → collect diagnostics → return repair plan.
+///
+/// This models the zerolang agent-repair-demo workflow:
+///   1. `zero check --json <target>` → collect all diagnostics
+///   2. For each diagnostic with a repair: `zero explain --json <code>`
+///   3. Return a structured plan the agent can act on with `zero patch`
+///
+/// E-49: called from agentic turns when self-modification is requested.
+pub fn build_repair_plan(
+    bin: &std::path::Path,
+    target: &str,
+    workspace_root: &std::path::Path,
+) -> Result<Vec<(ZeroDiagnostic, Option<serde_json::Value>)>, String> {
+    let check_out = std::process::Command::new(bin)
+        .args(["check", "--json", target])
+        .current_dir(workspace_root)
+        .output()
+        .map_err(|e| format!("zero check failed: {e}"))?;
+
+    let check_json = String::from_utf8_lossy(&check_out.stdout);
+    let result: ZeroCheckResult =
+        serde_json::from_str(&check_json).map_err(|e| format!("failed to parse zero check output: {e}"))?;
+
+    if result.ok {
+        return Ok(vec![]);
+    }
+
+    let mut plan = Vec::new();
+    for diag in result.diagnostics {
+        let explain = if diag.repair.is_some() {
+            let explain_out = std::process::Command::new(bin)
+                .args(["explain", "--json", &diag.code])
+                .current_dir(workspace_root)
+                .output()
+                .ok()
+                .and_then(|o| serde_json::from_slice(&o.stdout).ok());
+            explain_out
+        } else {
+            None
+        };
+        plan.push((diag, explain));
+    }
+    Ok(plan)
 }
 
 pub struct ZeroTool;
