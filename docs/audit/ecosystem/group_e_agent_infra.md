@@ -58,7 +58,7 @@ Actual file counts confirmed:
 
 `prepare_finetune.py` converts traces to OpenAI chat format: system prompt (sovereign agent hive context) + user (agent_role/kind/target) + assistant (action/outcome/duration). **Format is valid for GPU.ai `/v1/fine_tuning/jobs`.**
 
-`train_qlora.py` is a complete fine-tuning runner: uploads dataset via multipart, creates job, polls to completion, prints GGUF export instructions. Target: `Qwen/Qwen2.5-3B-Instruct` (3B, A40 $0.49/hr). Hyperparams at `train_qlora.py:39-49`: `n_epochs=3, lora_r=16, lora_alpha=32, batch_size=4, max_seq_length=512`. **WARNING:** API key is hardcoded in the script's help text (`train_qlora.py:64`): `gpuai_live_yxOFo45nCboRVOU6ak8lduNJ` — live credential leakage in source.
+`train_qlora.py` is a complete fine-tuning runner: uploads dataset via multipart, creates job, polls to completion, prints GGUF export instructions. Target: `Qwen/Qwen2.5-3B-Instruct` (3B, A40 $0.49/hr). Hyperparams at `train_qlora.py:39-49`: `n_epochs=3, lora_r=16, lora_alpha=32, batch_size=4, max_seq_length=512`. **WARNING:** API key is hardcoded in the script's help text (`train_qlora.py:64`): `gpuai_live_REDACTED_ROTATE_2026-09-23` — live credential leakage in source.
 
 `kaggle_finetune.ipynb` exists as an alternative runner (Kaggle free GPU) — not audited in detail.
 
@@ -119,7 +119,7 @@ The Go gateway binary exists (`gateway/mycelium-gateway`). It binds `127.0.0.1:8
 | Council proxy (hardcoded IP) | CONFLICTING (federation-hostile) |
 | Live service status | UNKNOWN (binary exists) |
 
-**Critical finding:** `train_qlora.py:64` embeds the live GPU.ai API key `gpuai_live_yxOFo45nCboRVOU6ak8lduNJ` in the help text as a human-readable hint. This leaks if the script is committed to a public repo.
+**Critical finding:** `train_qlora.py:64` embeds the live GPU.ai API key `gpuai_live_REDACTED_ROTATE_2026-09-23` in the help text as a human-readable hint. This leaks if the script is committed to a public repo.
 
 ---
 
