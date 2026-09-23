@@ -5614,6 +5614,7 @@ impl Steward {
         // Fire-and-forget, matching HttpOsunClient::store_memcell's pattern
         // elsewhere in this file -- a recording failure must never fail an
         // otherwise-successful act.
+        let agent_id_for_waggle = agent_id_for_oya.clone();
         if let Ok(oya_url) = std::env::var("OYA_URL") {
             use crate::bus::clients::{HttpOyaClient, OyaClient};
             let tool_name_owned = tool_name.to_string();
@@ -5718,6 +5719,21 @@ impl Steward {
                 weight:   1,
             };
             self.gix_store.add_edge(edge);
+        }
+
+        // E-25: Waggle reverse direction — deposit a tool-outcome scent signal so
+        // the swarm coordination field knows which resources this agent is working on.
+        // Best-effort: never blocks the act path if WAGGLE_URL is unset or unreachable.
+        if std::env::var("WAGGLE_URL").is_ok() {
+            let field = crate::waggle::WaggleField::new(agent_id_for_waggle.to_string());
+            let resource = format!("tool://{}", tool_name);
+            let kind = if output.starts_with("Tool error:") { "explored" } else { "gold" };
+            let intensity = if kind == "gold" { 2.0_f64 } else { 0.5 };
+            let note = format!("act: {} (tier {})", tool_name, tier);
+            // Spawn best-effort — failure is logged by the waggle crate itself.
+            let _ = tokio::spawn(async move {
+                field.deposit(&resource, kind, intensity, &note, serde_json::json!({})).await
+            });
         }
 
         Ok(output)
