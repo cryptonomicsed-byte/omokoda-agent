@@ -2,14 +2,14 @@
 // On-chain settlement roadmap:
 //   Phase 1 (current): local accounting, no blockchain
 //   Phase 2: Vantage UCX API reports balances
-//   Phase 3: OSOVM vm_core.jl DOPAMINE_MINT opcode + Sui settlement
+//   Phase 3: OSOVM TOC_MINT (0x54) 1440 Àṣẹ/day + Sui settlement
 // See: ~/sovereign-eco-blueprint/plans/protocol-layer-synthesis.md
 
 use serde::{Deserialize, Serialize};
 
 pub const SYNAPSE_MAX_PER_AGENT: f64 = 86_000_000.0;
 pub const DOPAMINE_TOTAL_POOL: f64 = 86_000_000_000.0;
-pub const SYNAPSE_DAILY_DECAY_RATE: f64 = 0.08;
+pub const SYNAPSE_DAILY_DECAY_RATE: f64 = 0.01;  // 1%/day — matches OSOVM constants.jl
 pub const SYNAPSE_INITIAL: f64 = 10_000.0;
 pub const EXTENDED_INACTIVITY_DAYS: u64 = 7;
 pub const DECAY_NORMAL_PER_DAY: f64 = 0.008;

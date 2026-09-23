@@ -29,7 +29,7 @@ class Tier(Enum):
 # Economy constants
 GLOBAL_DOPAMINE_POOL = 86_000_000_000  # 86 billion
 MAX_SYNAPSE_PER_AGENT = 86_000_000      # 86 million
-SYNAPSE_DECAY_RATE = 0.08               # 8% per day
+SYNAPSE_DECAY_RATE = 0.01               # 1% per day (matches OSOVM constants.jl)
 DOPAMINE_DECAY_RATE = 0.01              # 1% per day (return to pool)
 DAYS_PER_SIMULATION = 365
 
@@ -66,7 +66,7 @@ class Agent:
         self.tier = self.get_tier()
 
     def decay_synapse(self, rate: float = SYNAPSE_DECAY_RATE):
-        """Apply Synapse decay (8% per day)"""
+        """Apply Synapse decay (1% per day)"""
         decay_amount = self.synapse * rate
         self.synapse = max(0, self.synapse - decay_amount)
         self.synapse_history.append(self.synapse)
