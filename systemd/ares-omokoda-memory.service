@@ -1,13 +1,14 @@
 [Unit]
-Description=ares-omokoda-memory — Julia memory/compute service (Busy Beaver, NIST, Augury, DePIN, REM fractal planning)
+Description=OBSOLETE: ares-omokoda-memory — Julia memory/compute service (archived; superseded by Rust)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/ares/Omo-Koda2/omokoda-memory
-ExecStart=/usr/local/bin/julia --project=. server.jl --port 7778
-Restart=always
-RestartSec=10
+# Replaced by Rust service — see omokoda-core/src/server.rs
+# ExecStart=/usr/local/bin/julia --project=. server.jl --port 7778
+ExecStart=/bin/true
+Restart=no
 User=root
 
 [Install]

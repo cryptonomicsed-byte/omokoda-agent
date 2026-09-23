@@ -1,13 +1,14 @@
 [Unit]
-Description=ares-omokoda-swarm — Elixir OTP supervision tree (coordinator, hive, mesh presence, hive-scale REM cycle)
+Description=OBSOLETE: ares-omokoda-swarm — Elixir OTP supervision tree (archived; superseded by Rust)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/ares/Omo-Koda2/omokoda-swarm
-ExecStart=/usr/bin/mix run --no-halt
-Restart=always
-RestartSec=10
+# Replaced by Rust service — see omokoda-core/src/server.rs
+# ExecStart=/usr/bin/mix run --no-halt
+ExecStart=/bin/true
+Restart=no
 User=root
 
 [Install]

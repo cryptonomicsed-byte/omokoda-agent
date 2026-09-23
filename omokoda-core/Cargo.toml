@@ -45,6 +45,7 @@ larql-glyph = { git = "https://github.com/cryptonomicsed-byte/larql", rev = "149
 gix-core    = { path = "../../GIX/crates/gix-core" }
 gix-types   = { path = "../../GIX/crates/gix-types" }
 arp-types   = { path = "../../ARP/crates/arp-types" }
+dip-types   = { path = "../../DIP/crates/dip-types" }
 zangbeto-enforcement = { path = "../zangbeto-stub" }
 nist_entropy = { path = "../nist_entropy" }
 omokoda-mesh = { path = "../omokoda-mesh" }

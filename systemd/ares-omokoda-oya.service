@@ -1,14 +1,15 @@
 [Unit]
-Description=ares-omokoda-oya — ỌYA Go flow/rhythm service (Sabbath gating, per-agent primitive cooldowns)
+Description=OBSOLETE: ares-omokoda-oya — Go flow/rhythm service (archived; superseded by Rust)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/ares/Omo-Koda2/omokoda-go
 Environment=OYA_HTTP_PORT=8100
-ExecStart=/opt/ares/Omo-Koda2/omokoda-go/oya
-Restart=always
-RestartSec=10
+# Replaced by Rust service — see omokoda-core/src/server.rs
+# ExecStart=/opt/ares/Omo-Koda2/omokoda-go/oya
+ExecStart=/bin/true
+Restart=no
 User=root
 
 [Install]

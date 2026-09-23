@@ -1,11 +1,9 @@
-//! # DopaminePool — LOCAL SIMULATION (not on-chain)
-//!
-//! All balances here are local-only. On-chain settlement requires:
-//! 1. UCX ComputeReceipt with zangbeto_anchor (E-10)
-//! 2. OSOVM TOC_MINT opcode reaching Vantage Dopamine mint endpoint
-//! 3. Eventual migration to OSOVM L1 (Phase 20)
-//!
-//! See: sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml for canonical constants.
+// DopaminePool is a LOCAL simulation model only.
+// On-chain settlement roadmap:
+//   Phase 1 (current): local accounting, no blockchain
+//   Phase 2: Vantage UCX API reports balances
+//   Phase 3: OSOVM vm_core.jl DOPAMINE_MINT opcode + Sui settlement
+// See: ~/sovereign-eco-blueprint/plans/protocol-layer-synthesis.md
 
 use serde::{Deserialize, Serialize};
 

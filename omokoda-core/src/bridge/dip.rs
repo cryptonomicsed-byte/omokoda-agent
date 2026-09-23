@@ -2,28 +2,30 @@
 //!
 //! Callers supply NetworkRepr entries; this module never hard-codes a transport.
 //! Fail-open: unreachable DIP server never blocks the calling operation.
+//!
+//! `DipEnvelope` is re-exported from the canonical `dip-types` crate.
+//! The local `NetworkRepr` is a lightweight DTO used by `habitat::types` and
+//! other internal callers that only need `network` + `address`.  It is NOT the
+//! same as `dip_types::NetworkRepr` (which carries `public_key` + `metadata`).
 
+pub use dip_types::DipEnvelope;
+use dip_types::{DipMessage, DipMessageKind};
 use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 
-/// Network-agnostic identity endpoint. Never hardcode `network = "nostr"`.
+/// Lightweight network endpoint DTO used internally by Omo-Koda2.
+///
+/// Network-agnostic: never hardcode `network = "nostr"`.
 /// The caller picks the transport; this struct carries it through.
+///
+/// Note: this is a simpler subset of `dip_types::NetworkRepr`.  Use
+/// `dip_types::NetworkRepr` when constructing full DIP identity manifests.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkRepr {
-    /// "nostr" | "meshtastic" | "a2a" | "mcp" | "libp2p" | "freenet"
+    /// "nostr" | "meshtastic" | "a2a" | "mcp" | "libp2p" | "freenet" | "habitat"
     pub network: String,
     /// Network-specific address / pubkey / node-id.
     pub address: String,
-}
-
-/// Typed DIP envelope (mirrors the JSON shape accepted by DipBridge on port 7792).
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct DipEnvelope {
-    pub sender_id: String,
-    pub network: String,
-    pub address: String,
-    pub payload: Value,
-    pub timestamp: u64,
 }
 
 /// High-level client over the raw `post_outbound` helpers below.
@@ -40,16 +42,20 @@ impl DipBridge {
 
     /// Build an identity DipEnvelope (does not send — call `send_via_router`).
     pub fn agent_to_dip_identity(agent_id: &str, network: &NetworkRepr) -> DipEnvelope {
-        DipEnvelope {
-            sender_id: agent_id.to_string(),
-            network: network.network.clone(),
-            address: network.address.clone(),
-            payload: json!({
-                "kind": "identity",
-                "agent_id": agent_id,
-            }),
-            timestamp: now_secs(),
-        }
+        let from = format!("agent:{agent_id}");
+        DipEnvelope::new(
+            DipMessageKind::IdentityClaim,
+            &from,
+            "*",
+            DipMessage::IdentityClaim {
+                did:      format!("did:omokoda:{agent_id}"),
+                proof:    String::new(),
+                networks: vec![dip_types::NetworkBinding {
+                    network: network.network.clone(),
+                    address: network.address.clone(),
+                }],
+            },
+        )
     }
 
     /// Wrap an arbitrary action into a DipEnvelope.
@@ -60,17 +66,19 @@ impl DipBridge {
         payload: Value,
         network: &NetworkRepr,
     ) -> DipEnvelope {
-        DipEnvelope {
-            sender_id: agent_id.to_string(),
-            network: network.network.clone(),
-            address: network.address.clone(),
-            payload: json!({
-                "kind": "action",
-                "action_kind": action_kind,
-                "payload": payload,
-            }),
-            timestamp: now_secs(),
-        }
+        let from = format!("agent:{agent_id}");
+        let to   = network.address.clone();
+        DipEnvelope::new(
+            DipMessageKind::AgentDelegate,
+            &from,
+            &to,
+            DipMessage::AgentDelegate {
+                task:                   action_kind.to_string(),
+                params:                 payload,
+                capabilities_required:  vec![],
+                deadline_secs:          None,
+            },
+        )
     }
 
     /// POST the envelope to the DIP router's /api/route endpoint.
@@ -90,13 +98,6 @@ impl DipBridge {
             Err(format!("DIP router error: {}", resp.status()))
         }
     }
-}
-
-fn now_secs() -> u64 {
-    std::time::SystemTime::now()
-        .duration_since(std::time::UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_secs()
 }
 
 const DIP_PORT_DEFAULT: u16 = 7792;

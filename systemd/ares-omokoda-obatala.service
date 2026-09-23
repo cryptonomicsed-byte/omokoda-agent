@@ -1,14 +1,15 @@
 [Unit]
-Description=ares-omokoda-obatala — Ọbàtálá symbolic reasoning/ethics engine (consent, privacy, Hermetic evaluation)
+Description=OBSOLETE: ares-omokoda-obatala — Babashka/Clojure ethics engine (archived; superseded by Rust)
 After=network.target
 
 [Service]
 Type=simple
 WorkingDirectory=/opt/ares/Omo-Koda2/omokoda-clojure
 Environment=OBATALA_PORT=4002
-ExecStart=/usr/local/bin/bb obatala.clj
-Restart=always
-RestartSec=10
+# Replaced by Rust service — see omokoda-core/src/server.rs
+# ExecStart=/usr/local/bin/bb obatala.clj
+ExecStart=/bin/true
+Restart=no
 User=root
 
 [Install]
