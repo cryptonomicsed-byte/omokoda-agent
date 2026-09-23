@@ -16,6 +16,8 @@ pub mod seal_bridge;
 pub mod soma;
 pub mod tee;
 pub mod walrus;
+pub mod odu_composition;
+pub use odu_composition::compose_odu;
 
 pub use engine::MemoryEngine;
 pub use memdir::{MemoryScanner, OduDirectory, OduEntry};

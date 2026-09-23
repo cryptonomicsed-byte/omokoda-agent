@@ -431,3 +431,169 @@ fn shared_group_projection_shows_correct_subset() {
     assert!(proj2.canonical_ids.contains(&pub_id));
     assert!(!proj2.canonical_ids.contains(&guild_id));
 }
+
+// ── Phase 9G: Sovereign Memory Continuity (the killer test) ──────────────────
+//
+// Simulates the full death/restart/recovery cycle for a sovereign agent:
+//
+//   CREATE → STAMP → FOLD → PERSIST → KILL → RESTART → RECOVER → VERIFY
+//
+// Invariants that MUST hold across the kill boundary:
+//   1. Agent fingerprint is identical before and after restart.
+//   2. Provenance chain is unbroken — all canonical_ids survive.
+//   3. Fold topology reconstructs from persisted store.
+//   4. Locators are recovered deterministically.
+//   5. All memory objects pass the authority contract.
+//   6. The public projection Merkle root is stable.
+
+#[test]
+fn sovereign_memory_continuity_across_restart() {
+    use gix_core::{
+        GixFold, GixKind, GixMinipaeLocator, GixNamespace, GixProvenance,
+        GixVisibility, HashDomain, MemoryState,
+        save_store_to_files, load_store_from_files,
+        verify_hash_domain_isolation, verify_locator_coherence,
+    };
+    use gix_types::{content_hash, RoutingHints, Gix1};
+    use omokoda_core::memory::gix_bridge::{
+        entry_with_provenance, verify_authority_contract,
+    };
+
+    let dir = tempfile::tempdir().unwrap();
+    let gp = dir.path().join("sovereign.graph.json");
+    let ip = dir.path().join("sovereign.index.json");
+    let sp = dir.path().join("sovereign.snapshot.json");
+
+    // ── PHASE: CREATE ─────────────────────────────────────────────────────────
+    // Simulate 3 memory entries representing an agent's episodic experience.
+    let e1 = entry("e1", "I learned about GIX canonical identity",       "episodic/core", 1000, &["gix", "identity"]);
+    let e2 = entry("e2", "Provenance chain must be unbroken",            "episodic/core", 2000, &["gix", "provenance"]);
+    let e3 = entry("e3", "Fold consolidates episodic into semantic tier", "episodic/fold", 3000, &["gix", "fold", "rem"]);
+
+    // ── PHASE: STAMP (provenance) ─────────────────────────────────────────────
+    let (env1, prov1) = entry_with_provenance(&e1, MemoryTier::Episodic, None, vec![]);
+    let (env2, prov2) = entry_with_provenance(&e2, MemoryTier::Episodic, Some(env1.canonical_id), vec![]);
+    let (env3, prov3) = entry_with_provenance(&e3, MemoryTier::Semantic, Some(env2.canonical_id), vec![env1.canonical_id]);
+
+    let id1 = hex::encode(env1.canonical_id);
+    let id2 = hex::encode(env2.canonical_id);
+    let id3 = hex::encode(env3.canonical_id);
+
+    // Authority contract must pass for all three
+    assert!(verify_authority_contract(&env1, &prov1, None).is_ok(), "env1 contract");
+    assert!(verify_authority_contract(&env2, &prov2, None).is_ok(), "env2 contract");
+    assert!(verify_authority_contract(&env3, &prov3, None).is_ok(), "env3 contract");
+
+    // Hash domain isolation must hold
+    assert!(verify_hash_domain_isolation(&env1, &prov1).is_ok(), "domain isolation env1");
+    assert!(verify_hash_domain_isolation(&env2, &prov2).is_ok(), "domain isolation env2");
+    assert!(verify_hash_domain_isolation(&env3, &prov3).is_ok(), "domain isolation env3");
+
+    // ── PHASE: BUILD STORE ────────────────────────────────────────────────────
+    let mut store = CanonicalObjectStore::new();
+    let sid1 = store.insert_object(env1.clone());
+    let sid2 = store.insert_object(env2.clone());
+    let sid3 = store.insert_object(env3.clone());
+
+    assert_eq!(sid1, id1);
+    assert_eq!(sid2, id2);
+    assert_eq!(sid3, id3);
+
+    // Set visibility: e1/e2 are private episodic; e3 is public semantic
+    store.set_visibility(&id1, GixVisibility::Private);
+    store.set_visibility(&id2, GixVisibility::Private);
+    store.set_visibility(&id3, GixVisibility::Public);
+
+    // Register locators
+    for id in &[&id1, &id2, &id3] {
+        let loc = GixMinipaeLocator::from_canonical_id(id, "npub1sovereign", None);
+        store.register_locator(loc);
+    }
+
+    // ── PHASE: FOLD (REM consolidation) ──────────────────────────────────────
+    let sources = vec![env1.canonical_id, env2.canonical_id, env3.canonical_id];
+    let fold = GixFold::from_rem_consolidation(sources, 1.4, None);
+    let fold_id = store.insert_fold(&fold);
+    let fold_root_pre_restart = fold.fold_root();
+
+    // ── PHASE: AGENT FINGERPRINT (pre-restart) ────────────────────────────────
+    let proj_pre = store.project_public();
+    let merkle_root_pre = proj_pre.merkle_root.clone();
+    let agent_bytes: Vec<u8> = b"sovereign-agent-identity".to_vec();
+    let fp_pre = proj_pre.agent_fingerprint(&agent_bytes).canonical_id;
+
+    // Consistency audit must pass
+    store.audit_consistency().expect("store must audit clean before restart");
+
+    // ── PHASE: PERSIST (save to disk) ─────────────────────────────────────────
+    save_store_to_files(&mut store, &gp, &ip, &sp).expect("save must succeed");
+    drop(store); // simulate agent process death
+
+    // ── PHASE: RESTART (load from disk) ──────────────────────────────────────
+    let mut loaded = load_store_from_files(&gp, &ip, &sp).expect("load must succeed");
+    loaded.audit_consistency().expect("loaded store must audit clean");
+
+    // ── PHASE: RECOVER LOCATORS ───────────────────────────────────────────────
+    let recovered = loaded.recover_locators("npub1sovereign", None);
+    // Should recover at least the 3 Memory objects (fold is MemoryFold, may also recover)
+    assert!(recovered >= 3, "at least 3 memory locators recovered, got {recovered}");
+
+    // Locators must reconstruct correctly
+    let loc1 = loaded.resolve_locator(&id1).expect("locator for e1 recovered");
+    assert_eq!(loc1.slug, format!("mem/{id1}"));
+    assert!(verify_locator_coherence(loc1, &env1).is_ok(), "locator coherence e1");
+
+    // ── PHASE: VERIFY canonical_ids survived ─────────────────────────────────
+    assert!(loaded.contains(&id1), "e1 survives restart");
+    assert!(loaded.contains(&id2), "e2 survives restart");
+    assert!(loaded.contains(&id3), "e3 survives restart");
+    assert!(loaded.contains(&fold_id), "fold survives restart");
+
+    // ── PHASE: VERIFY fold topology reconstructs ─────────────────────────────
+    // The fold node must have fold_source edges to its original sources.
+    let edges: Vec<_> = loaded.graph.edges().iter()
+        .filter(|e| e.from == fold_id && e.relation == "fold_source")
+        .collect();
+    assert_eq!(edges.len(), 3, "fold must have 3 fold_source edges post-restart");
+
+    // ── PHASE: VERIFY agent fingerprint stability ─────────────────────────────
+    // Re-derive visibility (serde(skip) clears it on load) — re-apply
+    loaded.set_visibility(&id3, GixVisibility::Public);
+    let proj_post = loaded.project_public();
+    let merkle_root_post = proj_post.merkle_root.clone();
+
+    // Merkle root of public objects must be identical (same objects, same IDs)
+    assert_eq!(merkle_root_pre, merkle_root_post,
+        "public Merkle root must be stable across restart");
+
+    // Agent fingerprint must be identical
+    let fp_post = proj_post.agent_fingerprint(&agent_bytes).canonical_id;
+    assert_eq!(fp_pre, fp_post,
+        "agent fingerprint must be stable across restart");
+
+    // ── PHASE: VERIFY provenance chain unbroken ───────────────────────────────
+    // e2 declares supersedes = e1's canonical_id; resolve_conflict must detect it.
+    let prov2_reconstructed = GixProvenance {
+        content_hash: content_hash(&e2.content),
+        supersedes:   Some(env1.canonical_id),
+        derived_from: vec![],
+        fold_lineage: vec![],
+        visibility:   gix_core::GixVisibility::Private,
+    };
+    let conflict = loaded.resolve_conflict(&id2, &id1, Some(&prov2_reconstructed), None)
+        .expect("conflict detection must work post-restart");
+    assert!(matches!(conflict.resolution, gix_core::ConflictResolution::SupersedesWins { .. }),
+        "supersedes chain must be detected: {:?}", conflict.resolution);
+
+    // ── PHASE: VERIFY hash domain isolation still holds ───────────────────────
+    // After deserialization, canonical_ids must still differ from content_hashes.
+    let e1_reloaded = loaded.index.resolve(&id1).expect("e1 in index");
+    let content_hash_e1 = content_hash(&e1.content);
+    assert_ne!(e1_reloaded.canonical_id, content_hash_e1,
+        "canonical_id must differ from content_hash after deserialization");
+
+    // ── PHASE: FINAL audit ────────────────────────────────────────────────────
+    loaded.set_visibility(&id1, GixVisibility::Private);
+    loaded.set_visibility(&id2, GixVisibility::Private);
+    loaded.audit_consistency().expect("final audit must pass");
+}

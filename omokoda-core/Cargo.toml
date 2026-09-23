@@ -26,7 +26,7 @@ tokio = { version = "1.0", features = ["full"] }
 axum = { version = "0.7", features = ["json", "macros"] }
 tower-http = { version = "0.5", features = ["cors"] }
 tokio-stream = { version = "0.1", features = ["net", "sync"] }
-reqwest = { version = "0.11", features = ["json", "stream"] }
+reqwest = { version = "0.11", features = ["json", "stream", "blocking"] }
 async-trait = "0.1"
 urlencoding = "2.1"
 ed25519-dalek = "2.0"
@@ -34,7 +34,7 @@ ed25519-dalek = "2.0"
 # actual BIPON39 / IfáScript behavior, not CI stubs (the former bipon39-stub /
 # ifascript-stub mirrored only the API shape and have since been removed).
 bipon39 = { git = "https://github.com/cryptonomicsed-byte/BIPON39", rev = "1c4d5c9" }
-ifascript = { git = "https://github.com/cryptonomicsed-byte/If-Script", rev = "31198960d76b17e435645cfc5446e555714128c4" }
+ifascript = { git = "https://github.com/cryptonomicsed-byte/If-Script", rev = "5dbee51fb2c637cda71e6702bada54b2c2dfc2c9" }
 # Real LARQL-style graph queries (DESCRIBE/SELECT/WALK/INFER) over an
 # agent's own sealed memory -- the lightweight glyph-graph adapter, not
 # the full model-serving larql-server (needs multi-GB .vindex model data

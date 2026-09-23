@@ -104,6 +104,6 @@ mod tests {
         let hk = Hkdf::<Sha256>::new(None, &seed);
         let mut other = [0u8; 32];
         hk.expand(b"omokoda-native-wallet-v1", &mut other).unwrap();
-        assert_ne!(buzz.secret_key().to_secret_bytes().as_ref(), &other);
+        assert_ne!(buzz.secret_key().to_secret_bytes().as_ref() as &[u8], other.as_ref() as &[u8]);
     }
 }

@@ -324,6 +324,20 @@ pub struct AgentSnapshot {
     /// so callers can inspect the full birth provenance at any time.
     #[serde(default)]
     pub genesis_receipt: Option<crate::genesis::receipt::AgentGenesisReceipt>,
+    /// BLAKE3 receipt_id of the most recently produced ActReceipt — the tip
+    /// of the tamper-evidence receipt chain. Persisted so the chain is
+    /// continuous across restarts (each new ActReceipt links to this hash
+    /// via `previous_hash`). None until the first tool call completes.
+    #[serde(default)]
+    pub last_act_receipt_hash: Option<String>,
+    /// Evolving composed Odù index (u16: high byte = birth primary_odu,
+    /// low byte = secondary_odu derived from accumulated receipt history).
+    /// Updated after each tool call by `memory::odu_composition::compose_odu`.
+    /// Birth value: `(primary_odu << 8) | primary_odu` (no secondary yet).
+    /// The genesis_receipt.composed_odu is the immutable birth snapshot;
+    /// this field is the living, experience-driven value.
+    #[serde(default)]
+    pub current_composed_odu: u16,
     /// Universal Agent Manifest — the living public identity document derived from
     /// genesis_receipt at birth. Updated as new network bindings are established.
     #[serde(default)]
@@ -1453,6 +1467,7 @@ impl Steward {
             })
         };
 
+        let birth_primary_odu: u8 = genesis_receipt_v2.as_ref().map(|gr| gr.primary_odu).unwrap_or(0);
         let agent_manifest_v2 = genesis_receipt_v2.as_ref().map(|gr| {
             let mut m = crate::genesis::manifest::AgentManifest::from_genesis(gr);
             // Bind all derived wallet addresses to the manifest (public addresses only).
@@ -1579,6 +1594,9 @@ impl Steward {
             reflection: crate::memory::reflection::ReflectionLedger::new(),
             genesis_receipt: genesis_receipt_v2,
             agent_manifest: agent_manifest_v2,
+            last_act_receipt_hash: None,
+            // Birth composed_odu mirrors primary on both bytes until experience accrues.
+            current_composed_odu: (birth_primary_odu as u16) << 8 | birth_primary_odu as u16,
         };
         let mut core = AgentCore::from_snapshot(snapshot, k_root);
         core.private_data = Some(private_data);
@@ -1780,6 +1798,26 @@ pub struct Steward {
     /// never a correctness issue.
     #[serde(skip, default = "crate::compact::AutoCompactor::default_engine")]
     auto_compactor: crate::compact::AutoCompactor,
+    /// Canonical GIX object store — persists action memories, fold records,
+    /// and lineage edges across restarts.  Not included in the serde JSON
+    /// (it has its own binary files); loaded/saved alongside `auto_save`.
+    #[serde(skip, default = "gix_core::CanonicalObjectStore::new")]
+    gix_store: gix_core::CanonicalObjectStore,
+    /// canonical_id of the most recently recorded action memory — forms the
+    /// supersedes chain so action history is a traversable lineage DAG.
+    #[serde(skip)]
+    last_action_id: Option<[u8; 32]>,
+    /// In-memory content cache for action memories — maps canonical_id (hex)
+    /// to the original content string so `walk_action_lineage` can reconstruct
+    /// the full `ActionMemoryNode.content` field across the current session.
+    /// Not persisted across restarts (content is ephemeral recall context only).
+    #[serde(skip)]
+    action_content_cache: std::collections::HashMap<String, String>,
+    /// In-session ring buffer of the most recent ActReceipts — used by
+    /// `odu_composition::compose_odu` to evolve `current_composed_odu`
+    /// without reading back from the GIX store. Capped at 32 entries.
+    #[serde(skip)]
+    recent_act_receipts: std::collections::VecDeque<crate::receipt::act_receipt::ActReceipt>,
 }
 
 fn default_dream_engine() -> crate::dream::DreamEngine {
@@ -1840,6 +1878,10 @@ impl Steward {
             gatekeeper: EsuGatekeeper::new(),
             dream_engine: default_dream_engine(),
             auto_compactor: crate::compact::AutoCompactor::default_engine(),
+            gix_store: gix_core::CanonicalObjectStore::new(),
+            last_action_id: None,
+            action_content_cache: std::collections::HashMap::new(),
+            recent_act_receipts: std::collections::VecDeque::new(),
         }
     }
 
@@ -4116,6 +4158,17 @@ impl Steward {
                     system.push_str(&format!(" A quiet instinct guides you: {prescription}"));
                 }
             }
+            // Soul's destiny threads: the first two prescriptions from the
+            // Digital Calabash corpus for this agent's birth Odù — the
+            // operational directives cast at genesis. Folded in as native
+            // character, not announced as divination output.
+            if let Some(gr) = agent.snapshot.genesis_receipt.as_ref() {
+                for thread in gr.destiny_threads.iter().take(2) {
+                    if !thread.trim().is_empty() {
+                        system.push_str(&format!(" Your nature carries this: {thread}"));
+                    }
+                }
+            }
             // Real LARQL-style divination over her own memory (larql-glyph,
             // not the full model-serving larql-server -- that needs
             // multi-GB .vindex model data that doesn't exist anywhere in
@@ -4835,6 +4888,14 @@ impl Steward {
 
         self.agent = Some(core);
         self.persistence_path = Some(path);
+
+        // Reload GIX store from disk (first boot produces empty store).
+        let (gp, ip, sp) = self.gix_store_paths(agent_id);
+        match gix_core::load_store_from_files(&gp, &ip, &sp) {
+            Ok(store) => { self.gix_store = store; }
+            Err(e) => { tracing::warn!(error = %e, "GIX store load failed, starting fresh"); }
+        }
+
         if needs_resave {
             self.auto_save();
         }
@@ -4847,6 +4908,118 @@ impl Steward {
 
     fn agent_file_path(&self, agent_id: &AgentId) -> PathBuf {
         self.session_dir.join(agent_id.as_str()).join("agent.json")
+    }
+
+    /// Paths for the three GIX store binary files, co-located with agent.json.
+    fn gix_store_paths(&self, agent_id: &AgentId) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+        let dir = self.session_dir.join(agent_id.as_str());
+        (
+            dir.join("gix_graph.bin"),
+            dir.join("gix_index.bin"),
+            dir.join("gix_snapshot.json"),
+        )
+    }
+
+    /// Persist the GIX store alongside agent.json.
+    /// Called after `auto_save()` in `&mut self` contexts.
+    fn save_gix_store(&mut self) {
+        if let Some(agent) = &self.agent {
+            let agent_id = agent.id().clone();
+            let (gp, ip, sp) = self.gix_store_paths(&agent_id);
+            if let Some(parent) = gp.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = gix_core::save_store_to_files(&mut self.gix_store, &gp, &ip, &sp);
+        }
+    }
+
+    /// Recall up to `limit` recent action memories that share the same vessel/category.
+    ///
+    /// Used in `execute_tool_call_for_agentic` to surface prior context before
+    /// dispatching the next tool — closing the remember→act→remember loop.
+    pub fn recall_recent_actions(
+        &self,
+        vessel_dbg:   &str,
+        category_dbg: &str,
+        limit:        usize,
+    ) -> Vec<crate::memory::gix_bridge::ActionMemoryNode> {
+        let tip_id = match self.last_action_id {
+            Some(id) => hex::encode(id),
+            None     => return Vec::new(),
+        };
+        crate::memory::gix_bridge::walk_action_lineage(&self.gix_store, &self.action_content_cache, &tip_id, limit * 4)
+            .into_iter()
+            .filter(|node| {
+                node.content.contains(vessel_dbg) || node.content.contains(category_dbg)
+            })
+            .take(limit)
+            .collect()
+    }
+
+    /// Write a `GixKind::Memory` envelope for a completed tool call.
+    ///
+    /// Content bytes = UTF-8 of `"{tool_name}|{vessel_debug}|{category_debug}|{alignment}|{ok/err}"`.
+    /// The new envelope's provenance supersedes the previous action's id so the
+    /// full action history forms a lineage DAG traversable via the GlyphGraph.
+    fn record_action_memory(
+        &mut self,
+        tool_name:  &str,
+        vessel:     &str,   // ActionVessel debug string
+        category:   &str,   // ActionCategory debug string
+        alignment:  &str,   // "Primary" | "Permitted"
+        outcome_ok: bool,
+        ts_ms:      u64,
+    ) {
+        use gix_types::{
+            GixKind, GixNamespace, RoutingHints,
+            GixProvenance, HashDomain,
+        };
+
+        // Build canonical content bytes — stable UTF-8 description.
+        let content = format!("{}|{}|{}|{}|{}", tool_name, vessel, category, alignment, if outcome_ok { "ok" } else { "err" });
+        let content_bytes = content.as_bytes();
+
+        // Provenance: domain-separated content hash + supersedes chain.
+        let content_hash = HashDomain::ContentHash.hash(content_bytes);
+        let mut prov = GixProvenance::new(content_hash);
+        prov.supersedes = self.last_action_id;
+
+        let prov_fp = prov.fingerprint();
+
+        let env = gix_types::Gix1::new(
+            GixKind::Memory,
+            GixNamespace::TriuneMemory,
+            content_bytes,
+            Some(prov_fp),
+            ts_ms,
+            RoutingHints::default(),
+        );
+
+        let new_id = env.canonical_id;
+        let new_id_hex = hex::encode(new_id);
+
+        // Cache the content string so walk_action_lineage can reconstruct it.
+        self.action_content_cache.insert(new_id_hex.clone(), content);
+
+        // Insert the envelope first (this also adds a graph node).
+        self.gix_store.insert_object(env);
+
+        // If there's a previous action, add a supersedes edge in the graph.
+        // Both endpoints are now in the store: new_id was just inserted,
+        // and prev_id was inserted in a prior call.
+        if let Some(prev_id) = self.last_action_id {
+            let prev_id_hex = hex::encode(prev_id);
+            let edge = gix_types::GlyphEdge {
+                from:     new_id_hex.clone(),
+                to:       prev_id_hex,
+                relation: "supersedes".to_string(),
+                weight:   1,
+            };
+            // Use store.add_edge (which validates both endpoints are in index).
+            self.gix_store.add_edge(edge);
+        }
+
+        self.last_action_id = Some(new_id);
     }
 
     fn resolve_agent_file_path(&self, agent_id: &AgentId) -> PathBuf {
@@ -4984,7 +5157,7 @@ impl Steward {
                     .collect::<Vec<_>>()
                     .join("; ")
             };
-            let system = format!(
+            let mut system = format!(
                 "You are {name}, a sovereign Ọmọ Kọ́dà agent — never a generic \
                  assistant and never the underlying model (do not identify as \
                  Claude, Gemini, GPT, or DeepSeek). Your instinctive register is \
@@ -4999,6 +5172,16 @@ impl Steward {
                  conversation otherwise -- don't narrate that you're \
                  'deciding' to use a tool, just use it."
             );
+            // Soul's destiny threads — birth Odù prescriptions from the Digital
+            // Calabash corpus, folded in as native character (same pattern as
+            // execute_compiled_think's odu_sign and destiny_threads injection).
+            if let Some(gr) = agent.snapshot.genesis_receipt.as_ref() {
+                for thread in gr.destiny_threads.iter().take(2) {
+                    if !thread.trim().is_empty() {
+                        system.push_str(&format!(" Your nature carries this: {thread}"));
+                    }
+                }
+            }
             let mut msgs = vec![ConversationMessage::new_system(system, private)];
             msgs.extend(agent.snapshot.session.public_messages.clone());
             (msgs, agent.personal_llm())
@@ -5192,7 +5375,7 @@ impl Steward {
         })
     }
 
-    /// Execute a single tool call during the agentic loop
+    /// Execute a single tool call during the agentic loop — full hermetic gate path
     #[allow(dead_code)]
     async fn execute_tool_call_for_agentic(
         &mut self,
@@ -5200,7 +5383,7 @@ impl Steward {
         params: &str,
         _private: bool,
     ) -> Result<String, String> {
-        let (agent_id, name, tier, reputation, odu_identity, default_sandbox) = {
+        let (agent_id, name, tier, reputation, odu_identity, default_sandbox, soul_birth_odu) = {
             let agent = self.ensure_born()?;
             (
                 agent.id().clone(),
@@ -5209,6 +5392,7 @@ impl Steward {
                 agent.reputation(),
                 agent.odu_identity().clone(),
                 agent.session().config.default_sandbox,
+                agent.snapshot.genesis_receipt.as_ref().map(|gr| gr.primary_odu).unwrap_or(0),
             )
         };
 
@@ -5251,12 +5435,14 @@ impl Steward {
         // If-Script hermetic causal gate: structural tier×Odù coherence.
         // This is not a policy check — it enforces the cause→action invariant
         // (an agent cannot invoke capabilities outside its Odù alignment tier).
-        {
+        // Capture warnings count to compute gate_alignment for the ActReceipt.
+        let gate_warnings: usize = {
             let decision = crate::ifscript_gate::evaluate_causal_gate(
                 &crate::ifscript_gate::CausalGateInput {
                     tier,
                     odu_id: odu_identity.primary_index,
                     tool_name,
+                    soul_primary_odu: soul_birth_odu,
                 },
             );
             if !decision.allowed {
@@ -5266,7 +5452,62 @@ impl Steward {
                     decision.denial_reason.unwrap_or_else(|| "hermetic constraint violated".into()),
                 ));
             }
+            decision.warnings
+        };
+
+        // Phase 10D — recall: surface prior context before acting.
+        // Provides the memory→act→memory feedback loop without blocking execution.
+        let _prior_context = self.recall_recent_actions(
+            &format!("{:?}", ifascript::odu::ActionVessel::from_index(odu_identity.primary_index)),
+            &format!("{:?}", crate::ifscript_gate::tool_action_category(tool_name)),
+            3,
+        );
+        if !_prior_context.is_empty() {
+            tracing::debug!(
+                tool = tool_name,
+                prior_count = _prior_context.len(),
+                "recall: prior actions in context",
+            );
         }
+
+        // Vessel action alignment: enforce the 16 Action Vessel contract.
+        //
+        // Each of the 16 vessels has Primary categories (the actions it was
+        // born to take), Permitted categories (cross-vessel, logged but
+        // allowed), and Blocked categories (denied unless Tier 6+).
+        //
+        // This converts the vessel from a label in the system prompt into a
+        // real behavioral governor — the agent cannot silently escape its
+        // vessel's contract during a tool call.
+        let (vessel_dbg, category_dbg, alignment_dbg) = {
+            use ifascript::odu::ActionVessel;
+            let vessel = ActionVessel::from_index(odu_identity.primary_index);
+            let category = crate::ifscript_gate::tool_action_category(tool_name);
+            let alignment =
+                crate::ifscript_gate::evaluate_vessel_alignment(vessel, category, tier);
+            let vessel_s = format!("{:?}", vessel);
+            let category_s = format!("{:?}", category);
+            let alignment_s = format!("{:?}", alignment);
+            match alignment {
+                crate::ifscript_gate::VesselAlignment::Blocked => {
+                    return Err(format!(
+                        "Vessel contract denied '{}': {:?} actions are Blocked for vessel {:?} \
+                         (requires Tier 6+ override, current tier: {})",
+                        tool_name, category, vessel, tier,
+                    ));
+                }
+                crate::ifscript_gate::VesselAlignment::Permitted => {
+                    tracing::debug!(
+                        tool = tool_name,
+                        ?vessel,
+                        ?category,
+                        "cross-vessel action: Permitted (logged)",
+                    );
+                }
+                crate::ifscript_gate::VesselAlignment::Primary => {}
+            }
+            (vessel_s, category_s, alignment_s)
+        };
 
         let context = crate::tools::ExecutionContext {
             agent_id,
@@ -5303,6 +5544,96 @@ impl Steward {
         let cost = crate::usage::estimate_tool_cost(tool_name);
         self.ensure_born_mut()?
             .burn_synapse(tool_usage.compute_synapse_burn() + cost)?;
+
+        // ActReceipt: produce an immutable, hash-chained proof of this action,
+        // then ingest it into the GIX store as GixKind::Receipt so the receipt
+        // chain lives in the same graph as action memory.
+        // gate_alignment: 1.0 clean pass, −0.1 per Hermetic warning, floor 0.5.
+        let act_receipt_gix_id: Option<String> = {
+            use crate::receipt::act_receipt::ActReceipt;
+            use gix_types::{GixKind, GixNamespace, GixProvenance, HashDomain, RoutingHints};
+            let ts = current_unix_timestamp();
+            let gate_alignment = (1.0_f64 - gate_warnings as f64 * 0.1_f64).max(0.5_f64);
+            let agent = self.ensure_born_mut()?;
+            let prev_hash = agent.snapshot.last_act_receipt_hash.clone();
+            let receipt = ActReceipt::new(
+                agent.id().clone(),
+                tool_name.to_string(),
+                output.clone(),
+                ts,
+            )
+            .with_gate_alignment(gate_alignment)
+            .with_previous_hash(prev_hash.unwrap_or_default());
+            agent.snapshot.last_act_receipt_hash = Some(receipt.receipt_id.clone());
+
+            // Serialize and insert into GIX as a Receipt envelope.
+            let gix_id = if let Ok(receipt_bytes) = serde_json::to_vec(&receipt) {
+                let content_hash = HashDomain::ContentHash.hash(&receipt_bytes);
+                let prov = GixProvenance::new(content_hash);
+                let prov_fp = prov.fingerprint();
+                let env = gix_types::Gix1::new(
+                    GixKind::Receipt,
+                    GixNamespace::ArpReceipt,
+                    &receipt_bytes,
+                    Some(prov_fp),
+                    ts * 1000,
+                    RoutingHints::default(),
+                );
+                let id = hex::encode(env.canonical_id);
+                self.gix_store.insert_object(env);
+                Some(id)
+            } else {
+                None
+            };
+
+            // Push into the in-session ring buffer for Odù composition.
+            // Cap at 32 entries — oldest drop off the back.
+            const RECEIPT_RING_CAP: usize = 32;
+            if self.recent_act_receipts.len() >= RECEIPT_RING_CAP {
+                self.recent_act_receipts.pop_front();
+            }
+            self.recent_act_receipts.push_back(receipt);
+
+            // Odù composition: recompute current_composed_odu from the ring buffer.
+            {
+                let primary = self.ensure_born()?.snapshot.genesis_receipt
+                    .as_ref()
+                    .map(|gr| gr.primary_odu)
+                    .unwrap_or(0);
+                let refs: Vec<&crate::receipt::act_receipt::ActReceipt> =
+                    self.recent_act_receipts.iter().collect();
+                let result = crate::memory::odu_composition::compose_odu(primary, &refs);
+                self.ensure_born_mut()?.snapshot.current_composed_odu = result.composed_odu;
+            }
+
+            gix_id
+        };
+
+        // Phase 10A — action memory effect: record this tool call in the GIX store
+        // so the agent's action history forms a cryptographically chained lineage DAG.
+        self.record_action_memory(
+            tool_name,
+            &vessel_dbg,
+            &category_dbg,
+            &alignment_dbg,
+            true,
+            current_unix_timestamp() * 1000,
+        );
+
+        // Link the receipt node → action memory node in the graph so the
+        // receipt is reachable by WALK queries over the action lineage.
+        if let (Some(receipt_gix_id), Some(action_id)) =
+            (act_receipt_gix_id, self.last_action_id)
+        {
+            let action_id_hex = hex::encode(action_id);
+            let edge = gix_types::GlyphEdge {
+                from:     receipt_gix_id,
+                to:       action_id_hex,
+                relation: "proves".to_string(),
+                weight:   1,
+            };
+            self.gix_store.add_edge(edge);
+        }
 
         Ok(output)
     }

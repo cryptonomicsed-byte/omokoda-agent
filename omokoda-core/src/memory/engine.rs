@@ -185,9 +185,89 @@ impl MemoryEngine {
     }
 
     fn distill_to_semantic(&self, entries: &[MemoryEntry]) -> Vec<SemanticPattern> {
-        // Group entries by their content hash prefix (rough similarity)
-        // In a real implementation this would use embeddings from the Julia/Ọ̀ṣun service.
-        // Here we use importance-based clustering as an approximation.
+        // Ọ̀ṣun (Julia) semantic distillation — harmonic resonance + embedding clustering.
+        //
+        // When JULIA_OSUN_URL is set the real Julia/Ọ̀ṣun service does the
+        // heavy lifting: embedding similarity, resonance scoring, fractal
+        // dimension estimation.  On any failure (missing env, network, timeout,
+        // bad JSON) we fail open to the Rust importance-based approximation so
+        // an absent Julia service never blocks memory consolidation.
+        if let Ok(base_url) = std::env::var("JULIA_OSUN_URL") {
+            if let Some(patterns) = self.distill_via_osun_service(&base_url, entries) {
+                return patterns;
+            }
+        }
+        self.distill_rust_approximation(entries)
+    }
+
+    /// POST entries to the Ọ̀ṣun/Julia distillation endpoint.
+    /// Returns `None` on any error so callers can fall back gracefully.
+    fn distill_via_osun_service(
+        &self,
+        base_url: &str,
+        entries: &[MemoryEntry],
+    ) -> Option<Vec<SemanticPattern>> {
+        #[derive(serde::Serialize)]
+        struct OsunRequest<'a> {
+            entries: &'a [MemoryEntryPayload],
+        }
+        #[derive(serde::Serialize)]
+        struct MemoryEntryPayload {
+            content: String,
+            importance: f32,
+            tier: &'static str,
+        }
+        #[derive(serde::Deserialize)]
+        struct OsunPattern {
+            pattern: String,
+            frequency: u32,
+            avg_importance: f32,
+        }
+        #[derive(serde::Deserialize)]
+        struct OsunResponse {
+            patterns: Vec<OsunPattern>,
+        }
+
+        let payload: Vec<MemoryEntryPayload> = entries
+            .iter()
+            .map(|e| MemoryEntryPayload {
+                content: e.text.clone().unwrap_or_default(),
+                importance: e.importance,
+                tier: "episodic",
+            })
+            .collect();
+
+        let url = format!("{}/distill", base_url.trim_end_matches('/'));
+        let client = reqwest::blocking::Client::builder()
+            .timeout(std::time::Duration::from_secs(5))
+            .build()
+            .ok()?;
+
+        let resp: OsunResponse = client
+            .post(&url)
+            .json(&OsunRequest { entries: &payload })
+            .send()
+            .ok()?
+            .error_for_status()
+            .ok()?
+            .json()
+            .ok()?;
+
+        Some(
+            resp.patterns
+                .into_iter()
+                .map(|p| SemanticPattern {
+                    pattern: p.pattern,
+                    frequency: p.frequency,
+                    avg_importance: p.avg_importance,
+                    source_tier: MemoryTier::Semantic,
+                })
+                .collect(),
+        )
+    }
+
+    /// Rust importance-based approximation used when Julia/Ọ̀ṣun is unavailable.
+    fn distill_rust_approximation(&self, entries: &[MemoryEntry]) -> Vec<SemanticPattern> {
         let high: Vec<&MemoryEntry> = entries.iter().filter(|e| e.importance >= 0.7).collect();
         let mid: Vec<&MemoryEntry> = entries
             .iter()
@@ -215,10 +295,6 @@ impl MemoryEngine {
                 source_tier: MemoryTier::Episodic,
             });
         }
-
-        // Suppress borrow checker issues by dropping borrows
-        drop(high);
-        drop(mid);
 
         patterns
     }

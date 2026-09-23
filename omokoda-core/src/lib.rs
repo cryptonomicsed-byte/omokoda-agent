@@ -61,6 +61,7 @@ pub mod tools;
 pub mod usage;
 pub mod services;
 pub mod ifscript_gate;
+pub mod mutation;
 pub mod vantage;
 pub mod vault;
 pub mod waggle;
