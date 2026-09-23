@@ -1104,8 +1104,8 @@ impl Steward {
         let id = AgentId::new(&dna_fingerprint);
 
         // Memory Key Chain initialization (K_0)
-        let chain_id = "testnet"; // Default for now
-        let k0 = OduKeys::derive_k0(&k_root, id.as_str(), birth_timestamp, chain_id);
+        let chain_id = std::env::var("CHAIN_ID").unwrap_or_else(|_| "mainnet".to_string());
+        let k0 = OduKeys::derive_k0(&k_root, id.as_str(), birth_timestamp, &chain_id);
 
         let odu_bytes = odu_seed.as_bytes();
         let day = (birth_timestamp % 7) as u8;
@@ -2115,7 +2115,8 @@ impl Steward {
                 // agent's IP Root (kind 31900) to the same real Nostr relay the
                 // kernel already uses for Buzz -- fail-open by design, same
                 // convention as the on-chain mint above. See ip_layer.rs.
-                if let Some(event_id) = crate::ip_layer::publish_ip_root(&birth_mnemonic, &reg_name).await {
+                let ip_root_event_id_opt = crate::ip_layer::publish_ip_root(&birth_mnemonic, &reg_name).await;
+                if let Some(ref event_id) = ip_root_event_id_opt {
                     if let Ok(core) = self.ensure_born_mut() {
                         core.set_ip_root_event_id(event_id.clone());
                         // Backfill ip_root_event into genesis receipt
@@ -2129,10 +2130,61 @@ impl Steward {
                     self.auto_save();
                 }
 
+                // ip-layer kind 1901 (Creation Receipt) + 1902 (Attestation).
+                // Fire-and-forget tokio::spawn — relay unreachability never blocks birth.
+                // Published after the IP Root so the 1902 Attestation can reference the
+                // 31900 event id.  See ip_layer.rs.
+                {
+                    let mn_c  = birth_mnemonic.clone();
+                    let aid_c = reg_name.clone();
+                    let genesis_hash_c = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.genesis_receipt.as_ref()
+                            .map(|gr| gr.genesis_hash.clone())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    let birth_ts = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.genesis_receipt.as_ref()
+                            .map(|gr| (gr.born_at / 1000) as i64)
+                            .unwrap_or_else(|| {
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64
+                            })
+                    } else {
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs() as i64
+                    };
+                    let ip_root_for_attest = ip_root_event_id_opt
+                        .as_deref()
+                        .unwrap_or("")
+                        .to_string();
+                    tokio::spawn(async move {
+                        let cr_id = crate::ip_layer::publish_creation_receipt(
+                            &mn_c,
+                            &aid_c,
+                            birth_ts,
+                            &genesis_hash_c,
+                        ).await;
+                        crate::ip_layer::publish_attestation(
+                            &mn_c,
+                            &ip_root_for_attest,
+                            cr_id.as_deref().unwrap_or(""),
+                            &aid_c,
+                        ).await;
+                    });
+                }
+
                 // minipae NIP-AE birth hook (build-order step 4): publish
                 // mem/birth/genesis event (kind 30078) under this agent's
-                // minipae identity. Fail-open — relay unreachable or missing
-                // config never blocks birth. See minipae_layer.rs.
+                // minipae identity AND post genesis engram via HTTP to the
+                // minipae Python service (MINIPAE_URL/write). Fail-open —
+                // relay unreachable or missing config never blocks birth.
+                // See minipae_layer.rs.
                 {
                     let genesis_id = if let Ok(core) = self.ensure_born() {
                         core.snapshot.genesis_receipt.as_ref()
@@ -2141,10 +2193,43 @@ impl Steward {
                     } else {
                         reg_name.clone()
                     };
-                    if let Some(_event_id) = crate::minipae_layer::publish_minipae_birth(
+                    let minipae_npub = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.genesis_receipt.as_ref()
+                            .map(|gr| gr.minipae_pubkey.clone())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    let odu_base = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.genesis_receipt.as_ref()
+                            .map(|gr| gr.primary_odu)
+                            .unwrap_or(0)
+                    } else {
+                        0u8
+                    };
+                    let birth_ts2 = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.genesis_receipt.as_ref()
+                            .map(|gr| (gr.born_at / 1000) as i64)
+                            .unwrap_or_else(|| {
+                                std::time::SystemTime::now()
+                                    .duration_since(std::time::UNIX_EPOCH)
+                                    .unwrap_or_default()
+                                    .as_secs() as i64
+                            })
+                    } else {
+                        std::time::SystemTime::now()
+                            .duration_since(std::time::UNIX_EPOCH)
+                            .unwrap_or_default()
+                            .as_secs() as i64
+                    };
+                    if let Some(_event_id) = crate::minipae_layer::publish_minipae_birth_full(
                         &birth_mnemonic,
+                        &genesis_id,
                         &reg_name,
                         &genesis_id,
+                        &minipae_npub,
+                        birth_ts2,
+                        odu_base,
                     ).await {
                         // event_id available for future backfill into genesis receipt
                     }

@@ -4,12 +4,20 @@
 //! Uses the Vantage /api/arp/receipts endpoint. Fail-open: Vantage being
 //! unreachable never blocks birth/think/act.
 //!
+//! Uses canonical arp-types::ActionReceipt (E-21 fix: replaced hand-rolled
+//! JSON with the canonical ARP v1 envelope from the arp-types crate).
+//!
 //! Every receipt now carries a `Gix1` wire envelope (Phase 1 Step 7 of the
 //! GIX spec). The `gix1_for_receipt` hand-roll has been replaced with
 //! canonical `gix_types::Gix1::new`.
 
+use arp_types::{
+    ActionReceipt, ActionSpec, ReceiptKind,
+    Principal, PrincipalKind,
+};
 use gix_types::{Gix1, GixKind, GixNamespace, RoutingHints};
 use serde_json::{json, Value};
+use uuid::Uuid;
 
 fn vantage_base() -> String {
     std::env::var("VANTAGE_API_URL")
@@ -56,7 +64,29 @@ fn gix1_for_receipt(receipt_id: &str) -> Value {
     })
 }
 
-fn make_receipt(
+fn make_principal(agent_id: &str) -> Principal {
+    Principal {
+        principal_id: agent_id.to_string(),
+        kind: PrincipalKind::Agent,
+        agent_id: agent_id.to_string(),
+        session_id: None,
+        agent_tier: None,
+        capabilities: vec![],
+    }
+}
+
+fn make_action(action_kind: &str, target: &str, outcome: &str, params: Value) -> ActionSpec {
+    ActionSpec {
+        kind: action_kind.to_string(),
+        target: target.to_string(),
+        outcome: outcome.to_string(),
+        params,
+    }
+}
+
+/// Build a canonical ActionReceipt and attach a GIX1 envelope as extra JSON.
+/// Returns the serialised receipt ready for POST to Vantage.
+fn make_receipt_json(
     agent_id: &str,
     action_kind: &str,
     target: &str,
@@ -64,60 +94,34 @@ fn make_receipt(
     payload: Value,
     previous_hash: Option<&str>,
 ) -> Value {
-    let receipt_id = uuid_v4();
-    let gix1 = gix1_for_receipt(&receipt_id);
-    json!({
-        "receipt_id":  receipt_id,
-        "gix1":        gix1,
-        "kind":        "AgentLifecycle",
-        "kind_ext":    action_kind,
-        "principal": {
-            "principal_id": agent_id,
-            "kind": "Agent",
-            "agent_id": agent_id,
-            "session_id": null,
-            "agent_tier": null,
-            "capabilities": [],
-        },
-        "action": {
-            "kind":    action_kind,
-            "target":  target,
-            "outcome": outcome,
-            "params":  payload,
-        },
-        "evidence_ids": [],
-        "witness_attestations": [],
-        "throne_evaluations": [],
-        "consensus_receipt": null,
-        "physical_attestation": null,
-        "zangbeto_anchor": null,
-        "nostr_event_id": null,
-        "timestamp": now_secs(),
-        "execution_id": null,
-        "previous_hash": previous_hash,
-        "signature": "",
-    })
-}
+    let receipt_id = Uuid::new_v4();
+    let receipt = ActionReceipt {
+        receipt_id,
+        kind: ReceiptKind::AgentLifecycle,
+        kind_ext: Some(action_kind.to_string()),
+        principal: make_principal(agent_id),
+        action: make_action(action_kind, target, outcome, payload),
+        evidence_ids: vec![],
+        witness_attestations: vec![],
+        throne_evaluations: vec![],
+        consensus_receipt: None,
+        physical_attestation: None,
+        zangbeto_anchor: None,
+        nostr_event_id: None,
+        timestamp: now_secs(),
+        execution_id: None,
+        previous_hash: previous_hash.map(str::to_string),
+        signature: String::new(),
+        gix1_canonical_id: None,
+    };
 
-fn uuid_v4() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let n = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .subsec_nanos();
-    let seed = std::collections::hash_map::DefaultHasher::new();
-    use std::hash::{Hash, Hasher};
-    let mut h = seed;
-    n.hash(&mut h);
-    std::thread::current().id().hash(&mut h);
-    let v = h.finish();
-    format!("{:08x}-{:04x}-4{:03x}-{:04x}-{:012x}",
-        (v >> 32) as u32,
-        (v >> 16) as u16,
-        (v >> 4) as u16 & 0x0fff,
-        ((v & 0x3fff) | 0x8000) as u16,
-        v & 0xffffffffffff_u64,
-    )
+    // Serialise the canonical receipt then inject the GIX1 envelope field.
+    let mut v = serde_json::to_value(&receipt).unwrap_or_else(|_| json!({}));
+    let gix1 = gix1_for_receipt(&receipt_id.to_string());
+    if let Some(obj) = v.as_object_mut() {
+        obj.insert("gix1".to_string(), gix1);
+    }
+    v
 }
 
 async fn post_receipt(receipt: Value) -> bool {
@@ -139,7 +143,7 @@ pub async fn receipt_birth(
     genesis_receipt_id: &str,
     agent_name: &str,
 ) -> bool {
-    let receipt = make_receipt(
+    let receipt = make_receipt_json(
         agent_id,
         "birth",
         genesis_receipt_id,
@@ -157,7 +161,7 @@ pub async fn receipt_think(
     prompt_summary: &str,
     previous_hash: Option<&str>,
 ) -> bool {
-    let receipt = make_receipt(
+    let receipt = make_receipt_json(
         agent_id,
         "think",
         think_id,
@@ -176,7 +180,7 @@ pub async fn receipt_act(
     outcome: &str,
     previous_hash: Option<&str>,
 ) -> bool {
-    let receipt = make_receipt(
+    let receipt = make_receipt_json(
         agent_id,
         "act",
         act_id,

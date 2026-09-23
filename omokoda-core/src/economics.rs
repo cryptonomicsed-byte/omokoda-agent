@@ -1,3 +1,12 @@
+//! # DopaminePool — LOCAL SIMULATION (not on-chain)
+//!
+//! All balances here are local-only. On-chain settlement requires:
+//! 1. UCX ComputeReceipt with zangbeto_anchor (E-10)
+//! 2. OSOVM TOC_MINT opcode reaching Vantage Dopamine mint endpoint
+//! 3. Eventual migration to OSOVM L1 (Phase 20)
+//!
+//! See: sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml for canonical constants.
+
 use serde::{Deserialize, Serialize};
 
 pub const SYNAPSE_MAX_PER_AGENT: f64 = 86_000_000.0;

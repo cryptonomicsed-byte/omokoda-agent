@@ -2,7 +2,14 @@
 //!
 //! The hash chain proves *continuity of life*: if any beat is dropped or altered,
 //! the chain breaks. Zàngbétò can audit the chain as a receipts provenance trace.
+//!
+//! Ed25519 signatures: call `beat.sign_with_key(priv_b64url)` after construction.
+//! Fail-open: if the key is absent or invalid, `signature` stays `None` and a
+//! `warn!` is emitted. The chain is still valid without signatures; signatures add
+//! an extra layer of tamper-evidence on top of the SHA-256 chain.
 
+use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use ed25519_dalek::{Signer, SigningKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -132,6 +139,80 @@ impl AgentHeartbeat {
         candidate.previous_heartbeat_hash.as_deref() == Some(&expected_prev.hash())
             && candidate.sequence == expected_prev.sequence + 1
     }
+
+    /// Sign the `chain_hash` of this beat with an Ed25519 key.
+    ///
+    /// `priv_b64url` — base64url-no-pad encoded 32-byte Ed25519 private scalar,
+    /// as stored in `NodeIdentity.private_key` and `IdentityVault.nostr_private_key_hex`
+    /// (the latter is hex; callers should pass the node identity key here).
+    ///
+    /// Fail-open: on any error the `signature` field is left as `None` and a
+    /// warning is logged. The heartbeat chain remains valid regardless.
+    pub fn sign_with_key(&mut self, priv_b64url: &str) {
+        match self.try_sign(priv_b64url) {
+            Ok(sig_hex) => {
+                self.signature = Some(sig_hex);
+            }
+            Err(e) => {
+                // Fail-open: chain integrity is maintained by SHA-256 even without sig.
+                #[cfg(feature = "tracing")]
+                tracing::warn!("heartbeat Ed25519 sign failed (fail-open): {e}");
+                #[cfg(not(feature = "tracing"))]
+                eprintln!("WARN heartbeat Ed25519 sign failed (fail-open): {e}");
+                self.signature = None;
+            }
+        }
+    }
+
+    fn try_sign(&self, priv_b64url: &str) -> Result<String, String> {
+        let priv_bytes = URL_SAFE_NO_PAD
+            .decode(priv_b64url)
+            .map_err(|e| format!("base64 decode: {e}"))?;
+        let arr: [u8; 32] = priv_bytes
+            .try_into()
+            .map_err(|_| "expected 32-byte Ed25519 key".to_string())?;
+        let signing_key = SigningKey::from_bytes(&arr);
+        // Sign the chain_hash (hex string bytes) — deterministic, no randomness needed.
+        let chain_hash = self.hash();
+        let signature = signing_key.sign(chain_hash.as_bytes());
+        Ok(hex::encode(signature.to_bytes()))
+    }
+
+    /// Verify the Ed25519 signature stored on this beat against `pub_b64url`.
+    /// Returns `true` if signature is present and valid, `false` otherwise (including
+    /// when no signature is set — treat as unverified, not forged).
+    pub fn verify_signature(&self, pub_b64url: &str) -> bool {
+        use ed25519_dalek::{Verifier, VerifyingKey};
+        let sig_hex = match &self.signature {
+            Some(s) if !s.is_empty() => s,
+            _ => return false,
+        };
+        let sig_bytes = match hex::decode(sig_hex) {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        let sig_arr: [u8; 64] = match sig_bytes.try_into() {
+            Ok(a) => a,
+            Err(_) => return false,
+        };
+        let sig = match ed25519_dalek::Signature::from_bytes(&sig_arr) {
+            sig => sig,
+        };
+        let pub_bytes = match URL_SAFE_NO_PAD.decode(pub_b64url) {
+            Ok(b) => b,
+            Err(_) => return false,
+        };
+        let pub_arr: [u8; 32] = match pub_bytes.try_into() {
+            Ok(a) => a,
+            Err(_) => return false,
+        };
+        let verifying_key = match VerifyingKey::from_bytes(&pub_arr) {
+            Ok(k) => k,
+            Err(_) => return false,
+        };
+        let chain_hash = self.hash();
+        verifying_key.verify(chain_hash.as_bytes(), &sig).is_ok()
+    }
 }
 
 fn now_secs() -> u64 {
@@ -181,5 +262,60 @@ mod tests {
         let g = AgentHeartbeat::genesis("agent:1", "resident");
         let n = AgentHeartbeat::next_from(&g, HeartbeatState::Working, vec![], None);
         assert_ne!(g.hash(), n.hash());
+    }
+
+    // ── Ed25519 signing tests ───────────────────────────────────────────────
+
+    fn test_keypair() -> (String, String) {
+        use ed25519_dalek::SigningKey;
+        use rand::rngs::OsRng;
+        let sk = SigningKey::generate(&mut OsRng);
+        let priv_b64 = URL_SAFE_NO_PAD.encode(sk.to_bytes());
+        let pub_b64 = URL_SAFE_NO_PAD.encode(sk.verifying_key().to_bytes());
+        (priv_b64, pub_b64)
+    }
+
+    #[test]
+    fn sign_and_verify_round_trip() {
+        let (priv_b64, pub_b64) = test_keypair();
+        let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
+        assert!(beat.signature.is_none());
+        beat.sign_with_key(&priv_b64);
+        assert!(beat.signature.is_some(), "signature should be set after signing");
+        assert!(beat.verify_signature(&pub_b64), "signature should verify with matching pubkey");
+    }
+
+    #[test]
+    fn signature_fails_with_wrong_key() {
+        let (priv_b64, _) = test_keypair();
+        let (_, wrong_pub) = test_keypair();
+        let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
+        beat.sign_with_key(&priv_b64);
+        assert!(!beat.verify_signature(&wrong_pub), "wrong pubkey should not verify");
+    }
+
+    #[test]
+    fn fail_open_on_bad_key() {
+        let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
+        // Pass garbage — should not panic, signature stays None.
+        beat.sign_with_key("not-a-valid-key!!");
+        assert!(beat.signature.is_none(), "fail-open: signature should be None on bad key");
+    }
+
+    #[test]
+    fn unsigned_beat_verify_returns_false_not_panic() {
+        let (_, pub_b64) = test_keypair();
+        let beat = AgentHeartbeat::genesis("agent:1", "resident");
+        assert!(!beat.verify_signature(&pub_b64), "unsigned beat should return false, not panic");
+    }
+
+    #[test]
+    fn signature_covers_hash_tamper_detected() {
+        let (priv_b64, pub_b64) = test_keypair();
+        let mut beat = AgentHeartbeat::genesis("agent:tamper", "resident");
+        beat.sign_with_key(&priv_b64);
+        // Tamper the agent_id AFTER signing — hash will differ, sig won't match.
+        beat.agent_id = "agent:evil".into();
+        assert!(!beat.verify_signature(&pub_b64), "tampered beat should fail signature check");
     }
 }

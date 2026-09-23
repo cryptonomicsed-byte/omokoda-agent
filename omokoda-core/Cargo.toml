@@ -44,6 +44,7 @@ ifascript = { git = "https://github.com/cryptonomicsed-byte/If-Script", rev = "5
 larql-glyph = { git = "https://github.com/cryptonomicsed-byte/larql", rev = "149322efa11a2592b9cbebfbfa91c98d7b2d50a7" }
 gix-core    = { path = "../../GIX/crates/gix-core" }
 gix-types   = { path = "../../GIX/crates/gix-types" }
+arp-types   = { path = "../../ARP/crates/arp-types" }
 zangbeto-enforcement = { path = "../zangbeto-stub" }
 nist_entropy = { path = "../nist_entropy" }
 omokoda-mesh = { path = "../omokoda-mesh" }

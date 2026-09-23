@@ -29,6 +29,16 @@ use crate::identity::nip06::derive_nip06_identity;
 /// the number within this kernel.
 const IP_ROOT_KIND: u16 = 31900;
 
+/// Nostr kind 1901 — Creation Receipt, per ip-layer's schema.
+/// A regular event published at birth recording agent_id, npub,
+/// birth_timestamp, and genesis_hash.  One per birth.
+const CREATION_RECEIPT_KIND: u16 = 1901;
+
+/// Nostr kind 1902 — Attestation, per ip-layer's schema.
+/// Published immediately after the Creation Receipt; attests that the
+/// IP Root (kind 31900) was published and links the two events.
+const ATTESTATION_KIND: u16 = 1902;
+
 /// Nostr kind 1903 — Twin Binding, per cryptonomicsed-byte/ip-layer's
 /// schemas/twin_binding.md. A plain regular (non-addressable) event: a
 /// re-binding to a different sim_id is a new event, the old one stands as
@@ -98,6 +108,104 @@ pub async fn publish_ip_root(mnemonic: &str, agent_name: &str) -> Option<String>
     // replaceable range) rather than re-minting on every birth call.
     let builder = EventBuilder::new(Kind::Custom(IP_ROOT_KIND), content)
         .tag(Tag::identifier(identity.public_key_hex.clone()));
+
+    sign_and_publish(keys, builder).await
+}
+
+/// Publish a Creation Receipt (kind 1901) at birth.
+///
+/// Records agent_id, npub (hex pubkey), birth_timestamp, and genesis_hash to
+/// the same Nostr relay as the IP Root.  Published as a plain regular event
+/// (not addressable/replaceable) — each birth produces one unique receipt.
+///
+/// Fail-open, same convention as publish_ip_root.
+///
+/// `mnemonic`: the agent's birth mnemonic (same NIP-06 identity).
+/// `agent_id`: canonical agent identifier string.
+/// `birth_timestamp`: Unix seconds at birth.
+/// `genesis_hash`: SHA-256 hex of the genesis receipt.
+pub async fn publish_creation_receipt(
+    mnemonic: &str,
+    agent_id: &str,
+    birth_timestamp: i64,
+    genesis_hash: &str,
+) -> Option<String> {
+    let identity = derive_nip06_identity(mnemonic, 0).ok()?;
+    let secret_key = SecretKey::from_hex(&identity.secret_key_hex).ok()?;
+    let keys = Keys::new(secret_key);
+
+    let content = json!({
+        "agent_id":        agent_id,
+        "npub":            identity.public_key_hex.clone(),
+        "birth_timestamp": birth_timestamp,
+        "genesis_hash":    genesis_hash,
+        "framework":       "omo-koda2",
+    })
+    .to_string();
+
+    let builder = EventBuilder::new(Kind::Custom(CREATION_RECEIPT_KIND), content)
+        .tag(Tag::custom(
+            TagKind::custom("agent_id"),
+            vec![agent_id.to_string()],
+        ))
+        .tag(Tag::custom(
+            TagKind::custom("genesis_hash"),
+            vec![genesis_hash.to_string()],
+        ));
+
+    sign_and_publish(keys, builder).await
+}
+
+/// Publish an Attestation event (kind 1902) linking the IP Root to the
+/// Creation Receipt.
+///
+/// Should be called after both publish_ip_root and publish_creation_receipt
+/// have completed.  If either returned None (relay down) the attestation
+/// still publishes what it has — it just omits the None event ids.
+/// Fail-open.
+///
+/// `mnemonic`: the agent's birth mnemonic.
+/// `ip_root_event_id`: event id returned by publish_ip_root (may be empty).
+/// `creation_receipt_event_id`: event id returned by publish_creation_receipt
+///     (may be empty).
+/// `agent_id`: canonical agent identifier.
+pub async fn publish_attestation(
+    mnemonic: &str,
+    ip_root_event_id: &str,
+    creation_receipt_event_id: &str,
+    agent_id: &str,
+) -> Option<String> {
+    let identity = derive_nip06_identity(mnemonic, 0).ok()?;
+    let secret_key = SecretKey::from_hex(&identity.secret_key_hex).ok()?;
+    let keys = Keys::new(secret_key);
+
+    let content = json!({
+        "agent_id":                  agent_id,
+        "ip_root_event_id":          ip_root_event_id,
+        "creation_receipt_event_id": creation_receipt_event_id,
+        "attestation":               "birth-complete",
+        "framework":                 "omo-koda2",
+    })
+    .to_string();
+
+    let mut builder = EventBuilder::new(Kind::Custom(ATTESTATION_KIND), content)
+        .tag(Tag::custom(
+            TagKind::custom("agent_id"),
+            vec![agent_id.to_string()],
+        ));
+
+    if !ip_root_event_id.is_empty() {
+        builder = builder.tag(Tag::custom(
+            TagKind::custom("ip_root"),
+            vec![ip_root_event_id.to_string()],
+        ));
+    }
+    if !creation_receipt_event_id.is_empty() {
+        builder = builder.tag(Tag::custom(
+            TagKind::custom("creation_receipt"),
+            vec![creation_receipt_event_id.to_string()],
+        ));
+    }
 
     sign_and_publish(keys, builder).await
 }
