@@ -967,6 +967,82 @@ fn orisha_mood_words(day_osa: Macro) -> &'static str {
     }
 }
 
+/// Wiring regression for the neutral-DNA fix (see `rebind_gatekeeper_to_agent`).
+///
+/// The `dna_fusion_*` tests in `steward::gatekeeper` prove the *constructor*
+/// fuses DNA correctly. They cannot catch the bug that actually shipped: that
+/// nothing ever CALLED it, so every agent ran `EsuGatekeeper::new()`'s neutral
+/// 0.5 baseline and `correspondence.rs`'s tighter `>= 0.8` threshold was
+/// unreachable for all of them. This test drives the real residency path and
+/// asserts the live gatekeeper carries the agent's own HermeticState.
+#[cfg(test)]
+mod gate_dna_fusion_tests {
+    use super::*;
+
+    const NEUTRAL: f64 = 0.5;
+
+    fn temp_session_dir(tag: &str) -> PathBuf {
+        let mut dir = std::env::current_dir().unwrap();
+        dir.push("target");
+        dir.push("test_sessions");
+        dir.push(tag);
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        dir
+    }
+
+    fn all_axes(gate: &crate::gates::HermeticDna) -> [f64; 7] {
+        [
+            gate.mentalism,
+            gate.correspondence,
+            gate.vibration,
+            gate.polarity,
+            gate.rhythm,
+            gate.cause_effect,
+            gate.gender,
+        ]
+    }
+
+    #[test]
+    fn birth_anchors_the_gates_to_the_agents_own_dna() {
+        let mut steward = Steward::new().with_session_dir(temp_session_dir("gate_dna_birth"));
+
+        // Nothing resident yet: the gatekeeper is legitimately neutral.
+        assert!(
+            all_axes(steward.gatekeeper.dna())
+                .iter()
+                .all(|v| (*v - NEUTRAL).abs() < f64::EPSILON),
+            "a fresh Steward should start from the neutral baseline"
+        );
+
+        steward
+            .birth("fusion-probe".to_string(), Vec::new())
+            .expect("birth must succeed");
+
+        let state = steward
+            .agent_core()
+            .expect("agent exists after birth")
+            .hermetic_state()
+            .clone();
+        let gate = steward.gatekeeper.dna();
+
+        // Every axis must now be the agent's own Odù-derived value.
+        assert_eq!(gate.mentalism, state.mentalism(), "mentalism not fused");
+        assert_eq!(gate.correspondence, state.correspondence(), "correspondence not fused");
+        assert_eq!(gate.vibration, state.vibration(), "vibration not fused");
+        assert_eq!(gate.polarity, state.polarity(), "polarity not fused");
+        assert_eq!(gate.rhythm, state.rhythm(), "rhythm not fused");
+        assert_eq!(gate.cause_effect, state.cause_effect(), "cause_effect not fused");
+        assert_eq!(gate.gender, state.gender(), "gender not fused");
+
+        // ...and specifically NOT the neutral baseline this guards against.
+        assert!(
+            !all_axes(gate).iter().all(|v| (*v - NEUTRAL).abs() < f64::EPSILON),
+            "gatekeeper still holds fully-neutral DNA after birth"
+        );
+    }
+}
+
 #[cfg(test)]
 mod orisha_wording_tests {
     use super::*;
@@ -1783,6 +1859,11 @@ impl Steward {
         // own agent.json on disk. Every birth must point at its own file.
         self.persistence_path = Some(self.agent_file_path(core.id()));
         self.agent = Some(core);
+        // Anchor the 7 gates to the DNA just derived (interpreter.rs:1093).
+        // Birth is the first point where a real HermeticState exists, and it
+        // must happen before auto_save() so the persisted agent and the live
+        // gatekeeper agree from the very first operation.
+        self.rebind_gatekeeper_to_agent();
         self.auto_save();
         Ok(())
     }
@@ -1934,6 +2015,32 @@ impl Steward {
             action_content_cache: std::collections::HashMap::new(),
             recent_act_receipts: std::collections::VecDeque::new(),
         }
+    }
+
+    /// Re-anchor the gatekeeper to the resident agent's Odù-derived DNA.
+    ///
+    /// `Steward::new()` builds the gatekeeper with NEUTRAL DNA — 0.5 on all
+    /// seven axes (`EsuGatekeeper::new()`). Left that way, every agent runs
+    /// the same fixed baseline: the 6 content-driven gates still fire, but
+    /// the alignment_score on every receipt is flat 0.5, and
+    /// `correspondence.rs`'s tighter `>= 0.8` branch — the only place DNA is
+    /// used as a *threshold* rather than a pass score — is unreachable for
+    /// every agent in the system. That gate guards /etc/, /proc/, /sys/ and
+    /// ~/.ssh, so the most coherent agents were gated identically to the
+    /// least. `new_with_hermetic()` exists precisely to prevent this and had
+    /// no production caller.
+    ///
+    /// EVERY path that makes an agent resident MUST call this. Two matter
+    /// today: `birth()` and `load_agent()` (the latter also covers
+    /// `try_load_owner()` resurrection). It is not enough to call it at birth
+    /// only — a Steward that previously held a different agent would keep
+    /// THAT agent's fused DNA, which is the same stale-runtime-state class as
+    /// the `persistence_path` incident documented in `birth()`.
+    fn rebind_gatekeeper_to_agent(&mut self) {
+        let Some(agent) = self.agent.as_ref() else {
+            return;
+        };
+        self.gatekeeper = EsuGatekeeper::new_with_hermetic(agent.hermetic_state());
     }
 
     pub fn set_session_dir(&mut self, path: PathBuf) {
@@ -5272,6 +5379,13 @@ impl Steward {
 
         self.agent = Some(core);
         self.persistence_path = Some(path);
+        // A resurrected agent must inherit her own DNA in the gates, exactly
+        // like a freshly born one. Steward::new() left them neutral, and a
+        // Steward that previously held a DIFFERENT agent would otherwise keep
+        // that agent's fused DNA — the same stale-runtime-state class as the
+        // persistence_path incident documented in birth(). Covers
+        // try_load_owner() too, which delegates here.
+        self.rebind_gatekeeper_to_agent();
 
         // Reload GIX store from disk (first boot produces empty store).
         let (gp, ip, sp) = self.gix_store_paths(agent_id);

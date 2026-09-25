@@ -126,6 +126,16 @@ impl EsuGatekeeper {
         }
     }
 
+    /// The DNA the gates are currently evaluating against.
+    ///
+    /// Exposed so residency paths can be tested: `Steward::new()` leaves this
+    /// at the neutral 0.5 baseline, and `rebind_gatekeeper_to_agent()` replaces
+    /// it with the agent's own Odù-derived values. A gatekeeper that is still
+    /// neutral after an agent is resident means the gates are decorative.
+    pub fn dna(&self) -> &HermeticDna {
+        &self.dna
+    }
+
     /// Evaluate an operation through all 7 gates in sequence.
     /// Returns `Approved` only if ALL gates pass.
     /// Returns `Halted` at the first gate that rejects, including all scores to that point.
@@ -325,6 +335,43 @@ mod tests {
         // We can't guarantee fused > neutral (depends on the seed), but both must approve.
         let _ = fused_result.alignment_score();
         let _ = neutral_result.alignment_score();
+    }
+
+    #[test]
+    fn dna_fusion_makes_alignment_agent_specific() {
+        // Regression for the neutral-DNA bug: `Steward::new()` built the
+        // gatekeeper with 0.5 x 7, so every agent reported an identical
+        // alignment score and correspondence.rs's `>= 0.8` threshold was
+        // unreachable for all of them. Two agents with different Odù seeds
+        // must NOT agree, and neither may equal the neutral baseline.
+        use omokoda_hermetic::HermeticState;
+        let gk_a = EsuGatekeeper::new_with_hermetic(&HermeticState::from_odu_seed(&[0x11u8; 32]));
+        let gk_b = EsuGatekeeper::new_with_hermetic(&HermeticState::from_odu_seed(&[0x22u8; 32]));
+        let gk_neutral = EsuGatekeeper::new();
+
+        let op = Operation {
+            kind: OperationKind::Think {
+                prompt: "review the workspace access policy".to_string(),
+            },
+            intent: "review the workspace access policy for safety".to_string(),
+            agent_id: Some(id()),
+        };
+
+        let a = gk_a.evaluate(&op, &ctx());
+        let b = gk_b.evaluate(&op, &ctx());
+        let neutral = gk_neutral.evaluate(&op, &ctx());
+
+        assert!(a.is_approved() && b.is_approved() && neutral.is_approved());
+        assert_ne!(
+            a.alignment_score(),
+            b.alignment_score(),
+            "two agents with different Odù seeds must not share an alignment score"
+        );
+        assert_ne!(
+            neutral.alignment_score(),
+            a.alignment_score(),
+            "fused DNA must differ from the neutral 0.5 baseline"
+        );
     }
 
     #[test]
