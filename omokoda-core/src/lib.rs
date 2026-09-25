@@ -68,7 +68,19 @@ pub mod waggle;
 pub mod integrations;
 pub mod signing;
 pub mod toc_constants;
+pub mod ori;
+pub mod home;
+pub mod config_toml;
+pub mod workspace_seed;
+pub mod bootstrap_artifact;
 
+pub use ori::Ori;
+pub use home::HomeDir;
+pub use config_toml::OmokodaConfig;
+pub use workspace_seed::{seed_workspace, workspace_seed_status};
+pub use bootstrap_artifact::{
+    generate_bootstrap_md, write_bootstrap_md, archive_bootstrap_md, bootstrap_is_archived,
+};
 pub use identity::user::{IdentityError, PrivacyMode, UserIdentity};
 pub use identity::AgentId;
 pub use intent::{

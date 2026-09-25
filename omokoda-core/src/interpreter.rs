@@ -1864,6 +1864,27 @@ impl Steward {
         // must happen before auto_save() so the persisted agent and the live
         // gatekeeper agree from the very first operation.
         self.rebind_gatekeeper_to_agent();
+
+        // Phase 9 — Persist genesis Ori + birth receipt to disk.
+        // Fail-open: a disk error here must never abort a successful birth.
+        // `entropy` is the validated 32-byte birth entropy already in scope;
+        // `ifascript_version` uses the omokoda-core package version which
+        // embeds the IfáScript crate consumed at compile time.
+        if !entropy.iter().all(|&b| b == 0) {
+            let agent_id_str = self
+                .agent
+                .as_ref()
+                .map(|c| c.id().as_str().to_string())
+                .unwrap_or_default();
+            if let Err(e) = crate::ori::persist_ori_at_birth(
+                &agent_id_str,
+                &entropy,
+                env!("CARGO_PKG_VERSION"),
+            ) {
+                tracing::warn!("persist_ori_at_birth failed (non-fatal): {e}");
+            }
+        }
+
         self.auto_save();
         Ok(())
     }
@@ -2546,6 +2567,11 @@ impl Steward {
                 modifiers,
             } => {
                 // Phase 1-7: THINK = 7^2 (fractal depth 2)
+
+                // TODO: call bootstrap_artifact::archive_bootstrap_md() here on first think turn
+                // (covers both the agentic and single-shot paths). Wire HomeDir from AgentCore
+                // once HomeDir is plumbed through the agent state, then:
+                //   let _ = crate::bootstrap_artifact::archive_bootstrap_md(&home);
 
                 // Loop/agentic mode: route to the tool-using reasoning loop
                 // (LLM can request tools, get results, and continue) instead of
@@ -5555,6 +5581,14 @@ impl Steward {
         use crate::tools::tool_definitions::{
             LlmResponse, ToolDefinition, ToolInputSchema, ToolProperty,
         };
+
+        // TODO: call bootstrap_artifact::archive_bootstrap_md() here on first think turn.
+        // Pattern: if this is not the agent's first-ever turn (experience_count > 0)
+        // and BOOTSTRAP.md still exists, archive it so it is never shown again.
+        // Example (requires HomeDir access from AgentCore):
+        //   if let Ok(home) = crate::home::HomeDir::try_from_agent(self) {
+        //       let _ = crate::bootstrap_artifact::archive_bootstrap_md(&home);
+        //   }
 
         let max_turns = max_turns.clamp(1, 25);
 
