@@ -74,7 +74,10 @@ pub mod config_toml;
 pub mod workspace_seed;
 pub mod bootstrap_artifact;
 
-pub use ori::Ori;
+pub use ori::{
+    Ori, OriBirthReceipt, BirthMode, ParentOriCommitment, ConsentReceipt, ChildBirthContext,
+    generate_ori_md, write_ori_projection,
+};
 pub use home::HomeDir;
 pub use config_toml::OmokodaConfig;
 pub use workspace_seed::{seed_workspace, workspace_seed_status};

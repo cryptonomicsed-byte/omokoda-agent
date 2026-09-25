@@ -1880,6 +1880,7 @@ impl Steward {
                 &agent_id_str,
                 &entropy,
                 env!("CARGO_PKG_VERSION"),
+                primary_index,
             ) {
                 tracing::warn!("persist_ori_at_birth failed (non-fatal): {e}");
             }

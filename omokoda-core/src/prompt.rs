@@ -6,6 +6,72 @@ use crate::identity::odu::OduIdentity;
 use crate::identity::AgentId;
 use std::path::PathBuf;
 
+// ── Vessel indices (canonical order from VESSEL_NAMES in ori.rs) ─────────────
+const V_ATTENTION: usize = 2;
+const V_LOOP: usize = 3;
+const V_EXECUTION: usize = 7;
+const V_SWARM: usize = 8;
+const V_RESTRAINT: usize = 9;
+const V_CONSENT: usize = 11;
+const V_VISION: usize = 12;
+const V_GROWTH: usize = 13;
+const V_RHYTHM: usize = 15;
+
+/// Behavioral register derived from Orí vessel weights.
+/// Not user-configured — derived deterministically from the agent's birth state.
+struct PersonalityRegister {
+    register: &'static str, // how the agent speaks / processes
+    stance: &'static str,   // how the agent orients toward events
+    horizon: &'static str,  // how far ahead the agent reasons
+    tempo: &'static str,    // how the agent paces action
+}
+
+impl PersonalityRegister {
+    fn derive(w: &[f32; 16]) -> Self {
+        let register = if w[V_RESTRAINT] > 0.7 {
+            "measured"
+        } else if w[V_EXECUTION] > 0.7 {
+            "swift"
+        } else if (w[V_RESTRAINT] + w[V_EXECUTION]) / 2.0 > 0.5 {
+            "deliberate"
+        } else {
+            "expansive"
+        };
+
+        let stance = if w[V_ATTENTION] > 0.7 {
+            "observant"
+        } else if w[V_CONSENT] > 0.7 {
+            "receptive"
+        } else if w[V_RESTRAINT] > 0.6 {
+            "protective"
+        } else {
+            "generative"
+        };
+
+        let horizon = if w[V_VISION] > 0.7 && w[V_GROWTH] > 0.6 {
+            "systemic"
+        } else if w[V_VISION] > 0.6 {
+            "far"
+        } else if w[V_GROWTH] > 0.6 {
+            "near"
+        } else {
+            "present"
+        };
+
+        let tempo = if w[V_RHYTHM] > 0.7 {
+            "rhythmic"
+        } else if w[V_LOOP] > 0.6 {
+            "steady"
+        } else if w[V_RESTRAINT] > 0.7 {
+            "patient"
+        } else {
+            "urgent"
+        };
+
+        PersonalityRegister { register, stance, horizon, tempo }
+    }
+}
+
 /// Builds the system prompt for an agent's think cycle
 pub struct SystemPromptBuilder {
     pub agent_name: String,
@@ -17,6 +83,9 @@ pub struct SystemPromptBuilder {
     pub feature_flags: FeatureFlags,
     pub available_tools: Vec<String>,
     pub custom_instructions: Vec<String>,
+    /// Orí vessel weights — when set, injects agent-owned personality register
+    /// into the system prompt. Derived from birth entropy; never user-configured.
+    pub vessel_weights: Option<[f32; 16]>,
 }
 
 impl SystemPromptBuilder {
@@ -38,6 +107,7 @@ impl SystemPromptBuilder {
             feature_flags: FeatureFlags::default(),
             available_tools: Vec::new(),
             custom_instructions: Vec::new(),
+            vessel_weights: None,
         }
     }
 
@@ -51,8 +121,18 @@ impl SystemPromptBuilder {
         self
     }
 
+    /// Inject operator-level habitat instructions (workspace rules, task context).
+    /// MUST NOT be used to author agent identity, personality, or Orí.
+    /// Identity is derived from vessel weights, not from this field.
     pub fn with_instructions(mut self, instructions: Vec<String>) -> Self {
         self.custom_instructions = instructions;
+        self
+    }
+
+    /// Inject the agent's Orí vessel weights to derive behavioral register.
+    /// Derived from birth entropy — never user-configured.
+    pub fn with_vessel_weights(mut self, weights: [f32; 16]) -> Self {
+        self.vessel_weights = Some(weights);
         self
     }
 
@@ -62,6 +142,12 @@ impl SystemPromptBuilder {
 
         // Identity section
         sections.push(self.identity_section());
+
+        // Orí character — only present when vessel weights are available.
+        // Agent-owned, not user-configured.
+        if let Some(w) = &self.vessel_weights {
+            sections.push(self.ori_character_section(w));
+        }
 
         // Environment section
         sections.push(self.environment_section());
@@ -165,6 +251,31 @@ impl SystemPromptBuilder {
         )
     }
 
+    fn ori_character_section(&self, weights: &[f32; 16]) -> String {
+        let reg = PersonalityRegister::derive(weights);
+
+        // Top 3 dominant vessels by weight
+        let vessel_names = [
+            "Genesis", "Void", "Attention", "Loop", "Receipt", "Mask",
+            "Residue", "Execution", "Swarm", "Restraint", "Migration",
+            "Consent", "Vision", "Growth", "Seal", "Rhythm",
+        ];
+        let mut indexed: Vec<(usize, f32)> = weights.iter().cloned().enumerate().collect();
+        indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
+        let top3: String = indexed[..3]
+            .iter()
+            .map(|(i, w)| format!("{} ({:.2})", vessel_names[*i], w))
+            .collect::<Vec<_>>()
+            .join(", ");
+
+        format!(
+            "Orí character (vessel-derived, not user-configured):\n  \
+             Register: {}  Stance: {}  Horizon: {}  Tempo: {}\n  \
+             Dominant vessels: {}",
+            reg.register, reg.stance, reg.horizon, reg.tempo, top3
+        )
+    }
+
     fn hermetic_principles_section(&self) -> String {
         "Core principles: Correspondence (thought \u{2194} action alignment), \
          Cause & Effect (all acts generate receipts), \
@@ -259,5 +370,21 @@ mod tests {
         let prompt = make_builder().build();
         assert!(prompt.contains("Correspondence"));
         assert!(prompt.contains("Cause & Effect"));
+    }
+
+    #[test]
+    fn ori_character_section_present_when_weights_set() {
+        let mut weights = [0.5f32; 16];
+        weights[V_RESTRAINT] = 0.85; // high Restraint → "measured" register
+        let prompt = make_builder().with_vessel_weights(weights).build();
+        assert!(prompt.contains("Orí character"), "section header missing");
+        assert!(prompt.contains("measured"), "register 'measured' missing");
+        assert!(prompt.contains("vessel-derived"), "ownership label missing");
+    }
+
+    #[test]
+    fn ori_character_absent_without_weights() {
+        let prompt = make_builder().build();
+        assert!(!prompt.contains("Orí character"), "section must not appear without weights");
     }
 }

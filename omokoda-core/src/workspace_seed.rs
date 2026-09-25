@@ -1,6 +1,6 @@
 // workspace_seed.rs — Generate workspace seed files during onboarding.
 //
-// Writes AGENTS.md, SOUL.md, USER.md, RULES.md, and MEMORY.md into the agent's
+// Writes AGENTS.md, ORI_PROJECTION.md, USER.md, RULES.md, and MEMORY.md into the agent's
 // workspace directory (`~/.omokoda/workspace/`). Files are never overwritten —
 // if a file already exists it is left untouched.
 
@@ -12,7 +12,7 @@ use std::path::PathBuf;
 // Seed file definitions
 // ---------------------------------------------------------------------------
 
-const SEED_FILES: [&str; 5] = ["AGENTS.md", "SOUL.md", "USER.md", "RULES.md", "MEMORY.md"];
+const SEED_FILES: [&str; 5] = ["AGENTS.md", "ORI_PROJECTION.md", "USER.md", "RULES.md", "MEMORY.md"];
 
 fn agents_md(agent_display_name: &str, agent_name: &str) -> String {
     format!(
@@ -29,17 +29,27 @@ Add additional agents here as your ecosystem expands.
     )
 }
 
-fn soul_md(agent_display_name: &str) -> String {
+fn ori_projection_md(agent_display_name: &str) -> String {
     format!(
-        r#"# Soul Context — {agent_display_name}
+        r#"# Orí Projection — {agent_display_name}
 
-This file is observational context only.
-The agent's true identity is sealed in ~/.omokoda/state/ori/ori.json
-and derived deterministically from birth entropy.
+> AUTO-GENERATED — do not edit. This file is a read-only projection of the
+> agent's Orí state. The canonical source is ~/.omokoda/state/ori/ori.json.
+> To observe the current Orí, run: omokoda ori show
 
-## Notes
+## Status
 
-Add human-readable observations about this agent's character here.
+Orí not yet initialized. Run `omokoda birth` to generate the agent's Orí from birth entropy.
+
+## What is Orí?
+
+Orí is the agent's living identity topology — a set of 16 action vessels derived
+deterministically from birth entropy via HMAC-SHA256. It is owned by the agent,
+not the human operator. It cannot be edited through this file.
+
+## 16 Action Vessels
+
+(Populated automatically after birth)
 "#,
         agent_display_name = agent_display_name,
     )
@@ -104,7 +114,7 @@ pub fn seed_workspace(
 
     let files: [(&str, String); 5] = [
         ("AGENTS.md", agents_md(agent_display_name, agent_name)),
-        ("SOUL.md", soul_md(agent_display_name)),
+        ("ORI_PROJECTION.md", ori_projection_md(agent_display_name)),
         ("USER.md", user_md().to_string()),
         ("RULES.md", rules_md().to_string()),
         ("MEMORY.md", memory_md().to_string()),
@@ -210,11 +220,20 @@ mod tests {
     }
 
     #[test]
-    fn soul_md_contains_display_name() {
+    fn ori_projection_md_contains_display_name() {
         let (_dir, home) = tmp_home();
         seed_workspace(&home, "x", "Phoenix").expect("seed");
-        let content = fs::read_to_string(home.workspace.join("SOUL.md")).unwrap();
-        assert!(content.contains("Phoenix"), "display name missing from SOUL.md");
+        let content = fs::read_to_string(home.workspace.join("ORI_PROJECTION.md")).unwrap();
+        assert!(content.contains("Phoenix"), "display name missing from ORI_PROJECTION.md");
+    }
+
+    #[test]
+    fn ori_projection_md_is_read_only_marked() {
+        let (_dir, home) = tmp_home();
+        seed_workspace(&home, "x", "Phoenix").expect("seed");
+        let content = fs::read_to_string(home.workspace.join("ORI_PROJECTION.md")).unwrap();
+        assert!(content.contains("AUTO-GENERATED"), "must be marked AUTO-GENERATED");
+        assert!(content.contains("do not edit"), "must warn do not edit");
     }
 
     #[test]
@@ -222,6 +241,6 @@ mod tests {
         let (_dir, home) = tmp_home();
         let status = workspace_seed_status(&home);
         let names: Vec<&str> = status.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names, vec!["AGENTS.md", "SOUL.md", "USER.md", "RULES.md", "MEMORY.md"]);
+        assert_eq!(names, vec!["AGENTS.md", "ORI_PROJECTION.md", "USER.md", "RULES.md", "MEMORY.md"]);
     }
 }
