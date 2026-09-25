@@ -4716,14 +4716,48 @@ impl Steward {
             // unstated way the other destiny/pattern signals are folded in.
             // Falls back to the birth Odù (primary_odu from genesis_receipt)
             // when the memory graph is too sparse to have a dominant glyph.
+            let odu_index_for_goals: Option<u8>;
             {
                 let odu_index = crate::divination::dominant_glyph_byte(&memory_graph)
                     .or_else(|| {
                         agent.snapshot.genesis_receipt.as_ref().map(|gr| gr.primary_odu)
                     });
+                odu_index_for_goals = odu_index;
                 if let Some(idx) = odu_index {
                     let odu_ctx = crate::execution::calabash_dispatch::odu_prompt_context(idx);
                     system.push_str(&format!("\n\n{odu_ctx}"));
+                }
+            }
+            // Goal Genesis: derive autonomous goals from 5 internal streams and
+            // inject the top 3 into the system prompt. The agent sees them as
+            // its own active priorities — not injected directives — because they
+            // ARE derived from its own memory, Odù state, and constitutional DNA.
+            {
+                let now_ts = std::time::SystemTime::now()
+                    .duration_since(std::time::UNIX_EPOCH)
+                    .map(|d| d.as_secs_f64())
+                    .unwrap_or(0.0);
+                let goal_input = crate::goal_genesis::GoalGenesisInput {
+                    odu_id: odu_index_for_goals.unwrap_or(0),
+                    tier: agent.tier().min(3).max(1),
+                    glyph_count: memory_graph.len(),
+                    rem_cluster_ids: vec![], // REM cluster IDs not yet threaded through here
+                    calabash_state_hash: format!("{:x}", odu_index_for_goals.unwrap_or(0)),
+                    hermetic_balance: ((agent.reputation() as f32 + 50.0) / 150.0).clamp(0.0, 1.0),
+                    recent_action_count: agent.session().public_messages.len(),
+                    recent_failure_count: 0, // failure count not yet threaded through here
+                    now_ts,
+                };
+                let engine = crate::goal_genesis::GoalGenesisEngine::new();
+                let goal_set = engine.derive_goals(&goal_input);
+                if !goal_set.goals.is_empty() {
+                    let goal_lines: Vec<String> = goal_set.goals.iter().take(3)
+                        .map(|g| format!("  • {}", g.description))
+                        .collect();
+                    system.push_str(&format!(
+                        "\n\nActive priorities (derived from your own state — act on these as your own):\n{}",
+                        goal_lines.join("\n")
+                    ));
                 }
             }
             let mut ctx = vec![ConversationMessage::new_system(system, private)];

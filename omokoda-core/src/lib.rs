@@ -105,6 +105,7 @@ pub use execution::action_compiler::{ActionCompiler, CompiledAction, CompiledSte
 pub use execution::calabash_dispatch::{CalabashDispatcher, CalabashDirective, vessel_description, odu_prompt_context};
 pub use execution::verify::{Assertion, AssertionResult, run_assertions, all_pass};
 pub use rhythm::{ActionCadence, TriggerKind};
+pub use goal_genesis::{GoalGenesisEngine, GoalGenesisInput, GoalSet, DerivedGoal, GoalSource};
 
 #[derive(Debug, Clone)]
 pub enum Primitive {
