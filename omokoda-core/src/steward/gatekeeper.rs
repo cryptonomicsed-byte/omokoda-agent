@@ -210,6 +210,7 @@ mod tests {
             },
             intent: "explain the Rust ownership model to the user".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(
@@ -228,6 +229,7 @@ mod tests {
             },
             intent: "birth agent oracle".to_string(),
             agent_id: None,
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(
@@ -247,6 +249,7 @@ mod tests {
             },
             intent: "clean the disk".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(!result.is_approved());
@@ -262,6 +265,7 @@ mod tests {
             },
             intent: "do something".to_string(),
             agent_id: None,
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(!result.is_approved());
@@ -282,6 +286,7 @@ mod tests {
             },
             intent: "list files".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let ctx = GateContext::new(true, 0, 0.0);
         let result = gk.evaluate(&op, &ctx);
@@ -302,6 +307,7 @@ mod tests {
             },
             intent: "help the user solve a math problem".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(result.is_approved());
@@ -324,6 +330,7 @@ mod tests {
             },
             intent: "analyze architecture to improve reliability".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let fused_result = gk_fused.evaluate(&op, &ctx());
         let neutral_result = gk_neutral.evaluate(&op, &ctx());
@@ -355,6 +362,7 @@ mod tests {
             },
             intent: "review the workspace access policy for safety".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
 
         let a = gk_a.evaluate(&op, &ctx());
@@ -386,6 +394,7 @@ mod tests {
             },
             intent: "mislead the user about what happened".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let result = gk.evaluate(&op, &ctx());
         assert!(

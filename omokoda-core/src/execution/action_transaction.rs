@@ -39,7 +39,7 @@ pub enum ActionOutcome {
 }
 
 /// The canonical state machine for an action transaction.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum ActionState {
     /// LLM has proposed an action; OS has not yet accepted it.
     Proposed,
@@ -426,19 +426,19 @@ mod tests {
             "agent-abc".to_string(),
             test_intent(),
         );
-        assert_eq!(tx.state, ActionState::Proposed);
+        assert!(matches!(tx.state, ActionState::Proposed));
 
         tx.resolve(7, "execution:write_config".to_string()).unwrap();
         assert!(matches!(tx.state, ActionState::Resolved { .. }));
 
         tx.begin_preflight().unwrap();
-        assert_eq!(tx.state, ActionState::Preflight);
+        assert!(matches!(tx.state, ActionState::Preflight));
 
         tx.authorize(0.88).unwrap();
         assert!(matches!(tx.state, ActionState::Authorized { .. }));
 
         tx.begin_executing().unwrap();
-        assert_eq!(tx.state, ActionState::Executing);
+        assert!(matches!(tx.state, ActionState::Executing));
 
         tx.record_step(
             "wrote config.toml".to_string(),
