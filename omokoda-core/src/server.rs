@@ -676,6 +676,55 @@ async fn health_handler() -> Json<HealthResponse> {
     Json(HealthResponse { ok: true })
 }
 
+/// Phase 14.1 — Migration receive endpoint.
+///
+/// A source node POSTs an `AgentCapsule` JSON here to announce a migration
+/// intent. This endpoint verifies capsule_hash integrity and returns 200 so
+/// the source node knows the capsule was received intact.
+///
+/// Phase 14.2 completes the flow: decrypt encrypted_vault with this node's
+/// Ed25519 private key (ChaCha20-Poly1305 under ECDH), verify source_node_sig,
+/// and re-birth the agent with the recovered identity + vault material.
+async fn migrate_receive_handler(
+    Json(capsule): Json<crate::lifecycle::AgentCapsule>,
+) -> impl axum::response::IntoResponse {
+    use axum::http::StatusCode;
+
+    // Verify capsule_hash integrity (commit-then-encrypt check).
+    let expected_hash = crate::lifecycle::AgentCapsule::capsule_content_hash(
+        &capsule.agent_id,
+        &capsule.source_node_pubkey,
+        &capsule.destination_node_pubkey,
+        capsule.migration_timestamp,
+        &capsule.ephemeral_pubkey,
+        &capsule.encrypted_vault,
+    );
+    if capsule.capsule_hash != expected_hash {
+        return (
+            StatusCode::BAD_REQUEST,
+            axum::Json(serde_json::json!({
+                "error": "capsule_hash mismatch — capsule is corrupt or tampered"
+            })),
+        )
+            .into_response();
+    }
+
+    // Phase 14.2: decrypt + re-birth here.
+    // For now: capsule integrity verified; source can treat this as confirmed.
+    (
+        StatusCode::OK,
+        axum::Json(serde_json::json!({
+            "ok": true,
+            "agent_id": capsule.agent_id,
+            "source_node": capsule.source_node_pubkey,
+            "migration_timestamp": capsule.migration_timestamp,
+            "status": "capsule_received",
+            "note": "Phase 14.2 will complete vault decryption and agent re-birth",
+        })),
+    )
+        .into_response()
+}
+
 async fn manifest_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
@@ -1343,6 +1392,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/events", get(events_handler))
         .route("/v1/status", get(status_handler))
         .route("/v1/health", get(health_handler))
+        .route("/v1/migrate/receive", post(migrate_receive_handler))
         .route("/v1/manifest", get(manifest_handler))
         .route("/v1/capability", get(capability_handler))
         // Memory vault routes

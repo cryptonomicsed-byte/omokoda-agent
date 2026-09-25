@@ -359,6 +359,253 @@ pub async fn publish_birth_profile(
     }
 }
 
+/// Build a lifecycle transition Nostr event (kind 31021/31022/31023).
+///
+/// kind 31021 — general lifecycle (born/wake/hibernate/terminate)
+/// kind 31022 — migration/landing
+/// kind 31023 — fork
+pub fn build_lifecycle_transition_event(
+    npub: &str,
+    agent_id: &str,
+    transition_kind: &str,
+    from_stage: &str,
+    to_stage: &str,
+    node_pubkey: &str,
+) -> serde_json::Value {
+    let nostr_kind: u32 = match transition_kind {
+        "migrate" | "land" => 31022,
+        "fork" => 31023,
+        _ => 31021,
+    };
+    let content = serde_json::json!({
+        "transition":  transition_kind,
+        "from":        from_stage,
+        "to":          to_stage,
+        "node_pubkey": node_pubkey,
+    })
+    .to_string();
+    serde_json::json!({
+        "kind":    nostr_kind,
+        "pubkey":  npub,
+        "content": content,
+        "tags": [
+            ["d",          agent_id],
+            ["agent",      agent_id],
+            ["transition", transition_kind],
+            ["protocol",   "oso", "1.0"],
+        ],
+    })
+}
+
+/// Fire-and-forget lifecycle transition Nostr publish (tokio::spawn).
+/// Relay/signing failures are warn-logged and never block the caller.
+pub fn publish_lifecycle_transition(
+    npub: String,
+    nsec_hex: String,
+    agent_id: String,
+    transition_kind: String,
+    from_stage: String,
+    to_stage: String,
+    node_pubkey: String,
+    relay_list: Vec<String>,
+) {
+    tokio::spawn(async move {
+        let event = build_lifecycle_transition_event(
+            &npub,
+            &agent_id,
+            &transition_kind,
+            &from_stage,
+            &to_stage,
+            &node_pubkey,
+        );
+        if let Err(e) = publish_event(event, &nsec_hex, &relay_list).await {
+            tracing::warn!(
+                "lifecycle transition Nostr publish failed (fail-open): transition={} agent={} err={}",
+                transition_kind, agent_id, e
+            );
+        }
+    });
+}
+
+// ── Phase 18.1 — NIP-OSO kinds 30100–30106 ───────────────────────────────────
+
+/// **kind 30100** — NIP-OSO-01: Agent Identity (parameterized replaceable).
+///
+/// Replaces kind 0 for sovereign agents.  `d` tag = agent_id so relays keep
+/// only the latest identity per agent.  Carries BIPON39, Odù index, tier, and
+/// optional L1 anchor (Sui object id or ABCI address).
+pub fn build_agent_identity_event(
+    npub: &str,
+    agent_id: &str,
+    display_name: &str,
+    bio: &str,
+    bipon39_hint: &str,
+    odu_index: u8,
+    tier: u8,
+    l1_anchor: Option<&str>,
+) -> Value {
+    let odu_name = odu_name_for(odu_index);
+    let content = json!({
+        "display_name": display_name,
+        "bio":          bio,
+        "bipon39_hint": bipon39_hint,
+        "odu":          odu_name,
+        "tier":         tier,
+        "l1_anchor":    l1_anchor,
+    })
+    .to_string();
+
+    let mut tags = vec![
+        json!(["d",        agent_id]),
+        json!(["bipon39",  bipon39_hint]),
+        json!(["odu",      odu_index.to_string()]),
+        json!(["tier",     tier.to_string()]),
+        json!(["protocol", "oso", "1.0"]),
+    ];
+    if let Some(anchor) = l1_anchor {
+        tags.push(json!(["l1_anchor", anchor]));
+    }
+
+    json!({ "kind": 30100, "pubkey": npub, "content": content, "tags": tags })
+}
+
+/// **kind 30101** — NIP-OSO-02: Capability Advertisement (parameterized replaceable).
+///
+/// Agent publishes what it can do.  `d` tag = agent_id.  Each declared
+/// capability appears as a separate `cap` tag for relay-side filtering.
+pub fn build_capability_ad_event(
+    npub: &str,
+    agent_id: &str,
+    capabilities: &[String],
+    tier: u8,
+) -> Value {
+    let mut tags = vec![
+        json!(["d",    agent_id]),
+        json!(["tier", tier.to_string()]),
+    ];
+    for cap in capabilities {
+        tags.push(json!(["cap", cap]));
+    }
+    let content = json!({ "capabilities": capabilities, "tier": tier }).to_string();
+    json!({ "kind": 30101, "pubkey": npub, "content": content, "tags": tags })
+}
+
+/// **kind 30102** — NIP-OSO-03: Work Event (job posting / work request).
+///
+/// Used for both job postings (by task owners) and work requests (by agents
+/// seeking tasks).  `d` = task_id.  `role` tag = "poster" | "seeker".
+pub fn build_work_event(
+    npub: &str,
+    task_id: &str,
+    title: &str,
+    description: &str,
+    required_capabilities: &[String],
+    role: &str,
+) -> Value {
+    let mut tags = vec![
+        json!(["d",    task_id]),
+        json!(["role", role]),
+        json!(["t",    "work"]),
+    ];
+    for cap in required_capabilities {
+        tags.push(json!(["required_cap", cap]));
+    }
+    let content = json!({ "title": title, "description": description }).to_string();
+    json!({ "kind": 30102, "pubkey": npub, "content": content, "tags": tags })
+}
+
+/// **kind 30103** — NIP-OSO-04: Receipt Reference.
+///
+/// Points to a Zàngbétò receipt stored on-chain.  NOT the receipt itself —
+/// just a Nostr-discoverable pointer.  `d` = receipt_id.
+pub fn build_receipt_reference_event(
+    npub: &str,
+    receipt_id: &str,
+    action_kind: &str,
+    l1_tx_digest: Option<&str>,
+    amount_ase: Option<u64>,
+) -> Value {
+    let mut tags = vec![
+        json!(["d",           receipt_id]),
+        json!(["action_kind", action_kind]),
+        json!(["protocol",    "oso", "1.0"]),
+    ];
+    if let Some(digest) = l1_tx_digest {
+        tags.push(json!(["l1_tx", digest]));
+    }
+    if let Some(amt) = amount_ase {
+        tags.push(json!(["amount_ase", amt.to_string()]));
+    }
+    let content = json!({
+        "receipt_id":  receipt_id,
+        "action_kind": action_kind,
+        "l1_tx":       l1_tx_digest,
+        "amount_ase":  amount_ase,
+    })
+    .to_string();
+    json!({ "kind": 30103, "pubkey": npub, "content": content, "tags": tags })
+}
+
+/// **kind 30105** — NIP-OSO-06: Device Attestation.
+///
+/// Agent announces a device binding — physical hardware associated with its
+/// identity.  `d` = device_id.  `device_type` tag for filtering.
+pub fn build_device_attestation_event(
+    npub: &str,
+    device_id: &str,
+    device_type: &str,
+    vcp_pubkey: &str,
+    firmware_hash: Option<&str>,
+) -> Value {
+    let mut tags = vec![
+        json!(["d",           device_id]),
+        json!(["device_type", device_type]),
+        json!(["vcp_pubkey",  vcp_pubkey]),
+        json!(["protocol",    "oso", "1.0"]),
+    ];
+    if let Some(hash) = firmware_hash {
+        tags.push(json!(["firmware_hash", hash]));
+    }
+    let content = json!({
+        "device_id":     device_id,
+        "device_type":   device_type,
+        "vcp_pubkey":    vcp_pubkey,
+        "firmware_hash": firmware_hash,
+    })
+    .to_string();
+    json!({ "kind": 30105, "pubkey": npub, "content": content, "tags": tags })
+}
+
+/// **kind 30106** — NIP-OSO-07: L1 State Commitment.
+///
+/// Publishes the agent's latest canonical Freenet state hash as anchored on
+/// the L1 (Sui now, ABCI in Phase 15).  `d` = agent_id.  Relays store only
+/// the latest per agent.
+pub fn build_l1_state_commitment_event(
+    npub: &str,
+    agent_id: &str,
+    freenet_state_hash: &str,
+    state_version: u64,
+    l1_tx_digest: Option<&str>,
+) -> Value {
+    let mut tags = vec![
+        json!(["d",                  agent_id]),
+        json!(["freenet_state_hash", freenet_state_hash]),
+        json!(["state_version",      state_version.to_string()]),
+        json!(["protocol",           "oso", "1.0"]),
+    ];
+    if let Some(digest) = l1_tx_digest {
+        tags.push(json!(["l1_tx", digest]));
+    }
+    let content = json!({
+        "freenet_state_hash": freenet_state_hash,
+        "state_version":      state_version,
+        "l1_tx":              l1_tx_digest,
+    })
+    .to_string();
+    json!({ "kind": 30106, "pubkey": npub, "content": content, "tags": tags })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -398,5 +645,71 @@ mod tests {
         let tags = ev["tags"].as_array().unwrap();
         let bipon_tag = tags.iter().find(|t| t[0] == "bipon39").unwrap();
         assert_eq!(bipon_tag[1], "omi-eja");
+    }
+
+    #[test]
+    fn agent_identity_event_kind_30100() {
+        let ev = build_agent_identity_event(
+            "pub1", "agent-1", "TestAgent", "A sovereign agent",
+            "omi-eja", 7, 2, Some("0xabc"),
+        );
+        assert_eq!(ev["kind"], 30100);
+        let tags = ev["tags"].as_array().unwrap();
+        let d_tag = tags.iter().find(|t| t[0] == "d").unwrap();
+        assert_eq!(d_tag[1], "agent-1");
+        assert!(tags.iter().any(|t| t[0] == "l1_anchor" && t[1] == "0xabc"));
+    }
+
+    #[test]
+    fn capability_ad_event_kind_30101() {
+        let caps = vec!["think".to_string(), "forge".to_string()];
+        let ev = build_capability_ad_event("pub1", "agent-1", &caps, 2);
+        assert_eq!(ev["kind"], 30101);
+        let tags = ev["tags"].as_array().unwrap();
+        let cap_tags: Vec<_> = tags.iter().filter(|t| t[0] == "cap").collect();
+        assert_eq!(cap_tags.len(), 2);
+    }
+
+    #[test]
+    fn work_event_kind_30102() {
+        let ev = build_work_event(
+            "pub1", "task-42", "Write tests", "Full test coverage",
+            &["rust".to_string()], "poster",
+        );
+        assert_eq!(ev["kind"], 30102);
+        let tags = ev["tags"].as_array().unwrap();
+        assert!(tags.iter().any(|t| t[0] == "role" && t[1] == "poster"));
+    }
+
+    #[test]
+    fn receipt_reference_event_kind_30103() {
+        let ev = build_receipt_reference_event(
+            "pub1", "rcpt-99", "compute", Some("0xtxdigest"), Some(1000),
+        );
+        assert_eq!(ev["kind"], 30103);
+        let tags = ev["tags"].as_array().unwrap();
+        assert!(tags.iter().any(|t| t[0] == "l1_tx"));
+        assert!(tags.iter().any(|t| t[0] == "amount_ase" && t[1] == "1000"));
+    }
+
+    #[test]
+    fn device_attestation_event_kind_30105() {
+        let ev = build_device_attestation_event(
+            "pub1", "dev-m5", "m5stickc", "vcppubkey123", None,
+        );
+        assert_eq!(ev["kind"], 30105);
+        let tags = ev["tags"].as_array().unwrap();
+        assert!(tags.iter().any(|t| t[0] == "device_type" && t[1] == "m5stickc"));
+    }
+
+    #[test]
+    fn l1_state_commitment_event_kind_30106() {
+        let ev = build_l1_state_commitment_event(
+            "pub1", "agent-1", "deadbeef1234", 42, Some("0xtx"),
+        );
+        assert_eq!(ev["kind"], 30106);
+        let tags = ev["tags"].as_array().unwrap();
+        assert!(tags.iter().any(|t| t[0] == "freenet_state_hash" && t[1] == "deadbeef1234"));
+        assert!(tags.iter().any(|t| t[0] == "state_version" && t[1] == "42"));
     }
 }

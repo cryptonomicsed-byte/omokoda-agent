@@ -190,3 +190,27 @@ pub async fn receipt_act(
     );
     post_receipt(receipt).await
 }
+
+/// Lifecycle transition receipt — emitted on Born/Migrate/Fork/Hibernate/Wake/Terminate.
+pub async fn receipt_lifecycle_transition(
+    agent_id: &str,
+    transition_kind: &str,
+    from_stage: &str,
+    to_stage: &str,
+    node_pubkey: &str,
+    previous_hash: Option<&str>,
+) -> bool {
+    let receipt = make_receipt_json(
+        agent_id,
+        transition_kind,
+        agent_id,
+        "success",
+        json!({
+            "from_stage":  from_stage,
+            "to_stage":    to_stage,
+            "node_pubkey": node_pubkey,
+        }),
+        previous_hash,
+    );
+    post_receipt(receipt).await
+}

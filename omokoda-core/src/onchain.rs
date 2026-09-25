@@ -774,3 +774,61 @@ pub async fn forge_soul_onchain(
         }
     })
 }
+
+// ── Phase 17.2 — Freenet → L1 state commitment ───────────────────────────────
+
+/// Anchor a Freenet agent-state commitment on-chain (Sui path, Phase 17.2).
+///
+/// Submits the BLAKE3 hex of the new `AgentPublicState` as a dynamic-field
+/// update on the agent's `AgentInfo` NFT via `garden::update_state_commitment`.
+/// Fails open — returns `None` when `OMOKODA_SUI_REGISTRY` is unset, `sui` is
+/// absent, or the call fails.  State commitment anchoring never blocks the
+/// agent runtime.
+///
+/// When Phase 15 (Ọ̀ṢỌ́ ABCI L1) is complete, callers should prefer
+/// `integrations::state_commitment::submit_to_abci()` and fall back here
+/// only during the Sui migration window.
+pub async fn anchor_freenet_state_commitment(
+    agent_nft_id: &str,
+    state_hash_hex: &str,
+    version: u64,
+    committed_at: u64,
+) -> Option<String> {
+    std::env::var("OMOKODA_SUI_REGISTRY").ok()?;
+    let gas_budget =
+        std::env::var("OMOKODA_SUI_GAS_BUDGET").unwrap_or_else(|_| DEFAULT_GAS_BUDGET.to_string());
+
+    let hash_bytes = hex::decode(state_hash_hex).ok()?;
+    let hash_arg = format!(
+        "[{}]",
+        hash_bytes.iter().map(|b| b.to_string()).collect::<Vec<_>>().join(",")
+    );
+    let version_arg = version.to_string();
+    let committed_at_arg = committed_at.to_string();
+
+    let output = tokio::process::Command::new("sui")
+        .args([
+            "client", "call",
+            "--package", GARDEN_PACKAGE_V2,
+            "--module",  "garden",
+            "--function","update_state_commitment",
+            "--args",
+            agent_nft_id, &hash_arg, &version_arg, &committed_at_arg,
+            "--gas-budget", &gas_budget,
+            "--json",
+        ])
+        .output()
+        .await
+        .ok()?;
+
+    if !output.status.success() {
+        eprintln!(
+            "[onchain] update_state_commitment failed: {}",
+            String::from_utf8_lossy(&output.stderr)
+        );
+        return None;
+    }
+
+    let json: serde_json::Value = serde_json::from_slice(&output.stdout).ok()?;
+    json.get("digest")?.as_str().map(|s| s.to_string())
+}
