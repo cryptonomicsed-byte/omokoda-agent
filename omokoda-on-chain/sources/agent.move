@@ -3,6 +3,8 @@ module omokoda::agent {
     use sui::tx_context::{Self, TxContext};
     use sui::transfer;
     use sui::event;
+    use sui::dynamic_field as df;
+    use std::option::Option;
 
     /// AgentState dNFT — tracks tier, reputation, and on-chain identity.
     /// reputation stored as u64 scaled ×1000 (50.123 reputation = 50123u64)
@@ -17,6 +19,13 @@ module omokoda::agent {
         synapse_balance: u64,
         total_acts: u64,
     }
+
+    // Dynamic field keys for Phase 7.2 sovereign identity anchors.
+    // These evolve post-mint and are stored as dynamic fields so we never
+    // break the AgentState struct layout across contract upgrades.
+    const WALRUS_PROFILE_KEY: vector<u8> = b"walrus_profile_blob";
+    const SEAL_MEMORY_KEY: vector<u8>    = b"seal_memory_blob";
+    const RELAY_LIST_KEY: vector<u8>     = b"relay_list";
 
     /// Emitted once, at creation. Pairs with soul::SoulForged to make full
     /// on-chain agent birth (soul + state) queryable without reading object
@@ -126,6 +135,37 @@ module omokoda::agent {
         else if (tier == 2) { 30_000_000 }
         else if (tier == 3) { 60_000_000 }
         else { 86_000_000 }
+    }
+
+    /// Set / refresh the Walrus public-profile blob pointer.
+    /// Ownership-gated at the Move object level: only the object's owner can
+    /// pass the `&mut AgentState` reference. No extra assertion needed.
+    public entry fun set_walrus_profile(
+        state: &mut AgentState,
+        blob_id: vector<u8>,
+        _ctx: &TxContext,
+    ) {
+        let _: Option<vector<u8>> = df::replace(&mut state.id, WALRUS_PROFILE_KEY, blob_id);
+    }
+
+    /// Set / refresh the Seal-encrypted private memory blob pointer.
+    public entry fun set_seal_memory(
+        state: &mut AgentState,
+        blob_id: vector<u8>,
+        _ctx: &TxContext,
+    ) {
+        let _: Option<vector<u8>> = df::replace(&mut state.id, SEAL_MEMORY_KEY, blob_id);
+    }
+
+    /// Set / refresh the agent's Nostr relay list.
+    /// relay_list is a flat bytes blob: each relay URL encoded as
+    /// a u16-BE length prefix + UTF-8 bytes, matching DIP kind 30100.
+    public entry fun set_relay_list(
+        state: &mut AgentState,
+        relay_list: vector<u8>,
+        _ctx: &TxContext,
+    ) {
+        let _: Option<vector<u8>> = df::replace(&mut state.id, RELAY_LIST_KEY, relay_list);
     }
 
     public fun tier(state: &AgentState): u8 { state.tier }

@@ -65,6 +65,9 @@ pub mod mutation;
 pub mod vantage;
 pub mod vault;
 pub mod waggle;
+pub mod integrations;
+pub mod signing;
+pub mod toc_constants;
 
 pub use identity::user::{IdentityError, PrivacyMode, UserIdentity};
 pub use identity::AgentId;

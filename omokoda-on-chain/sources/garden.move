@@ -1,17 +1,21 @@
 module omokoda::garden {
-    use sui::object::{Self, UID};
+    use sui::object::{Self, UID, ID};
     use sui::tx_context::{Self, TxContext};
     use sui::coin::{Self, Coin};
     use sui::sui::SUI;
     use sui::transfer;
     use sui::event;
     use sui::dynamic_field as df;
+    use sui::table::{Self, Table};
     use std::option::Option;
 
-    /// Agent Registry Stub
+    /// Agent Registry — tracks all born agents.
+    /// bipon39_registry maps BIPON39 phrase bytes → AgentState object ID,
+    /// enabling any caller to look up an agent purely by its identity phrase.
     struct AgentRegistry has key {
         id: UID,
         count: u64,
+        bipon39_registry: Table<vector<u8>, ID>,
     }
 
     struct AgentInfo has key, store {
@@ -61,6 +65,7 @@ module omokoda::garden {
         transfer::share_object(AgentRegistry {
             id: object::new(ctx),
             count: 0,
+            bipon39_registry: table::new(ctx),
         });
     }
 
@@ -79,6 +84,36 @@ module omokoda::garden {
         registry.count = registry.count + 1;
         transfer::public_transfer(agent, tx_context::sender(ctx));
     }
+
+    /// Register an agent's BIPON39 identity phrase in the global registry.
+    /// Maps the phrase bytes → AgentState object ID for O(1) on-chain lookup.
+    /// Called once per agent, at birth. No-op if already registered (first write wins).
+    public entry fun register_bipon39(
+        registry: &mut AgentRegistry,
+        bipon39_phrase: vector<u8>,
+        agent_state_id: ID,
+        _ctx: &mut TxContext,
+    ) {
+        if (!table::contains(&registry.bipon39_registry, bipon39_phrase)) {
+            table::add(&mut registry.bipon39_registry, bipon39_phrase, agent_state_id);
+        }
+    }
+
+    /// Look up an AgentState object ID by its BIPON39 phrase.
+    /// Returns an Option<ID>: None if the agent has not registered.
+    public fun lookup_bipon39(
+        registry: &AgentRegistry,
+        bipon39_phrase: &vector<u8>,
+    ): Option<ID> {
+        if (table::contains(&registry.bipon39_registry, *bipon39_phrase)) {
+            std::option::some(*table::borrow(&registry.bipon39_registry, *bipon39_phrase))
+        } else {
+            std::option::none()
+        }
+    }
+
+    /// Total agents ever registered.
+    public fun agent_count(registry: &AgentRegistry): u64 { registry.count }
 
     /// Update an AgentInfo's core stats (reputation, tier) in place. Safe
     /// to call repeatedly as the real off-chain agent's reputation/tier

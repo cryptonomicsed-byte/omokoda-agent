@@ -1,0 +1,10 @@
+[package]
+name = "oso-storage"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+async-trait = "0.1"
+serde = { version = "1", features = ["derive"] }
+blake3 = "1"
+hex = "0.4"

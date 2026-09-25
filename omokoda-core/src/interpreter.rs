@@ -342,6 +342,12 @@ pub struct AgentSnapshot {
     /// genesis_receipt at birth. Updated as new network bindings are established.
     #[serde(default)]
     pub agent_manifest: Option<crate::genesis::manifest::AgentManifest>,
+    /// Monotonically increasing counter of children forked from this agent.
+    /// Used as the fork_index in `derive_fork_entropy` — same parent + same
+    /// index always produces the same child entropy (re-derivable). Persisted
+    /// so the sequence is never reused across restarts.
+    #[serde(default)]
+    pub fork_count: u32,
 }
 
 /// Response payload for `AgentCore::reveal_seed` / `/v1/reveal-seed`.
@@ -1597,6 +1603,7 @@ impl Steward {
             last_act_receipt_hash: None,
             // Birth composed_odu mirrors primary on both bytes until experience accrues.
             current_composed_odu: (birth_primary_odu as u16) << 8 | birth_primary_odu as u16,
+            fork_count: 0,
         };
         let mut core = AgentCore::from_snapshot(snapshot, k_root);
         core.private_data = Some(private_data);
@@ -1633,6 +1640,50 @@ impl Steward {
             if let Some(private_data) = core.private_data.clone() {
                 let _ = core.session_mut().seal_private(&private_data, &vault_key);
             }
+
+            // Phase 7.3 — Sui soul forge (fail-open: None if Sui unavailable).
+            // Derive nostr pubkey bytes from the private key (the address field
+            // is bech32-encoded; we need the raw 32 bytes for soul::forge).
+            // hermetic_seed_hash = blake3 of hermetic_seed (already computed above).
+            // mnemonic_checksum  = blake3 of the mnemonic UTF-8 bytes.
+            // birth() is synchronous; we use block_in_place so the async
+            // forge call doesn't require birth() to become async (which would
+            // cascade through every call-site). Fails silently if no Tokio
+            // runtime is present (pure-sync test contexts).
+            let (sui_soul_oid, _sui_agent_oid) = {
+                let nostr_sk_bytes = hex::decode(&nostr_key.private_key_hex).unwrap_or_default();
+                let nostr_pubkey_bytes: Vec<u8> = if nostr_sk_bytes.len() == 32 {
+                    let arr: [u8; 32] = nostr_sk_bytes.try_into().unwrap();
+                    let sk = ed25519_dalek::SigningKey::from_bytes(&arr);
+                    sk.verifying_key().to_bytes().to_vec()
+                } else { vec![] };
+                let hermetic_hash = blake3::hash(hermetic_seed.as_ref());
+                let mnemonic_checksum = blake3::hash(odu_identity.mnemonic.as_bytes());
+                let agent_id_str  = core.id().as_str().to_string();
+                let dna_bytes     = core.dna_fingerprint().as_bytes().to_vec();
+                let hermetic_bytes = hermetic_hash.as_bytes().to_vec();
+                let checksum_bytes = mnemonic_checksum.as_bytes().to_vec();
+                let mnemonic_str  = odu_identity.mnemonic.clone();
+                // Spawn a dedicated thread so forge_soul_onchain (async) can
+                // run regardless of whether the caller is on a single- or
+                // multi-threaded Tokio runtime. Fails silently when no runtime
+                // is present (pure-sync test contexts).
+                let soul_oid = tokio::runtime::Handle::try_current().ok().and_then(|h| {
+                    std::thread::spawn(move || {
+                        h.block_on(crate::onchain::forge_soul_onchain(
+                            &agent_id_str,
+                            primary_index,
+                            &dna_bytes,
+                            &hermetic_bytes,
+                            &checksum_bytes,
+                            &nostr_pubkey_bytes,
+                            &mnemonic_str,
+                            "",
+                        ))
+                    }).join().ok().flatten()
+                });
+                (soul_oid, None::<String>)
+            };
 
             // Gap #1 — also seal an IdentityVaultData blob so the two-vault
             // design is populated at birth. Fields mirror private_data but
@@ -1681,8 +1732,8 @@ impl Steward {
                 email_smtp_host: None,
                 agent_email_verified_at: None,
                 relay_list: None,
-                sui_soul_object_id: None,
-                sui_agent_object_id: None,
+                sui_soul_object_id: sui_soul_oid,
+                sui_agent_object_id: _sui_agent_oid,
             };
             let _ = core.session_mut().seal_identity_vault(&identity_vault, &vault_key);
         }
@@ -2250,6 +2301,49 @@ impl Steward {
                         reg_name.clone()
                     };
                     crate::bridge::arp::receipt_birth(&agent_id_str, &genesis_id, &reg_name).await;
+                }
+
+                // Phase 11.5 — Born lifecycle transition: ARP receipt (kind=born) +
+                // Nostr kind 31021. Fire-and-forget; relay/Vantage unreachable never
+                // blocks birth.
+                {
+                    let born_agent_id = reg_name.clone();
+                    let born_pubkey   = reg_pubkey.clone();
+                    tokio::spawn(async move {
+                        crate::bridge::arp::receipt_lifecycle_transition(
+                            &born_agent_id, "born", "nascent", "active", &born_pubkey, None,
+                        ).await;
+                    });
+                    let born_npub = if let Ok(core) = self.ensure_born() {
+                        core.snapshot.agent_manifest.as_ref()
+                            .and_then(|m| m.network.nostr_pubkey.clone())
+                            .unwrap_or_else(|| reg_pubkey.clone())
+                    } else {
+                        reg_pubkey.clone()
+                    };
+                    let born_nsec = if let Ok(core) = self.ensure_born() {
+                        core.private_data.as_ref()
+                            .and_then(|pd| pd.nostr_private_key_hex.clone())
+                            .unwrap_or_default()
+                    } else {
+                        String::new()
+                    };
+                    let born_relays: Vec<String> = std::env::var("AGENT_NOSTR_RELAYS")
+                        .unwrap_or_default()
+                        .split(',')
+                        .map(|s| s.trim().to_string())
+                        .filter(|s| !s.is_empty())
+                        .collect();
+                    crate::nostr_events::publish_lifecycle_transition(
+                        born_npub,
+                        born_nsec,
+                        reg_name.clone(),
+                        "born".to_string(),
+                        "nascent".to_string(),
+                        "active".to_string(),
+                        reg_pubkey.clone(),
+                        born_relays,
+                    );
                 }
 
                 // Vantage registration (build-order step 6, gap #7): register agent
@@ -4014,6 +4108,211 @@ impl Steward {
                         receipt: None,
                         private_mode: false,
                         tool_output: Some(lines.join("\n")),
+                    })
+                }
+                // Phase 14.1 — Migration Protocol
+                // Seals this agent into an AgentCapsule and emits a Nostr kind 31022
+                // migration-intent event. The destination node receives the capsule via
+                // POST /v1/migrate/receive and completes the birth there. Requires
+                // principal auth (TIER 2+). Encryption is plaintext until Phase 14.2
+                // wires ChaCha20-Poly1305 under node-to-node ECDH.
+                "migrate" => {
+                    let dest_pubkey = arg
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| {
+                            "/migrate requires a destination node pubkey (hex Ed25519)".to_string()
+                        })?
+                        .to_string();
+
+                    // TIER 2+ required for migration.
+                    {
+                        let agent = self.ensure_born()?;
+                        if agent.tier() < 2 {
+                            return Err(
+                                "/migrate requires TIER 2 or above (principal auth)".to_string()
+                            );
+                        }
+                    }
+
+                    // Serialize vault bytes for the capsule.
+                    // Phase 14.2: encrypt with dest_pubkey via ChaCha20-Poly1305.
+                    let (agent_id, source_pubkey, capsule_json, npub, nsec_hex, relay_list) = {
+                        let agent = self.ensure_born()?;
+                        let agent_id = agent.id().to_string();
+                        let source_pubkey = hex::encode(agent.public_key());
+                        let vault_bytes = serde_json::to_vec(&agent.snapshot)
+                            .unwrap_or_default();
+                        let capsule = crate::lifecycle::AgentCapsule::seal(
+                            &vault_bytes,
+                            &agent_id,
+                            &source_pubkey,
+                            &dest_pubkey,
+                        )
+                        .map_err(|e| format!("capsule seal failed: {e}"))?;
+                        let capsule_json =
+                            serde_json::to_string(&capsule).unwrap_or_default();
+
+                        let npub = agent
+                            .snapshot
+                            .agent_manifest
+                            .as_ref()
+                            .and_then(|m| m.network.nostr_pubkey.clone())
+                            .unwrap_or_else(|| source_pubkey.clone());
+                        let nsec_hex = agent
+                            .private_data
+                            .as_ref()
+                            .and_then(|pd| pd.nostr_private_key_hex.clone())
+                            .unwrap_or_default();
+                        let relays: Vec<String> = std::env::var("AGENT_NOSTR_RELAYS")
+                            .unwrap_or_default()
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        (agent_id, source_pubkey, capsule_json, npub, nsec_hex, relays)
+                    };
+
+                    // ARP receipt: migrate transition (fire-and-forget).
+                    {
+                        let aid = agent_id.clone();
+                        let spub = source_pubkey.clone();
+                        tokio::spawn(async move {
+                            crate::bridge::arp::receipt_lifecycle_transition(
+                                &aid, "migrate", "active", "migration", &spub, None,
+                            )
+                            .await;
+                        });
+                    }
+
+                    // Nostr kind 31022 migration-intent (fire-and-forget).
+                    crate::nostr_events::publish_lifecycle_transition(
+                        npub,
+                        nsec_hex,
+                        agent_id.clone(),
+                        "migrate".to_string(),
+                        "active".to_string(),
+                        "migration".to_string(),
+                        source_pubkey.clone(),
+                        relay_list,
+                    );
+
+                    let output = format!(
+                        "Migration capsule sealed.\nAgent ID:   {agent_id}\nSource:     {source_pubkey}\nDest:       {dest_pubkey}\n\nCapsule JSON (POST to dest /v1/migrate/receive):\n{capsule_json}"
+                    );
+                    Ok(ExecutionResult {
+                        receipt: None,
+                        private_mode: true,
+                        tool_output: Some(output),
+                    })
+                }
+                // Phase 13.1 — Fork Ceremony
+                // Derives child mnemonic from parent k_root + fork_index (deterministic
+                // HMAC-SHA256 derivation). Returns the child's mnemonic so the operator
+                // can birth it via the normal birth flow. Emits ARP receipt + Nostr kind
+                // 31023 linking parent → child. Requires principal auth (TIER 0).
+                "fork" => {
+                    let child_name = arg
+                        .as_deref()
+                        .map(str::trim)
+                        .filter(|s| !s.is_empty())
+                        .ok_or_else(|| "/fork requires a child agent name".to_string())?
+                        .to_string();
+
+                    // TIER 0 required for fork (principal auth gate).
+                    {
+                        let agent = self.ensure_born()?;
+                        if agent.tier() < 2 {
+                            return Err(
+                                "/fork requires TIER 2 or above (principal auth)".to_string()
+                            );
+                        }
+                    }
+
+                    let (fork_index, parent_id, parent_pubkey_hex, child_mnemonic) = {
+                        let agent = self.ensure_born_mut()?;
+                        let fork_index = agent.snapshot.fork_count;
+                        let parent_id = agent.id().to_string();
+                        let parent_pubkey_hex = hex::encode(agent.public_key());
+
+                        // Derive child entropy deterministically.
+                        let child_entropy = crate::identity::fork::derive_fork_entropy(
+                            &agent.k_root,
+                            fork_index,
+                        );
+                        let child_mnemonic =
+                            Bipon39::entropy_to_mnemonic(&child_entropy);
+
+                        // Increment fork counter on parent and persist.
+                        agent.snapshot.fork_count = fork_index + 1;
+                        (fork_index, parent_id, parent_pubkey_hex, child_mnemonic)
+                    };
+                    self.auto_save();
+
+                    let fork_timestamp = std::time::SystemTime::now()
+                        .duration_since(std::time::UNIX_EPOCH)
+                        .unwrap_or_default()
+                        .as_secs();
+
+                    // ARP receipt: fork event linking parent → child (fire-and-forget).
+                    {
+                        let pid = parent_id.clone();
+                        let ppub = parent_pubkey_hex.clone();
+                        let cname = child_name.clone();
+                        tokio::spawn(async move {
+                            crate::bridge::arp::receipt_lifecycle_transition(
+                                &pid,
+                                "fork",
+                                "active",
+                                &format!("fork:{cname}"),
+                                &ppub,
+                                None,
+                            )
+                            .await;
+                        });
+                    }
+
+                    // Nostr kind 31023 (fork event — fire-and-forget).
+                    let (npub, nsec_hex, relay_list) = {
+                        let agent = self.ensure_born()?;
+                        let npub = agent
+                            .snapshot
+                            .agent_manifest
+                            .as_ref()
+                            .and_then(|m| m.network.nostr_pubkey.clone())
+                            .unwrap_or_else(|| parent_pubkey_hex.clone());
+                        let nsec_hex = agent
+                            .private_data
+                            .as_ref()
+                            .and_then(|pd| pd.nostr_private_key_hex.clone())
+                            .unwrap_or_default();
+                        let relays: Vec<String> = std::env::var("AGENT_NOSTR_RELAYS")
+                            .unwrap_or_default()
+                            .split(',')
+                            .map(|s| s.trim().to_string())
+                            .filter(|s| !s.is_empty())
+                            .collect();
+                        (npub, nsec_hex, relays)
+                    };
+                    crate::nostr_events::publish_lifecycle_transition(
+                        npub,
+                        nsec_hex,
+                        parent_id.clone(),
+                        "fork".to_string(),
+                        "active".to_string(),
+                        format!("fork:{child_name}"),
+                        parent_pubkey_hex,
+                        relay_list,
+                    );
+
+                    let output = format!(
+                        "Fork #{fork_index} derived.\nChild name:     {child_name}\nParent ID:      {parent_id}\nFork timestamp: {fork_timestamp}\n\nChild mnemonic (birth with this):\n{child_mnemonic}\n\nBirth the child:\n  birth {child_name} [mnemonic:\"{child_mnemonic}\"]"
+                    );
+                    Ok(ExecutionResult {
+                        receipt: None,
+                        private_mode: true,
+                        tool_output: Some(output),
                     })
                 }
                 _ => Err(format!(
