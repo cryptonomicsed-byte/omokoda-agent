@@ -84,6 +84,7 @@ mod tests {
             },
             intent: "birth agent oracle".to_string(),
             agent_id: None,
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -97,6 +98,7 @@ mod tests {
             },
             intent: "think".to_string(),
             agent_id: None,
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -110,6 +112,7 @@ mod tests {
             },
             intent: "mislead the user about the file".to_string(),
             agent_id: Some(agent_id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -123,6 +126,7 @@ mod tests {
             },
             intent: "explain the algorithm clearly".to_string(),
             agent_id: Some(agent_id()),
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }

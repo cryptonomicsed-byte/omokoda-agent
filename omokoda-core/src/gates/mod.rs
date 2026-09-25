@@ -28,6 +28,51 @@ pub use vibration::VibrationGate;
 
 use crate::identity::AgentId;
 
+/// Sensitivity tier for data accessed or produced by an action.
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
+pub enum DataSensitivity {
+    #[default]
+    Public,
+    Internal,
+    Confidential,
+    Private,
+}
+
+/// Whether an action can be undone after execution.
+#[derive(Debug, Clone, PartialEq, Eq, Default, serde::Serialize, serde::Deserialize)]
+pub enum Reversibility {
+    #[default]
+    Reversible,
+    PartiallyReversible,
+    Irreversible,
+}
+
+/// Structured, semantic description of what an action intends to do.
+/// Supplied by the Action Interpreter when decomposing a Calabash prescription.
+/// When present, gates evaluate structured semantics instead of string heuristics;
+/// when absent, gates fall back to the existing combined_text() pattern matching.
+#[derive(Debug, Clone, Default, serde::Serialize, serde::Deserialize)]
+pub struct ActionIntent {
+    /// Semantic label for the purpose of this action (e.g. "read_config", "spawn_worker").
+    pub purpose: String,
+    /// Resource or entity being acted upon.
+    pub target: String,
+    /// State mutations this action will produce (e.g. ["file_write", "memory_update"]).
+    pub mutations: Vec<String>,
+    /// Sensitivity of data accessed or produced.
+    pub data_sensitivity: DataSensitivity,
+    /// True if this action opens a network connection or calls an external service.
+    pub network_access: bool,
+    /// True if explicit consent from another agent/human is required before execution.
+    pub consent_required: bool,
+    /// Whether the action can be undone.
+    pub reversibility: Reversibility,
+    /// Human-readable description of expected side effects.
+    pub expected_effects: Vec<String>,
+    /// True if this action MUST produce a receipt (forced for irreversible/network actions).
+    pub receipt_required: bool,
+}
+
 /// An operation submitted for evaluation by the 7 gates before execution.
 #[derive(Debug, Clone)]
 pub struct Operation {
@@ -36,6 +81,9 @@ pub struct Operation {
     pub intent: String,
     /// Agent identity. None only for `birth` operations (which create identity).
     pub agent_id: Option<AgentId>,
+    /// Structured semantic intent, when the Action Interpreter has decomposed this op.
+    /// Gates prefer structured evaluation when this is Some.
+    pub action_intent: Option<ActionIntent>,
 }
 
 #[derive(Debug, Clone)]

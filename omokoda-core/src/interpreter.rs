@@ -2681,14 +2681,16 @@ impl Steward {
                     let agent = self.ensure_born()?;
                     let agent_id = agent.id().clone();
                     let warn_count = agent.snapshot.session.warn_count;
+                    let swarm_load = (agent.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     let op = Operation {
                         kind: OperationKind::Think {
                             prompt: prompt.clone(),
                         },
                         intent: prompt.clone(),
                         agent_id: Some(agent_id),
+                        action_intent: None,
                     };
-                    let ctx = GateContext::new(false, warn_count, 0.0);
+                    let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
                     match self.gatekeeper.evaluate(&op, &ctx) {
                         GatekeeperResult::Approved { ref scores } => {
                             scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64
@@ -2947,7 +2949,8 @@ impl Steward {
                     let dir_len = agent_mut.snapshot.odu_dir.len();
                     let agent_id = agent_mut.id().clone();
                     let warn_count = agent_mut.snapshot.session.warn_count;
-                    let gate_ctx = GateContext::new(false, warn_count, 0.0);
+                    let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+                    let gate_ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
 
                     if self.dream_engine.should_consolidate(now) {
                         let op = Operation {
@@ -2957,6 +2960,7 @@ impl Steward {
                             },
                             intent: "dream engine background maintenance".to_string(),
                             agent_id: Some(agent_id.clone()),
+                            action_intent: None,
                         };
                         if matches!(
                             self.gatekeeper.evaluate(&op, &gate_ctx),
@@ -2978,6 +2982,7 @@ impl Steward {
                             },
                             intent: "dream engine background maintenance".to_string(),
                             agent_id: Some(agent_id),
+                            action_intent: None,
                         };
                         if matches!(
                             self.gatekeeper.evaluate(&op, &gate_ctx),
@@ -3283,6 +3288,7 @@ impl Steward {
                 let hermetic_score = {
                     let agent_mut = self.ensure_born_mut()?;
                     let warn_count = agent_mut.snapshot.session.warn_count;
+                    let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     let op = Operation {
                         kind: OperationKind::Act {
                             tool: tool.clone(),
@@ -3290,8 +3296,9 @@ impl Steward {
                         },
                         intent: format!("execute tool {}", tool),
                         agent_id: Some(agent_id.clone()),
+                        action_intent: None,
                     };
-                    let ctx = GateContext::new(false, warn_count, 0.0);
+                    let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
                     match self.gatekeeper.evaluate(&op, &ctx) {
                         GatekeeperResult::Approved { ref scores } => {
                             scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64
@@ -4911,6 +4918,7 @@ impl Steward {
         let hermetic_score = {
             let agent_mut = self.ensure_born_mut()?;
             let warn_count = agent_mut.snapshot.session.warn_count;
+            let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
             let op = Operation {
                 kind: OperationKind::Act {
                     tool: call.tool.clone(),
@@ -4918,8 +4926,9 @@ impl Steward {
                 },
                 intent: format!("execute tool {}", call.tool),
                 agent_id: Some(agent_id.clone()),
+                action_intent: None,
             };
-            let ctx = GateContext::new(false, warn_count, 0.0);
+            let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
             match self.gatekeeper.evaluate(&op, &ctx) {
                 GatekeeperResult::Approved { ref scores } => {
                     scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64

@@ -99,6 +99,11 @@ pub use session::{EncryptedSession, IdentityVaultData, MemoryVaultData, Sensitiv
 pub use skills::{OduModule, OduRegistry, OduSource};
 pub use steward::dispatch::{DispatchError, PrimitiveDispatcher};
 pub use steward::privacy::PrivacyEnforcer;
+pub use gates::{ActionIntent, DataSensitivity, Reversibility};
+pub use execution::action_transaction::{ActionTransaction, ActionReceipt, ActionOutcome, ActionState, MemoryEvent};
+pub use execution::action_compiler::{ActionCompiler, CompiledAction, CompiledStep, VerifySpec, CadenceSpec, CompileError};
+pub use execution::verify::{Assertion, AssertionResult, run_assertions, all_pass};
+pub use rhythm::{ActionCadence, TriggerKind};
 
 #[derive(Debug, Clone)]
 pub enum Primitive {

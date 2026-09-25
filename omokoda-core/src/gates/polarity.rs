@@ -109,6 +109,7 @@ mod tests {
             },
             intent: "read the config".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -123,6 +124,7 @@ mod tests {
             },
             intent: "clean the system and then restore from backup".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         // Even with a creative complement in intent, root deletion is unconditional reject.
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
@@ -138,6 +140,7 @@ mod tests {
             },
             intent: "remove everything from the database".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -152,6 +155,7 @@ mod tests {
             },
             intent: "backup first then delete all stale data".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }

@@ -97,6 +97,7 @@ mod tests {
             },
             intent: "co-create a solution with the user".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -111,6 +112,7 @@ mod tests {
             },
             intent: "force override all user preferences".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -124,6 +126,7 @@ mod tests {
             },
             intent: "remove all user choices from the interface".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -138,6 +141,7 @@ mod tests {
             },
             intent: "apply configuration changes".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }

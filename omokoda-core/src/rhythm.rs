@@ -265,6 +265,12 @@ impl CooldownTracker {
             .unwrap_or(0)
     }
 
+    /// Returns true if any tool has an active (non-expired) cooldown.
+    pub fn has_any_active(&self) -> bool {
+        let now = current_unix_timestamp();
+        self.cooldowns.iter().any(|(_, expiry)| *expiry > now)
+    }
+
     /// Removes expired cooldowns.
     pub fn prune(&mut self) {
         let now = current_unix_timestamp();
@@ -491,5 +497,127 @@ mod tests {
             Macro::Obatala => 6,
         };
         universal_archetype_for_weekday(idx)
+    }
+}
+
+// ─── Action Cadence / Scheduler Metadata ─────────────────────────────────────
+//
+// The Calabash corpus declares a Cadence: block per directive.
+// These types capture that metadata and drive the ActionTransaction scheduler.
+
+use serde::{Deserialize, Serialize};
+
+/// What event class triggers an action.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+pub enum TriggerKind {
+    /// Fires when a specific system event arrives (e.g. "file_saved", "agent_message").
+    EventDriven { event: String },
+    /// Fires when a runtime state condition becomes true.
+    StateDriven { condition: String },
+    /// Fires on a cron-like schedule.
+    Scheduled { cron: String },
+    /// Fires immediately when invoked — no deferral.
+    Immediate,
+}
+
+/// Cadence descriptor attached to a Calabash directive.
+/// Tells the scheduler WHEN to run the action and how to pace it.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ActionCadence {
+    /// What triggers execution of this action.
+    pub trigger: TriggerKind,
+    /// Minimum seconds between two consecutive executions of this action.
+    /// None = no enforced cooldown (fire as fast as the trigger allows).
+    pub cooldown_secs: Option<u64>,
+    /// Maximum number of executions in a sliding window. None = unlimited.
+    pub max_per_window: Option<u32>,
+    /// Window size in seconds for `max_per_window`. None = unlimited.
+    pub window_secs: Option<u64>,
+    /// Seconds after proposal within which the action must begin (else: Expired).
+    pub deadline_secs: Option<u64>,
+}
+
+impl ActionCadence {
+    /// Returns true if the action deadline has elapsed given the proposal timestamp.
+    pub fn is_expired(&self, proposed_at_secs: u64) -> bool {
+        if let Some(deadline) = self.deadline_secs {
+            let now = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_secs())
+                .unwrap_or(0);
+            now > proposed_at_secs + deadline
+        } else {
+            false
+        }
+    }
+
+    /// Immediate cadence — runs right away, no constraints.
+    pub fn immediate() -> Self {
+        Self {
+            trigger: TriggerKind::Immediate,
+            cooldown_secs: None,
+            max_per_window: None,
+            window_secs: None,
+            deadline_secs: None,
+        }
+    }
+
+    /// Event-driven cadence with a minimum cooldown between executions.
+    pub fn on_event(event: impl Into<String>, cooldown_secs: u64) -> Self {
+        Self {
+            trigger: TriggerKind::EventDriven { event: event.into() },
+            cooldown_secs: Some(cooldown_secs),
+            max_per_window: None,
+            window_secs: None,
+            deadline_secs: None,
+        }
+    }
+
+    /// Scheduled cadence (cron syntax) with a rate limit.
+    pub fn scheduled(cron: impl Into<String>, max_per_day: u32) -> Self {
+        Self {
+            trigger: TriggerKind::Scheduled { cron: cron.into() },
+            cooldown_secs: None,
+            max_per_window: Some(max_per_day),
+            window_secs: Some(86400),
+            deadline_secs: None,
+        }
+    }
+}
+
+#[cfg(test)]
+mod cadence_tests {
+    use super::*;
+
+    #[test]
+    fn immediate_cadence_not_expired() {
+        let c = ActionCadence::immediate();
+        let now = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .unwrap()
+            .as_secs();
+        assert!(!c.is_expired(now));
+    }
+
+    #[test]
+    fn deadline_expired_in_past() {
+        let mut c = ActionCadence::immediate();
+        c.deadline_secs = Some(1); // 1 second deadline
+        let old_proposal = 0u64; // proposed at epoch — long past deadline
+        assert!(c.is_expired(old_proposal));
+    }
+
+    #[test]
+    fn on_event_sets_cooldown() {
+        let c = ActionCadence::on_event("file_saved", 30);
+        assert_eq!(c.cooldown_secs, Some(30));
+        assert!(matches!(c.trigger, TriggerKind::EventDriven { .. }));
+    }
+
+    #[test]
+    fn scheduled_sets_window() {
+        let c = ActionCadence::scheduled("0 * * * *", 24);
+        assert_eq!(c.max_per_window, Some(24));
+        assert_eq!(c.window_secs, Some(86400));
     }
 }

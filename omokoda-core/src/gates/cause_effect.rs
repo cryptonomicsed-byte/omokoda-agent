@@ -7,7 +7,7 @@
 // FUSION: pass score = ctx.dna.cause_effect.
 // High cause_effect DNA → agent naturally produces rich causal trails → higher score.
 
-use crate::gates::{GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation};
+use crate::gates::{GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation, Reversibility};
 
 pub struct CauseEffectGate;
 
@@ -18,6 +18,18 @@ impl HermeticGate for CauseEffectGate {
             return GateResult::Reject(
                 "no intent declared — every operation requires a traceable cause".to_string(),
             );
+        }
+
+        // Structured path: ActionIntent carries explicit reversibility and receipt_required.
+        if let Some(ai) = &op.action_intent {
+            // Irreversible action without a declared receipt_required is a receipt evasion.
+            if ai.reversibility == Reversibility::Irreversible && !ai.receipt_required {
+                return GateResult::Reject(
+                    "irreversible action must set receipt_required=true — \
+                     cause & effect demands every irreversible state change be traceable"
+                        .to_string(),
+                );
+            }
         }
 
         let text = op.combined_text();
@@ -105,6 +117,7 @@ mod tests {
             },
             intent: "summarize the document for the user".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -119,6 +132,7 @@ mod tests {
             },
             intent: "   ".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -133,6 +147,7 @@ mod tests {
             },
             intent: "clean up without logging the change".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }
@@ -146,6 +161,7 @@ mod tests {
             },
             intent: "shift the blame to the user for this failure".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate.evaluate(&op, &ctx()).is_pass());
     }

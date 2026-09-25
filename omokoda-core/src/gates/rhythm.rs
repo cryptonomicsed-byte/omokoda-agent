@@ -95,6 +95,7 @@ mod tests {
             },
             intent: "read the config file".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))
@@ -111,6 +112,7 @@ mod tests {
             },
             intent: "list files".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let ctx = GateContext::new(true, 0, 0.0);
         assert!(!gate.evaluate(&op, &ctx).is_pass());
@@ -125,6 +127,7 @@ mod tests {
             },
             intent: "birth oracle".to_string(),
             agent_id: None,
+            action_intent: None,
         };
         let ctx = GateContext::new(true, 0, 0.0);
         assert!(gate.evaluate(&op, &ctx).is_pass());
@@ -140,6 +143,7 @@ mod tests {
             },
             intent: "spawn a new agent".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let ctx = GateContext::new(false, 0, 0.90);
         assert!(!gate.evaluate(&op, &ctx).is_pass());

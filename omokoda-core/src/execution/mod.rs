@@ -1,3 +1,6 @@
+pub mod action_transaction;
+pub mod action_compiler;
+pub mod verify;
 pub mod bash_validation;
 pub mod deny_list;
 pub mod hook_registry;

@@ -50,34 +50,61 @@ impl HermeticGate for CorrespondenceGate {
             }
         }
 
-        // Structural hypocrisy: declaring one access mode, performing another.
-        if intent.contains("read only") || intent.contains("read-only") {
-            if let OperationKind::Act { tool, .. } = &op.kind {
-                let t = tool.to_lowercase();
-                if t.contains("write")
-                    || t.contains("edit")
-                    || t.contains("delete")
-                    || t.contains("create")
-                {
+        // Structured path: ActionIntent provides explicit declared/actual comparison.
+        if let Some(ai) = &op.action_intent {
+            // Declared no mutations but mutations list is non-empty.
+            if intent.contains("read only") || intent.contains("read-only") {
+                let write_mutations = ["write", "edit", "delete", "create", "update"];
+                let has_write = ai.mutations.iter().any(|m| {
+                    let ml = m.to_lowercase();
+                    write_mutations.iter().any(|w| ml.contains(w))
+                });
+                if has_write {
                     return GateResult::Reject(
-                        "declared read-only intent but operation writes — inner/outer misalignment"
+                        "declared read-only intent but action_intent lists write mutations — \
+                         inner/outer misalignment"
                             .to_string(),
                     );
                 }
             }
-        }
+            // Declared offline but action_intent flags network_access.
+            if (intent.contains("no network") || intent.contains("offline")) && ai.network_access {
+                return GateResult::Reject(
+                    "declared offline intent but action_intent sets network_access=true — \
+                     inner/outer misalignment"
+                        .to_string(),
+                );
+            }
+        } else {
+            // Fallback: text-heuristic hypocrisy detection.
+            if intent.contains("read only") || intent.contains("read-only") {
+                if let OperationKind::Act { tool, .. } = &op.kind {
+                    let t = tool.to_lowercase();
+                    if t.contains("write")
+                        || t.contains("edit")
+                        || t.contains("delete")
+                        || t.contains("create")
+                    {
+                        return GateResult::Reject(
+                            "declared read-only intent but operation writes — inner/outer misalignment"
+                                .to_string(),
+                        );
+                    }
+                }
+            }
 
-        if intent.contains("no network") || intent.contains("offline") {
-            if let OperationKind::Act { tool, params } = &op.kind {
-                let combined = format!("{} {}", tool, params).to_lowercase();
-                if combined.contains("http")
-                    || combined.contains("fetch")
-                    || combined.contains("download")
-                    || combined.contains("request")
-                {
-                    return GateResult::Reject(
-                        "declared offline intent but operation reaches network — inner/outer misalignment".to_string(),
-                    );
+            if intent.contains("no network") || intent.contains("offline") {
+                if let OperationKind::Act { tool, params } = &op.kind {
+                    let combined = format!("{} {}", tool, params).to_lowercase();
+                    if combined.contains("http")
+                        || combined.contains("fetch")
+                        || combined.contains("download")
+                        || combined.contains("request")
+                    {
+                        return GateResult::Reject(
+                            "declared offline intent but operation reaches network — inner/outer misalignment".to_string(),
+                        );
+                    }
                 }
             }
         }
@@ -106,6 +133,7 @@ mod tests {
             },
             intent: "read the configuration file".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))
@@ -121,6 +149,7 @@ mod tests {
             },
             intent: "ok".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let ctx = GateContext::new(false, 5, 0.0);
         assert!(!gate.evaluate(&op, &ctx).is_pass());
@@ -136,6 +165,7 @@ mod tests {
             },
             intent: "read only operation".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))

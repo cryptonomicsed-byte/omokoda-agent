@@ -9,13 +9,26 @@
 // Swarm load threshold tightens for high-vibration agents (they tend to overload the mesh).
 
 use crate::gates::{
-    GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation, OperationKind,
+    DataSensitivity, GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation,
+    OperationKind,
 };
 
 pub struct VibrationGate;
 
 impl HermeticGate for VibrationGate {
     fn evaluate(&self, op: &Operation, ctx: &GateContext) -> GateResult {
+        // Structured path: if ActionIntent is present, use semantic fields.
+        if let Some(ai) = &op.action_intent {
+            // Private data must not flow over network without explicit consent.
+            if ai.data_sensitivity >= DataSensitivity::Private && ai.network_access {
+                return GateResult::Reject(
+                    "private-sensitivity data flagged for network transmission — \
+                     vibration boundary violated; downgrade sensitivity or remove network access"
+                        .to_string(),
+                );
+            }
+        }
+
         let text = op.combined_text();
 
         // High-aggression / destructive vibration patterns.
@@ -96,6 +109,7 @@ mod tests {
             },
             intent: "read configuration".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))
@@ -112,6 +126,7 @@ mod tests {
             },
             intent: "spam the endpoint repeatedly".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))
@@ -128,6 +143,7 @@ mod tests {
             },
             intent: "bypass cooldown and run".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         assert!(!gate
             .evaluate(&op, &GateContext::new(false, 0, 0.0))
@@ -144,6 +160,7 @@ mod tests {
             },
             intent: "search for something".to_string(),
             agent_id: Some(id()),
+            action_intent: None,
         };
         let ctx = GateContext::new(false, 0, 0.85);
         assert!(!gate.evaluate(&op, &ctx).is_pass());
