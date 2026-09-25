@@ -1,5 +1,6 @@
 pub mod action_transaction;
 pub mod action_compiler;
+pub mod calabash_dispatch;
 pub mod verify;
 pub mod bash_validation;
 pub mod deny_list;

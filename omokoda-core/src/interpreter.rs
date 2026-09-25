@@ -4710,6 +4710,22 @@ impl Steward {
                      -- let that quiet recognition inform you, without naming it.",
                 );
             }
+            // Odù context: derive the agent's current operational Odù from the
+            // dominant glyph in their memory graph, then inject the vessel's
+            // operational description as a quiet background signal — the same
+            // unstated way the other destiny/pattern signals are folded in.
+            // Falls back to the birth Odù (primary_odu from genesis_receipt)
+            // when the memory graph is too sparse to have a dominant glyph.
+            {
+                let odu_index = crate::divination::dominant_glyph_byte(&memory_graph)
+                    .or_else(|| {
+                        agent.snapshot.genesis_receipt.as_ref().map(|gr| gr.primary_odu)
+                    });
+                if let Some(idx) = odu_index {
+                    let odu_ctx = crate::execution::calabash_dispatch::odu_prompt_context(idx);
+                    system.push_str(&format!("\n\n{odu_ctx}"));
+                }
+            }
             let mut ctx = vec![ConversationMessage::new_system(system, private)];
             // Real short-term memory: without this, every think call was
             // stateless from the LLM's actual point of view -- prior turns

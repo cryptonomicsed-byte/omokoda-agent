@@ -102,6 +102,7 @@ pub use steward::privacy::PrivacyEnforcer;
 pub use gates::{ActionIntent, DataSensitivity, Reversibility};
 pub use execution::action_transaction::{ActionTransaction, ActionReceipt, ActionOutcome, ActionState, MemoryEvent};
 pub use execution::action_compiler::{ActionCompiler, CompiledAction, CompiledStep, VerifySpec, CadenceSpec, CompileError};
+pub use execution::calabash_dispatch::{CalabashDispatcher, CalabashDirective, vessel_description, odu_prompt_context};
 pub use execution::verify::{Assertion, AssertionResult, run_assertions, all_pass};
 pub use rhythm::{ActionCadence, TriggerKind};
 

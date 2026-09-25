@@ -80,11 +80,21 @@ impl Tool for IfScriptTool {
         .map_err(|e| format!("if_script_cast task join error: {e}"))?
         .map_err(|e| format!("field cast failed: {e}"))?;
 
+        // Compile the Calabash directive for the resolved Odù so callers can
+        // feed it directly into ActionTransaction without re-deriving it.
+        let directive = crate::execution::calabash_dispatch::CalabashDispatcher::directive_for(cast.binary);
+
         let result = json!({
             "odu_name": cast.odu.name,
+            "universal_name": cast.odu.universal_name,
+            "archetype": cast.odu.archetype,
             "binary": cast.binary,
+            "vessel": directive.vessel,
             "present_signature": cast.present_signature,
             "past_signature": cast.past_signature,
+            "opcode": directive.opcode,
+            "prescription": directive.prescription,
+            "prescriptions_spiritual": cast.odu.prescriptions,
         });
         Ok((result.to_string(), crate::usage::TokenUsage::default()))
     }
