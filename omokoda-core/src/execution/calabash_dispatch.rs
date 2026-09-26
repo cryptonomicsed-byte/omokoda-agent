@@ -29,6 +29,7 @@ use ifascript::odu::{get_odu, ActionVessel};
 use serde::{Deserialize, Serialize};
 
 use crate::execution::action_compiler::{ActionCompiler, CadenceSpec, CompiledAction, CompileError, VerifySpec};
+use crate::execution::action_schema::{build_schema, ActionSchema};
 
 /// A fully-specified agent directive derived from one of the 256 base Odù.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -319,32 +320,46 @@ pub struct CalabashDispatcher;
 impl CalabashDispatcher {
     /// Derive an operational directive for any Odù index 0–255.
     ///
-    /// The top nibble determines the vessel (operational domain).
-    /// The bottom nibble determines the modifier (refinement).
+    /// Now uses the full `ActionSchema` derived from the actual Odù corpus:
+    /// prescriptions come from the real spiritual prescriptions compiled to
+    /// operational steps, not generic vessel templates. Every directive is
+    /// unique because every Odù has a distinct prescription pair.
     pub fn directive_for(odu_index: u8) -> CalabashDirective {
         let odu = get_odu(odu_index);
-        let vessel_idx = (odu_index >> 4) as usize;   // top nibble
-        let modifier_idx = (odu_index & 0x0F) as usize; // bottom nibble
+        let vessel_idx = (odu_index >> 4) as usize;
+        let modifier_idx = (odu_index & 0x0F) as usize;
 
         let vp = &VESSEL_PROFILES[vessel_idx];
         let mp = &VESSEL_PROFILES[modifier_idx];
-        let refinement = MODIFIER_REFINEMENTS[modifier_idx];
-
         let opcode = format!("{}:{}", vp.name, mp.name);
 
-        // Two-step prescription:
-        // Step 1: primary action with modifier refinement
-        // Step 2: verification/follow-up from the modifier vessel
-        let prescription = format!(
-            "1. {} {} via {}\n2. Confirm outcome and record state via {}",
-            vp.action_verb,
-            refinement,
-            vp.primary_tool,
-            mp.secondary_tool,
-        );
+        // Pull operational steps from the actual corpus via ActionSchema
+        let schema = build_schema(odu_index);
+        let prescription = if schema.operational_steps.is_empty() {
+            // Structural fallback only — should never fire given all 256 have prescriptions
+            format!(
+                "1. {} {} via {}\n2. Confirm outcome and record state via {}",
+                vp.action_verb, MODIFIER_REFINEMENTS[modifier_idx],
+                vp.primary_tool, mp.secondary_tool,
+            )
+        } else {
+            // Use the actual corpus-derived operational steps
+            schema.operational_steps
+                .iter()
+                .enumerate()
+                .map(|(i, step)| format!("{}. {} via {}", i + 1, step.description, step.tool))
+                .collect::<Vec<_>>()
+                .join("\n")
+        };
 
-        let verify = Self::build_verify(vp, odu_index);
-        let cadence = Self::build_cadence(vp);
+        // Use verify specs from the schema (corpus-specific) rather than generic vessel template
+        let verify = if schema.verify_specs.is_empty() {
+            Self::build_verify(vp, odu_index)
+        } else {
+            schema.verify_specs.clone()
+        };
+
+        let cadence = schema.cadence.clone();
 
         CalabashDirective {
             odu_index,
@@ -357,6 +372,15 @@ impl CalabashDispatcher {
             verify,
             cadence,
         }
+    }
+
+    /// Get the full `ActionSchema` for any Odù index 0–255.
+    ///
+    /// Returns all behavioral constraints, operational steps, execution mode,
+    /// activation modes, and the full context block. Use this when you need
+    /// more than the directive (e.g., to check taboo constraints before executing).
+    pub fn schema_for(odu_index: u8) -> ActionSchema {
+        build_schema(odu_index)
     }
 
     /// Compile a resolved Odù directly to a `CompiledAction`.
@@ -473,34 +497,17 @@ pub fn vessel_description(vessel: ActionVessel) -> &'static str {
 
 /// Build the Odù context block to inject into a Think prompt.
 ///
-/// Returns a multi-line string describing the agent's current Odù state
-/// and its operational implication. Pass the Odù index derived from
-/// `FieldDiviner::cast()` or `divination::dominant_glyph_byte()`.
+/// Returns the full schema context block from `ActionSchema::context_block`,
+/// which includes: Odù name + universal name, vessel + execution mode,
+/// archetype, description, operational steps, behavioral constraints, and
+/// active taboos. This is the complete picture — not a summary.
+///
+/// Pass the Odù index derived from `FieldDiviner::cast()` or
+/// `divination::dominant_glyph_byte()`.
 pub fn odu_prompt_context(odu_index: u8) -> String {
-    let odu = get_odu(odu_index);
-    let directive = CalabashDispatcher::directive_for(odu_index);
-    let vessel_desc = vessel_description(odu.vessel);
-
-    format!(
-        "═══ Odù Context ═══\n\
-         Current Odù: {} ({})\n\
-         Vessel: {} — {}\n\
-         Archetype: {}\n\
-         Operational Directive: {}\n\
-         Agent Prescription:\n{}\n\
-         ═══════════════════",
-        odu.name,
-        odu.universal_name,
-        directive.vessel,
-        vessel_desc,
-        odu.archetype,
-        directive.opcode,
-        directive.prescription
-            .lines()
-            .map(|l| format!("  {l}"))
-            .collect::<Vec<_>>()
-            .join("\n"),
-    )
+    // Use the full ActionSchema context block — includes constraints and taboos
+    let schema = build_schema(odu_index);
+    schema.context_block
 }
 
 #[cfg(test)]

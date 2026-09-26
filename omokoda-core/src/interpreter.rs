@@ -6101,6 +6101,60 @@ impl Steward {
             (vessel_s, category_s, alignment_s)
         };
 
+        // ActionInterpreter behavioral constraint gate — enforces taboo-derived
+        // behavioral rules and execution mode authority for the current Odù.
+        // Runs AFTER the hermetic causal gate and vessel alignment check.
+        // Blocked/Refused decisions are receipted and surfaced as errors.
+        let interpret_odu = odu_identity.primary_index;
+        {
+            use crate::execution::action_interpreter::ActionInterpreter;
+            let decision = ActionInterpreter::evaluate(interpret_odu, tool_name, params);
+            match decision {
+                crate::execution::action_interpreter::InterpretDecision::Blocked {
+                    ref constraint_name, ref rationale, ..
+                } => {
+                    let receipt = ActionInterpreter::commit_blocked(interpret_odu, tool_name, decision.clone());
+                    tracing::debug!(
+                        odu = interpret_odu,
+                        constraint = %constraint_name,
+                        summary = %ActionInterpreter::receipt_summary(&receipt),
+                        "ActionInterpreter: blocked by taboo constraint"
+                    );
+                    return Err(format!(
+                        "Odù behavioral constraint '{}' blocked '{}': {}",
+                        constraint_name, tool_name, rationale
+                    ));
+                }
+                crate::execution::action_interpreter::InterpretDecision::Refused {
+                    ref reason, ref execution_mode, ..
+                } => {
+                    let receipt = ActionInterpreter::commit_blocked(interpret_odu, tool_name, decision.clone());
+                    tracing::debug!(
+                        odu = interpret_odu,
+                        ?execution_mode,
+                        reason = %reason,
+                        summary = %ActionInterpreter::receipt_summary(&receipt),
+                        "ActionInterpreter: refused by execution mode"
+                    );
+                    return Err(format!(
+                        "Odù execution mode ({:?}) refused '{}': {}",
+                        execution_mode, tool_name, reason
+                    ));
+                }
+                crate::execution::action_interpreter::InterpretDecision::Proceed {
+                    vessel_aligned, ..
+                } => {
+                    if !vessel_aligned {
+                        tracing::debug!(
+                            odu = interpret_odu,
+                            tool = tool_name,
+                            "ActionInterpreter: advisory — tool not in vessel's primary step set"
+                        );
+                    }
+                }
+            }
+        }
+
         let context = crate::tools::ExecutionContext {
             agent_id,
             name,
@@ -6115,7 +6169,19 @@ impl Steward {
         let (output, tool_usage) = self
             .tools
             .execute(tool_name, params, context, &self.permission_policy, None)
-            .await?;
+            .await
+            .map_err(|e| {
+                // Produce a failure receipt on tool error before propagating
+                let receipt = crate::execution::action_interpreter::ActionInterpreter::commit_failed(
+                    interpret_odu, tool_name, &e,
+                );
+                tracing::debug!(
+                    odu = interpret_odu,
+                    summary = %crate::execution::action_interpreter::ActionInterpreter::receipt_summary(&receipt),
+                    "ActionInterpreter: tool execution failed"
+                );
+                e
+            })?;
 
         // Ọya (Go) rhythm tracking: record this completed primitive.
         // Fire-and-forget, matching HttpOsunClient::store_memcell's pattern
@@ -6131,6 +6197,38 @@ impl Steward {
                     .record_primitive(&agent_id_for_oya, &tool_name_owned)
                     .await;
             });
+        }
+
+        // ActionInterpreter post-execution verification + mandatory receipt.
+        // Runs verify specs from the active Odù's ActionSchema against the raw output.
+        // The outcome is logged; a Partial/Unverified result logs a debug warning
+        // but does NOT fail the turn (the ActReceipt below is the authoritative proof).
+        {
+            use crate::execution::action_interpreter::ActionInterpreter;
+            use crate::execution::action_schema::build_schema;
+            let schema = build_schema(interpret_odu);
+            let verify_outcome = ActionInterpreter::verify(&output, &schema.verify_specs);
+            let receipt = ActionInterpreter::commit(
+                interpret_odu,
+                tool_name,
+                &output,
+                None,
+                verify_outcome,
+                tool_usage.clone(),
+            );
+            let summary = ActionInterpreter::receipt_summary(&receipt);
+            match receipt.outcome {
+                crate::execution::action_interpreter::InterpretOutcome::Committed => {
+                    tracing::debug!(odu = interpret_odu, summary = %summary, "ActionInterpreter: committed");
+                }
+                crate::execution::action_interpreter::InterpretOutcome::Partial => {
+                    tracing::debug!(odu = interpret_odu, summary = %summary, "ActionInterpreter: partial verify");
+                }
+                crate::execution::action_interpreter::InterpretOutcome::Unverified => {
+                    tracing::debug!(odu = interpret_odu, summary = %summary, "ActionInterpreter: unverified (no specs matched)");
+                }
+                _ => {}
+            }
         }
 
         // Burn synapse for tool cost

@@ -1,5 +1,7 @@
 pub mod action_transaction;
 pub mod action_compiler;
+pub mod action_schema;
+pub mod action_interpreter;
 pub mod calabash_dispatch;
 pub mod verify;
 pub mod bash_validation;
