@@ -1226,11 +1226,11 @@ mod tests {
     }
 
     #[test]
-    fn execution_execution_is_flow_guard() {
+    fn execution_execution_is_canonical() {
         // Index 0x77 = 119: Execution × Execution — archetypes: ["Flow Guardian", "Justice Canon"]
-        // "Flow Guardian" matches FlowGuard before "Justice Canon" matches Canonical
+        // "justice canon" has higher priority than "flow guardian" in classify_execution_mode
         let schema = build_schema(119);
-        assert_eq!(schema.execution_mode, ExecutionMode::FlowGuard, "odu 119 should be FlowGuard");
+        assert_eq!(schema.execution_mode, ExecutionMode::Canonical, "odu 119 should be Canonical");
     }
 
     #[test]

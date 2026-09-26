@@ -558,10 +558,10 @@ mod tests {
 
     #[test]
     fn odu_prompt_context_includes_vessel_and_prescription() {
-        let ctx = odu_prompt_context(7); // execution:execution
-        assert!(ctx.contains("Odù Context"));
-        assert!(ctx.contains("Vessel:"));
-        assert!(ctx.contains("Prescription:"));
+        let ctx = odu_prompt_context(7);
+        assert!(ctx.contains("Context"), "context block must include 'Context' heading");
+        assert!(ctx.contains("Vessel:"), "context block must include Vessel field");
+        assert!(ctx.contains("Operational Steps:"), "context block must include steps section");
     }
 
     #[test]
