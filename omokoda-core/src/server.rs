@@ -48,6 +48,8 @@ pub struct AppState {
     pub vault_base: PathBuf,
     /// Canonical per-agent OS kernel: heartbeat chain + daemon registry.
     pub runtime: Arc<Mutex<crate::lifecycle::AgentRuntime>>,
+    /// Sovereign OS kernel: process table, IPC, FS, scheduler, devices.
+    pub os_kernel: Arc<crate::kernel::OsKernel>,
 }
 
 impl AppState {
@@ -85,7 +87,7 @@ impl AppState {
                 ("agent:unborn".to_string(), "resident".to_string())
             }
         };
-        let runtime = crate::lifecycle::AgentRuntime::new(owner_id, owner_tier);
+        let runtime = crate::lifecycle::AgentRuntime::new(owner_id.clone(), owner_tier);
         // Register the five canonical daemons.
         {
             let mut rt = runtime.blocking_lock();
@@ -95,11 +97,15 @@ impl AppState {
             rt.daemons.register("job");
             rt.daemons.register("skill");
         }
+        // Boot the sovereign OS kernel and register the owner process.
+        let os_kernel = Arc::new(crate::kernel::OsKernel::new());
+        os_kernel.on_birth(&owner_id, "startup");
         Self {
             steward: Arc::new(Mutex::new(steward)),
             guests: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vault_base,
             runtime,
+            os_kernel,
         }
     }
 }
@@ -294,6 +300,8 @@ async fn birth_handler(
                 .map(|s| s.to_string())
                 .or_else(|| agent_id.clone());
             if let Some(id) = agent_id.clone() {
+                // Register the new agent with the sovereign OS kernel.
+                state.os_kernel.on_birth(&id, "guest-birth");
                 let mut guests = state.guests.lock().await;
                 guests.insert(id, new_steward);
             }
@@ -674,6 +682,13 @@ async fn status_handler(
 
 async fn health_handler() -> Json<HealthResponse> {
     Json(HealthResponse { ok: true })
+}
+
+async fn kernel_status_handler(
+    State(state): State<AppState>,
+) -> Json<serde_json::Value> {
+    let status = state.os_kernel.status();
+    Json(serde_json::to_value(status).unwrap_or_default())
 }
 
 /// Phase 14.1 — Migration receive endpoint.
@@ -1391,6 +1406,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/act", post(act_handler))
         .route("/v1/events", get(events_handler))
         .route("/v1/status", get(status_handler))
+        .route("/v1/kernel/status", get(kernel_status_handler))
         .route("/v1/health", get(health_handler))
         .route("/v1/migrate/receive", post(migrate_receive_handler))
         .route("/v1/manifest", get(manifest_handler))
@@ -1653,6 +1669,7 @@ mod multi_agent_tests {
             guests: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vault_base: PathBuf::from(".omokoda-test"),
             runtime: crate::lifecycle::AgentRuntime::new("test", "resident"),
+            os_kernel: Arc::new(crate::kernel::OsKernel::new()),
         }
     }
 
@@ -1806,6 +1823,7 @@ mod keystore_tests {
             guests: Arc::new(Mutex::new(std::collections::HashMap::new())),
             vault_base: PathBuf::from(".omokoda-test"),
             runtime: crate::lifecycle::AgentRuntime::new("test", "resident"),
+            os_kernel: Arc::new(crate::kernel::OsKernel::new()),
         }
     }
 
