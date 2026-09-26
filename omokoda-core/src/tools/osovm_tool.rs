@@ -6,6 +6,11 @@
 //!   osovm_run      — execute an OSOVM opcode
 //!   osovm_veilsim  — run a VeilSim scenario
 //!   osovm_health   — check OSOVM server health
+//!
+//! Helper (not a tool):
+//!   attest_receipt — fire-and-forget POST /attest/{receipt_id}; used by
+//!                    the interpreter to anchor ActReceipts in OSOVM for
+//!                    tier-3+ actions. Returns None if OSOVM is absent.
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
@@ -36,6 +41,48 @@ async fn osovm_post(path: &str, body: Value) -> Result<String, String> {
         return Err(format!("OSOVM error: {}", val.get("error").unwrap_or(&json!("unknown"))));
     }
     Ok(serde_json::to_string_pretty(&val).unwrap_or_default())
+}
+
+// ── attest_receipt ────────────────────────────────────────────────────────────
+
+/// Submit an ActReceipt to OSOVM for attestation.
+///
+/// Called fire-and-forget from the interpreter after tier-3+ actions so every
+/// high-consequence receipt is anchored in the OSOVM simulation fabric.
+/// Returns the attestation ID on success; returns None if OSOVM is absent or
+/// OSOVM_URL is not configured — fail-open by design.
+pub async fn attest_receipt(
+    receipt_id: &str,
+    agent_id: &str,
+    tool_name: &str,
+    gate_alignment: f64,
+) -> Option<String> {
+    if std::env::var("OSOVM_URL").is_err() {
+        return None;
+    }
+    let body = json!({
+        "receipt_id":    receipt_id,
+        "agent_id":      agent_id,
+        "tool_name":     tool_name,
+        "gate_alignment": gate_alignment,
+        "attested_at":   std::time::SystemTime::now()
+                             .duration_since(std::time::UNIX_EPOCH)
+                             .unwrap_or_default()
+                             .as_secs(),
+    });
+    match osovm_post(&format!("/attest/{}", receipt_id), body).await {
+        Ok(resp) => {
+            let val: Value = serde_json::from_str(&resp).unwrap_or_default();
+            val.get("attestation_id")
+                .and_then(|v| v.as_str())
+                .map(str::to_string)
+                .or(Some(receipt_id.to_string()))
+        }
+        Err(e) => {
+            tracing::debug!(receipt_id, tool_name, error = %e, "OSOVM attest: skipped (service absent)");
+            None
+        }
+    }
 }
 
 // ── osovm_run ─────────────────────────────────────────────────────────────────

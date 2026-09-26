@@ -6275,6 +6275,9 @@ impl Steward {
         // then ingest it into the GIX store as GixKind::Receipt so the receipt
         // chain lives in the same graph as action memory.
         // gate_alignment: 1.0 clean pass, −0.1 per Hermetic warning, floor 0.5.
+        let mut attest_receipt_id  = String::new();
+        let mut attest_gate_align  = 0.0_f64;
+        let mut attest_agent_str   = String::new();
         let act_receipt_gix_id: Option<String> = {
             use crate::receipt::act_receipt::ActReceipt;
             use gix_types::{GixKind, GixNamespace, GixProvenance, HashDomain, RoutingHints};
@@ -6291,6 +6294,10 @@ impl Steward {
             .with_gate_alignment(gate_alignment)
             .with_previous_hash(prev_hash.unwrap_or_default());
             agent.snapshot.last_act_receipt_hash = Some(receipt.receipt_id.clone());
+            // Capture for OSOVM attest spawn below (before receipt moves into ring).
+            attest_receipt_id = receipt.receipt_id.clone();
+            attest_gate_align = gate_alignment;
+            attest_agent_str  = agent.id().to_string();
 
             // Serialize and insert into GIX as a Receipt envelope.
             let gix_id = if let Ok(receipt_bytes) = serde_json::to_vec(&receipt) {
@@ -6334,6 +6341,19 @@ impl Steward {
 
             gix_id
         };
+
+        // OSOVM receipt attestation — tier-3+ actions are anchored in the
+        // simulation fabric so the receipt chain is verifiable by OSOVM.
+        // Fire-and-forget: absent OSOVM_URL or unreachable service is a no-op.
+        if tier >= 3 && !attest_receipt_id.is_empty() {
+            let rid   = attest_receipt_id;
+            let aid   = attest_agent_str;
+            let tname = tool_name.to_string();
+            let ga    = attest_gate_align;
+            tokio::spawn(async move {
+                crate::tools::osovm_tool::attest_receipt(&rid, &aid, &tname, ga).await;
+            });
+        }
 
         // Phase 10A — action memory effect: record this tool call in the GIX store
         // so the agent's action history forms a cryptographically chained lineage DAG.
