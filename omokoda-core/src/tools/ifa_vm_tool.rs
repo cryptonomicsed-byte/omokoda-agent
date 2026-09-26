@@ -237,8 +237,8 @@ mod tests {
         assert!(result.is_ok());
         let (out, _) = result.unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
-        assert!(v["digital_calabash"]["odu_name"].is_string());
-        assert!(v["ifa_corpus"]["odu_name"].is_string());
+        assert!(v["digital_calabash"]["universal_name"].is_string());
+        assert!(v["ifa_corpus"]["universal_name"].is_string());
     }
 
     #[tokio::test]
