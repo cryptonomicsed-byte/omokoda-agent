@@ -4741,7 +4741,7 @@ impl Steward {
                 // Consequence: GoalGenesisEngine dim[3] = 0 every turn →
                 // Consolidation goal is structurally degenerate (never varies).
                 // Fix requires: call osovm_veilsim, cache result, derive Odù byte.
-                // Tracked: gap E-36 (simulation_odu stub locked by veilsim_submit_returns_not_implemented test).
+                // Tracked: gap E-50 (simulation_odu stub locked by veilsim_submit_returns_not_implemented test).
                 let simulation_odu: u8 = 0;
 
                 twin_vector = [identity_odu, memory_odu, field_odu, simulation_odu];
@@ -6288,6 +6288,7 @@ impl Steward {
         // chain lives in the same graph as action memory.
         // gate_alignment: 1.0 clean pass, −0.1 per Hermetic warning, floor 0.5.
         let mut attest_receipt_id  = String::new();
+        let mut attest_merkle_root = String::new();
         let mut attest_gate_align  = 0.0_f64;
         let mut attest_agent_str   = String::new();
         let act_receipt_gix_id: Option<String> = {
@@ -6312,6 +6313,8 @@ impl Steward {
             attest_agent_str  = agent.id().to_string();
 
             // Serialize and insert into GIX as a Receipt envelope.
+            // Capture canonical_id as the attest hash: hex::encode gives 64 chars,
+            // satisfying op_receipt's `verified = length(hash_val) >= 64` check.
             let gix_id = if let Ok(receipt_bytes) = serde_json::to_vec(&receipt) {
                 let content_hash = HashDomain::ContentHash.hash(&receipt_bytes);
                 let prov = GixProvenance::new(content_hash);
@@ -6325,6 +6328,7 @@ impl Steward {
                     RoutingHints::default(),
                 );
                 let id = hex::encode(env.canonical_id);
+                attest_merkle_root = id.clone();
                 self.gix_store.insert_object(env);
                 Some(id)
             } else {
@@ -6358,12 +6362,13 @@ impl Steward {
         // simulation fabric so the receipt chain is verifiable by OSOVM.
         // Fire-and-forget: absent OSOVM_URL or unreachable service is a no-op.
         if tier >= 3 && !attest_receipt_id.is_empty() {
-            let rid   = attest_receipt_id;
-            let aid   = attest_agent_str;
+            let rid  = attest_receipt_id;
+            let aid  = attest_agent_str;
+            let rmr  = attest_merkle_root;
             let tname = tool_name.to_string();
-            let ga    = attest_gate_align;
+            let ga   = attest_gate_align;
             tokio::spawn(async move {
-                crate::tools::osovm_tool::attest_receipt(&rid, &aid, &tname, ga).await;
+                crate::tools::osovm_tool::attest_receipt(&rid, &aid, &tname, ga, &rmr).await;
             });
         }
 

@@ -53,23 +53,31 @@ async fn osovm_post(path: &str, body: Value) -> Result<String, String> {
 /// high-consequence receipt is anchored in the OSOVM simulation fabric.
 /// Returns the attestation ID on success; returns None if OSOVM is absent or
 /// OSOVM_URL is not configured — fail-open by design.
+///
+/// `merkle_root` must be the 64-hex-char SHA-256 of the receipt bytes.
+/// op_receipt (vm_core.jl:281) sets `verified = length(hash_val) >= 64`;
+/// passing a short or empty hash produces verified=false at the callee.
+/// The response key is `result.receipt` (inner dict from op_receipt), not
+/// the top-level `receipt` key (which /run does not emit).
 pub async fn attest_receipt(
     receipt_id: &str,
     agent_id: &str,
     tool_name: &str,
     gate_alignment: f64,
+    merkle_root: &str,
 ) -> Option<String> {
     if std::env::var("OSOVM_URL").is_err() {
         return None;
     }
     // Use the existing /run endpoint with opcode=RECEIPT.
-    // OSOVM has no /attest route; /run with RECEIPT opcode is the correct surface.
+    // Pass `hash` = merkle_root so op_receipt's verified flag is true.
     let body = json!({
         "opcode": "RECEIPT",
         "args": {
             "receipt_id":    receipt_id,
             "tool_name":     tool_name,
             "gate_alignment": gate_alignment,
+            "hash":          merkle_root,
             "attested_at":   std::time::SystemTime::now()
                                  .duration_since(std::time::UNIX_EPOCH)
                                  .unwrap_or_default()
@@ -80,7 +88,9 @@ pub async fn attest_receipt(
     match osovm_post("/run", body).await {
         Ok(resp) => {
             let val: Value = serde_json::from_str(&resp).unwrap_or_default();
-            val.get("receipt")
+            // /run wraps op_receipt output in "result"; inner key is "receipt".
+            val.get("result")
+                .and_then(|r| r.get("receipt"))
                 .and_then(|v| v.as_str())
                 .map(str::to_string)
                 .or(Some(receipt_id.to_string()))
