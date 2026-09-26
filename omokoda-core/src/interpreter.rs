@@ -4716,17 +4716,47 @@ impl Steward {
             // unstated way the other destiny/pattern signals are folded in.
             // Falls back to the birth Odù (primary_odu from genesis_receipt)
             // when the memory graph is too sparse to have a dominant glyph.
-            let odu_index_for_goals: Option<u8>;
+            //
+            // TwinStateVector: four-dimensional Odù state.
+            //   [0] identity  — birth Odù (stable)
+            //   [1] memory    — dominant glyph byte (changes with experience)
+            //   [2] field     — XOR signal from message count (cheap, local)
+            //   [3] simulation — 0 (OSOVM placeholder; updated when L1 is live)
+            let twin_vector: [u8; 4];
+            let twin_dominant_fn: u8;
             {
-                let odu_index = crate::divination::dominant_glyph_byte(&memory_graph)
-                    .or_else(|| {
-                        agent.snapshot.genesis_receipt.as_ref().map(|gr| gr.primary_odu)
-                    });
-                odu_index_for_goals = odu_index;
-                if let Some(idx) = odu_index {
-                    let odu_ctx = crate::execution::calabash_dispatch::odu_prompt_context(idx);
-                    system.push_str(&format!("\n\n{odu_ctx}"));
-                }
+                let identity_odu: u8 = agent.snapshot.genesis_receipt.as_ref()
+                    .map(|gr| gr.primary_odu)
+                    .unwrap_or(0);
+                let memory_odu: u8 = crate::divination::dominant_glyph_byte(&memory_graph)
+                    .unwrap_or(identity_odu);
+                // Cheap field signal: XOR of identity with message-count low byte.
+                let field_odu: u8 = identity_odu
+                    ^ (agent.session().public_messages.len() as u8);
+                let simulation_odu: u8 = 0; // OSOVM not yet bridged
+
+                twin_vector = [identity_odu, memory_odu, field_odu, simulation_odu];
+
+                // Compute dominant SevenFunction (0-6) via ifascript bridge.
+                let tsv = ifascript::TwinStateVector::new(
+                    identity_odu, memory_odu, field_odu, simulation_odu,
+                );
+                twin_dominant_fn = tsv.dominant_function() as u8;
+
+                // Primary Odù context block for the system prompt.
+                let odu_ctx = crate::execution::calabash_dispatch::odu_prompt_context(identity_odu);
+                system.push_str(&format!("\n\n{odu_ctx}"));
+
+                // Twin state summary for the agent's situational awareness.
+                let fn_name = crate::seven::SEVEN_FUNCTION_NAMES
+                    .get(twin_dominant_fn as usize)
+                    .copied()
+                    .unwrap_or("Unknown");
+                system.push_str(&format!(
+                    "\n\n## Twin State Vector\n\
+                     Identity Odù: {identity_odu} | Memory Odù: {memory_odu} \
+                     | Field Odù: {field_odu} | Dominant function: {fn_name}"
+                ));
             }
             // Goal Genesis: derive autonomous goals from 5 internal streams and
             // inject the top 3 into the system prompt. The agent sees them as
@@ -4738,15 +4768,20 @@ impl Steward {
                     .map(|d| d.as_secs_f64())
                     .unwrap_or(0.0);
                 let goal_input = crate::goal_genesis::GoalGenesisInput {
-                    odu_id: odu_index_for_goals.unwrap_or(0),
+                    odu_id: twin_vector[0], // identity Odù as primary
                     tier: agent.tier().min(3).max(1),
                     glyph_count: memory_graph.len(),
                     rem_cluster_ids: vec![], // REM cluster IDs not yet threaded through here
-                    calabash_state_hash: format!("{:x}", odu_index_for_goals.unwrap_or(0)),
+                    calabash_state_hash: format!(
+                        "{:02x}{:02x}{:02x}{:02x}",
+                        twin_vector[0], twin_vector[1], twin_vector[2], twin_vector[3]
+                    ),
                     hermetic_balance: ((agent.reputation() as f32 + 50.0) / 150.0).clamp(0.0, 1.0),
                     recent_action_count: agent.session().public_messages.len(),
                     recent_failure_count: 0, // failure count not yet threaded through here
                     now_ts,
+                    twin_vector: Some(twin_vector),
+                    twin_dominant_fn: Some(twin_dominant_fn),
                 };
                 let engine = crate::goal_genesis::GoalGenesisEngine::new();
                 let goal_set = engine.derive_goals(&goal_input);

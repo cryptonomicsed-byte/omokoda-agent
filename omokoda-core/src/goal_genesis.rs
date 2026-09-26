@@ -100,6 +100,18 @@ pub struct GoalGenesisInput {
     pub recent_failure_count: usize,
     /// Current unix timestamp (used for created_at and evolve decay delta).
     pub now_ts: f64,
+    /// Four-dimensional Odù state vector from TwinStateVector:
+    ///   [0] identity_odu   — birth / stable identity Odù
+    ///   [1] memory_odu     — dominant glyph byte from memory graph
+    ///   [2] field_odu      — Waggle/field signal (XOR fallback when offline)
+    ///   [3] simulation_odu — OSOVM world-model Odù (0 when OSOVM offline)
+    /// When None, engine falls back to odu_id for all four dimensions.
+    #[serde(default)]
+    pub twin_vector: Option<[u8; 4]>,
+    /// SevenFunction index (0-6) of the dominant function across all four Odù.
+    /// Drives constitutional goal framing when twin_vector is present.
+    #[serde(default)]
+    pub twin_dominant_fn: Option<u8>,
 }
 
 // ── Engine ───────────────────────────────────────────────────────────────────
@@ -255,13 +267,20 @@ impl GoalGenesisEngine {
         }
     }
 
+    /// Return `twin_vector[dim]` if present, else `odu_id`.
+    fn odu_for_dim(input: &GoalGenesisInput, dim: usize) -> u8 {
+        input.twin_vector.map(|v| v[dim]).unwrap_or(input.odu_id)
+    }
+
     /// Stream 4 — Calabash: existence continuity (always urgent, high alignment).
+    /// Uses identity_odu (twin dim 0) — stable self-knowledge about who the agent is.
     fn survival_goal(&self, input: &GoalGenesisInput) -> DerivedGoal {
+        let identity_odu = Self::odu_for_dim(input, 0);
         DerivedGoal {
             id: Uuid::new_v4().to_string(),
             description: "Maintain existence continuity and Calabash integrity".to_string(),
             source: GoalSource::CalabasState,
-            odu_alignment: input.odu_id,
+            odu_alignment: identity_odu,
             urgency: 0.85,
             alignment_score: (input.hermetic_balance * 0.3 + 0.7).clamp(0.0, 1.0),
             tier: input.tier,
@@ -271,7 +290,9 @@ impl GoalGenesisEngine {
     }
 
     /// Stream 1 — Experience: learn from recent failures.
+    /// Uses memory_odu (twin dim 1) — grounded in what the agent remembers.
     fn failure_learning_goal(&self, input: &GoalGenesisInput) -> DerivedGoal {
+        let memory_odu = Self::odu_for_dim(input, 1);
         let failure_ratio = input.recent_failure_count as f32
             / (input.recent_action_count.max(1) as f32);
         let urgency = (0.4 + failure_ratio * 0.5).clamp(0.0, 1.0);
@@ -282,7 +303,7 @@ impl GoalGenesisEngine {
                 input.recent_failure_count
             ),
             source: GoalSource::Experience,
-            odu_alignment: input.odu_id.wrapping_add(8), // shifted Odù for adversity
+            odu_alignment: memory_odu.wrapping_add(8), // shifted Odù for adversity
             urgency,
             alignment_score: (input.hermetic_balance * 0.5 + 0.3).clamp(0.0, 1.0),
             tier: input.tier,
@@ -292,7 +313,9 @@ impl GoalGenesisEngine {
     }
 
     /// Stream 3 — REM: consolidate accumulated memory into actionable knowledge.
+    /// Uses simulation_odu (twin dim 3) — how the agent models its own behaviour.
     fn consolidation_goal(&self, input: &GoalGenesisInput) -> DerivedGoal {
+        let sim_odu = Self::odu_for_dim(input, 3);
         let cluster_count = input.rem_cluster_ids.len();
         let density_bonus = (input.glyph_count as f32 / 100.0).min(0.3);
         let urgency = if cluster_count > 0 {
@@ -308,7 +331,7 @@ impl GoalGenesisEngine {
                 cluster_count
             ),
             source: GoalSource::RemConsolidation,
-            odu_alignment: input.odu_id.wrapping_add(2),
+            odu_alignment: sim_odu.wrapping_add(2),
             urgency,
             alignment_score: input.hermetic_balance.clamp(0.0, 1.0),
             tier: input.tier.saturating_add(1).min(3),
@@ -318,19 +341,28 @@ impl GoalGenesisEngine {
     }
 
     /// Stream 5 — Constitutional: Odù-aligned behavioral imperative.
+    /// When twin_vector is present, uses the XOR composed signature for a richer
+    /// constitutional signal that reflects all four state dimensions simultaneously.
     fn constitutional_goal(&self, input: &GoalGenesisInput) -> DerivedGoal {
-        let odu_principle = input.odu_id % 16;
+        // Composed signature: XOR of all four twin dimensions (or just odu_id).
+        let odu_alignment = match input.twin_vector {
+            Some(v) => v[0] ^ v[1] ^ v[2] ^ v[3],
+            None => input.odu_id,
+        };
+        let odu_principle = odu_alignment % 16;
         let (odu_name, principle_description) = ODU_PRINCIPLES[odu_principle as usize];
-        let odu_alignment = input.odu_id;
-        // Constitutional goals are moderate urgency, very high alignment
+
+        // Dominant function name, when available, enriches the goal description.
+        let fn_suffix = input.twin_dominant_fn
+            .and_then(|idx| SEVEN_FUNCTION_NAMES.get(idx as usize).copied())
+            .map(|name| format!(" [{name}]"))
+            .unwrap_or_default();
+
         let urgency = 0.55 + input.hermetic_balance * 0.2;
         let alignment_score = (input.hermetic_balance * 0.4 + 0.6).clamp(0.0, 1.0);
         DerivedGoal {
             id: Uuid::new_v4().to_string(),
-            description: format!(
-                "[{}] {}",
-                odu_name, principle_description
-            ),
+            description: format!("[{}]{} {}", odu_name, fn_suffix, principle_description),
             source: GoalSource::Constitutional,
             odu_alignment,
             urgency: urgency.clamp(0.0, 1.0),
@@ -365,6 +397,10 @@ impl GoalGenesisEngine {
 }
 
 // ── 16 Primary Odù Constitutional Principles ─────────────────────────────────
+
+/// SevenFunction names indexed by SevenFunction discriminant (0–6).
+static SEVEN_FUNCTION_NAMES: [&str; 7] =
+    ["Spark", "Mind", "Foundation", "Emotion", "Womb", "Fire", "Ascension"];
 
 /// (Odù name, constitutional goal description template)
 /// Index = odu_id % 16
@@ -404,6 +440,24 @@ mod tests {
             recent_action_count: 0,
             recent_failure_count: 0,
             now_ts: 1_750_000_000.0,
+            twin_vector: None,
+            twin_dominant_fn: None,
+        }
+    }
+
+    fn twin_input() -> GoalGenesisInput {
+        GoalGenesisInput {
+            odu_id: 5,
+            tier: 1,
+            glyph_count: 0,
+            rem_cluster_ids: vec![],
+            calabash_state_hash: "deadbeef".to_string(),
+            hermetic_balance: 0.7,
+            recent_action_count: 0,
+            recent_failure_count: 0,
+            now_ts: 1_750_000_000.0,
+            twin_vector: Some([10, 20, 30, 40]), // identity, memory, field, sim
+            twin_dominant_fn: Some(0),           // Spark
         }
     }
 
@@ -625,5 +679,69 @@ mod tests {
             "GoalSet must not exceed max_goals=2, got {}",
             goal_set.goals.len()
         );
+    }
+
+    // ── TwinStateVector integration ───────────────────────────────────────────
+
+    #[test]
+    fn twin_vector_changes_survival_odu_alignment() {
+        let engine = GoalGenesisEngine::with_config(false, 8, 0.05);
+
+        let without_twin = engine.derive_goals(&minimal_input());
+        let with_twin    = engine.derive_goals(&twin_input());
+
+        let survival_plain = without_twin.goals.iter()
+            .find(|g| g.source == GoalSource::CalabasState).unwrap();
+        let survival_twin  = with_twin.goals.iter()
+            .find(|g| g.source == GoalSource::CalabasState).unwrap();
+
+        // Without twin_vector: odu_alignment = odu_id = 5.
+        assert_eq!(survival_plain.odu_alignment, 5);
+        // With twin_vector: odu_alignment = identity_odu = 10.
+        assert_eq!(survival_twin.odu_alignment, 10,
+            "survival goal should use identity_odu (dim 0) = 10");
+    }
+
+    #[test]
+    fn twin_vector_constitutional_uses_xor_signature() {
+        let engine = GoalGenesisEngine::with_config(false, 8, 0.05);
+        let input = twin_input(); // vector = [10, 20, 30, 40]
+        let goal_set = engine.derive_goals(&input);
+
+        let constitutional = goal_set.goals.iter()
+            .find(|g| g.source == GoalSource::Constitutional).unwrap();
+
+        // XOR of [10, 20, 30, 40]: 10^20=30, 30^30=0, 0^40=40.
+        // odu_principle = 40 % 16 = 8 → "Ogunda Meji".
+        assert_eq!(constitutional.odu_alignment, 10 ^ 20 ^ 30 ^ 40,
+            "constitutional odu_alignment must be XOR of all four twin dimensions");
+        assert!(constitutional.description.contains("Ogunda Meji"),
+            "XOR=40, index 8 → Ogunda Meji; got: {}", constitutional.description);
+    }
+
+    #[test]
+    fn twin_dominant_fn_appears_in_constitutional_description() {
+        let engine = GoalGenesisEngine::with_config(false, 8, 0.05);
+        let input = twin_input(); // twin_dominant_fn = Some(0) = Spark
+        let goal_set = engine.derive_goals(&input);
+
+        let constitutional = goal_set.goals.iter()
+            .find(|g| g.source == GoalSource::Constitutional).unwrap();
+
+        assert!(constitutional.description.contains("Spark"),
+            "dominant function 'Spark' must appear in constitutional goal; got: {}",
+            constitutional.description);
+    }
+
+    #[test]
+    fn twin_vector_calabash_hash_is_four_byte_hex() {
+        let engine = GoalGenesisEngine::with_config(false, 8, 0.05);
+        let input = GoalGenesisInput {
+            calabash_state_hash: "0a141e28".to_string(), // hex of [10,20,30,40]
+            ..twin_input()
+        };
+        let goal_set = engine.derive_goals(&input);
+        // snapshot stored as-is from caller
+        assert_eq!(goal_set.calabash_snapshot, "0a141e28");
     }
 }

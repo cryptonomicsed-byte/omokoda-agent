@@ -20,6 +20,12 @@ pub use omokoda_hermetic::seven::{
     SevenProfileEntry,
 };
 
+/// SevenFunction names indexed by discriminant (0 = Spark … 6 = Ascension).
+/// Used for human-readable system prompt annotations without depending on
+/// the full omokoda_hermetic crate at call sites.
+pub const SEVEN_FUNCTION_NAMES: [&str; 7] =
+    ["Spark", "Mind", "Foundation", "Emotion", "Womb", "Fire", "Ascension"];
+
 use crate::gates::HermeticPrinciple;
 
 /// Map a SevenFunction to its corresponding HermeticPrinciple gate.
