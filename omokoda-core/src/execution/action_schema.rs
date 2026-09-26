@@ -281,9 +281,9 @@ fn classify_verb(text: &str) -> PrescriptionVerb {
         || t.contains("clean your") || t.contains("clean and prepare") || t.contains("apply bitter")
     {
         PrescriptionVerb::Cleanse
-    } else if t.starts_with("fast") || t.starts_with("abstain") || t.contains("in silence")
-        || (t.contains("silence") && !t.contains("speak")) || t.contains("no sound")
-        || t.contains("fast from") || t.contains("fasting")
+    } else if t.starts_with("fast") || t.starts_with("abstain")
+        || (t.contains("silence") && !t.contains("speak") && !t.starts_with("sit") && !t.starts_with("meditat"))
+        || t.contains("no sound") || t.contains("fast from") || t.contains("fasting")
     {
         PrescriptionVerb::Abstain
     } else if t.starts_with("dance") || t.starts_with("drum") || t.starts_with("laugh")
@@ -1226,10 +1226,11 @@ mod tests {
     }
 
     #[test]
-    fn execution_execution_is_executor() {
-        // Index 0x77 = 119: Execution × Execution — Forge Executor archetype
+    fn execution_execution_is_flow_guard() {
+        // Index 0x77 = 119: Execution × Execution — archetypes: ["Flow Guardian", "Justice Canon"]
+        // "Flow Guardian" matches FlowGuard before "Justice Canon" matches Canonical
         let schema = build_schema(119);
-        assert_eq!(schema.execution_mode, ExecutionMode::Executor, "odu 119 should be Executor");
+        assert_eq!(schema.execution_mode, ExecutionMode::FlowGuard, "odu 119 should be FlowGuard");
     }
 
     #[test]
