@@ -3489,7 +3489,11 @@ impl Steward {
                     usage: None,
                 });
 
-                // Publish ActExecuted event
+                // Publish ActExecuted event.
+                // NAMING NOTE: f1_score here = If-Script hermetic gate alignment (0.0–1.0).
+                // This is UNRELATED to OSOVM's f1_score HTTP field (a 3-valued constant:
+                // 0.92 success / 0.88 default / 0.0 error). Same proto field name, different
+                // semantics. Do not merge or compare these two numbers.
                 let event = SovereignEvent {
                     event: Some(sovereign_event::Event::ActExecuted(ActExecuted {
                         tool: tool.clone(),
@@ -4733,7 +4737,12 @@ impl Steward {
                 // Cheap field signal: XOR of identity with message-count low byte.
                 let field_odu: u8 = identity_odu
                     ^ (agent.session().public_messages.len() as u8);
-                let simulation_odu: u8 = 0; // OSOVM not yet bridged
+                // Always 0 until VeilSim result is wired back here.
+                // Consequence: GoalGenesisEngine dim[3] = 0 every turn →
+                // Consolidation goal is structurally degenerate (never varies).
+                // Fix requires: call osovm_veilsim, cache result, derive Odù byte.
+                // Tracked: gap E-36 (simulation_odu stub locked by veilsim_submit_returns_not_implemented test).
+                let simulation_odu: u8 = 0;
 
                 twin_vector = [identity_odu, memory_odu, field_odu, simulation_odu];
 
@@ -5175,7 +5184,10 @@ impl Steward {
             timestamp: current_unix_timestamp(),
         });
 
-        // Publish ActExecuted event
+        // Publish ActExecuted event.
+        // NAMING NOTE: f1_score here = If-Script hermetic gate alignment (0.0–1.0).
+        // OSOVM also uses f1_score but it is a 3-valued constant (0.92/0.88/0.0).
+        // These numbers are unrelated; do not compare across the boundary.
         let event = SovereignEvent {
             event: Some(sovereign_event::Event::ActExecuted(ActExecuted {
                 tool: call.tool.clone(),

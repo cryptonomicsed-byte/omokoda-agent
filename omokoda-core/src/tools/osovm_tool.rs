@@ -8,9 +8,11 @@
 //!   osovm_health   — check OSOVM server health
 //!
 //! Helper (not a tool):
-//!   attest_receipt — fire-and-forget POST /attest/{receipt_id}; used by
+//!   attest_receipt — fire-and-forget POST /run with opcode=RECEIPT; used by
 //!                    the interpreter to anchor ActReceipts in OSOVM for
 //!                    tier-3+ actions. Returns None if OSOVM is absent.
+//!                    NOTE: uses /run not /attest — no /attest route exists in
+//!                    OSOVM server.jl (confirmed by Hermes audit 2026-09-26).
 
 use async_trait::async_trait;
 use serde_json::{json, Value};
@@ -60,20 +62,25 @@ pub async fn attest_receipt(
     if std::env::var("OSOVM_URL").is_err() {
         return None;
     }
+    // Use the existing /run endpoint with opcode=RECEIPT.
+    // OSOVM has no /attest route; /run with RECEIPT opcode is the correct surface.
     let body = json!({
-        "receipt_id":    receipt_id,
-        "agent_id":      agent_id,
-        "tool_name":     tool_name,
-        "gate_alignment": gate_alignment,
-        "attested_at":   std::time::SystemTime::now()
-                             .duration_since(std::time::UNIX_EPOCH)
-                             .unwrap_or_default()
-                             .as_secs(),
+        "opcode": "RECEIPT",
+        "args": {
+            "receipt_id":    receipt_id,
+            "tool_name":     tool_name,
+            "gate_alignment": gate_alignment,
+            "attested_at":   std::time::SystemTime::now()
+                                 .duration_since(std::time::UNIX_EPOCH)
+                                 .unwrap_or_default()
+                                 .as_secs(),
+        },
+        "agent": agent_id,
     });
-    match osovm_post(&format!("/attest/{}", receipt_id), body).await {
+    match osovm_post("/run", body).await {
         Ok(resp) => {
             let val: Value = serde_json::from_str(&resp).unwrap_or_default();
-            val.get("attestation_id")
+            val.get("receipt")
                 .and_then(|v| v.as_str())
                 .map(str::to_string)
                 .or(Some(receipt_id.to_string()))
