@@ -88,7 +88,7 @@ mod tests {
 
     fn ctx() -> ExecutionContext {
         ExecutionContext {
-            agent_id: crate::identity::AgentId::new("test"),
+            agent_id: crate::identity::AgentId::from_str("test-agent"),
             name: "test-agent".to_string(),
             tier: 0,
             reputation: 1.0,

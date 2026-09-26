@@ -230,7 +230,7 @@ mod tests {
 
     fn ctx(tier: u8) -> ExecutionContext {
         ExecutionContext {
-            agent_id: crate::identity::AgentId::new("test"),
+            agent_id: crate::identity::AgentId::from_str("test-agent"),
             name: format!("test-manifesto-{}", tier),
             tier,
             reputation: 1.0,
