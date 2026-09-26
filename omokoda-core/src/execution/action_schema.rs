@@ -165,6 +165,96 @@ pub fn build_schema(odu_index: u8) -> ActionSchema {
     }
 }
 
+/// Build an `ActionSchema` for a composed Odù (u16 space, up to 65,535) gated by tier.
+///
+/// Returns `None` if the tier does not permit access to this Odù index
+/// (via `AgentExperience::can_access`). For indices 0–255, delegates to
+/// `build_schema()` to avoid duplication. For composed indices (256–65535),
+/// resolves via the calabash compose layer and constructs a blended schema.
+pub fn build_composed_schema(odu_id: u16, tier: u8) -> Option<ActionSchema> {
+    use ifascript::{AgentExperience, resolve};
+
+    // Tier gate via AgentExperience (XP floor for each tier)
+    let xp_for_tier = match tier {
+        0 | 1 => 0u64,
+        2 => 500,
+        3 => 2000,
+        4 => 5000,
+        5 => 15000,
+        6 => 40000,
+        _ => 100000,
+    };
+    let experience = AgentExperience::with_xp(xp_for_tier);
+    if !experience.can_access(odu_id) {
+        return None;
+    }
+
+    // Base Odù: delegate to build_schema
+    if odu_id <= 255 {
+        return Some(build_schema(odu_id as u8));
+    }
+
+    // Composed Odù: resolve top/bottom split and blend
+    let composed = resolve(odu_id);
+    let top_schema = build_schema((odu_id >> 8) as u8);
+    let bottom_schema = build_schema((odu_id & 0xFF) as u8);
+
+    // Blend: top dominates operational steps; bottom contributes constraints
+    let mut blended_steps = top_schema.operational_steps.clone();
+    // Add one representative step from bottom if distinct
+    if let Some(first_bottom) = bottom_schema.operational_steps.first() {
+        if !blended_steps.iter().any(|s| s.tool == first_bottom.tool) {
+            blended_steps.push(first_bottom.clone());
+        }
+    }
+    let mut blended_constraints = top_schema.behavioral_constraints.clone();
+    for bc in &bottom_schema.behavioral_constraints {
+        if !blended_constraints.iter().any(|c| c.name == bc.name) {
+            blended_constraints.push(bc.clone());
+        }
+    }
+
+    let verify_specs = blended_steps.iter().map(|s| s.verify.clone()).collect();
+    let context_block = format!(
+        "═══ Composed Odù {} ({} × {}) Context ═══\n\
+         Top: {} | Bottom: {}\n\
+         Universal Name: {}\n\
+         Vessel: {:?}\n\
+         Prescriptions: {}",
+        odu_id,
+        top_schema.odu_name,
+        bottom_schema.odu_name,
+        top_schema.odu_name,
+        bottom_schema.odu_name,
+        composed.universal_name,
+        composed.vessel,
+        composed.prescriptions.join("; "),
+    );
+
+    Some(ActionSchema {
+        odu_index: composed.bottom, // bottom index as representative
+        odu_name: composed.name.clone(),
+        universal_name: composed.universal_name.to_string(),
+        archetype: top_schema.archetype.clone(),
+        description: format!("{} (composed with {})", top_schema.description, bottom_schema.odu_name),
+        taboos: {
+            let mut t = top_schema.taboos.clone();
+            t.extend(bottom_schema.taboos.iter().cloned());
+            t.dedup();
+            t
+        },
+        spiritual_prescriptions: composed.prescriptions.iter().map(|s| s.to_string()).collect(),
+        corpus_archetypes: top_schema.corpus_archetypes.clone(),
+        execution_mode: top_schema.execution_mode.clone(),
+        operational_steps: blended_steps,
+        behavioral_constraints: blended_constraints,
+        verify_specs,
+        cadence: top_schema.cadence.clone(),
+        activation_modes: top_schema.activation_modes.clone(),
+        context_block,
+    })
+}
+
 // ─── ExecutionMode classification ─────────────────────────────────────────────
 
 fn classify_execution_mode(archetypes: &[&str]) -> ExecutionMode {

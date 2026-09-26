@@ -42,6 +42,9 @@ pub mod ucx_policy;
 pub mod omohome_tool;
 pub mod mail_tool;
 pub mod mailbox_provisioner;
+pub mod ifa_vm_tool;
+pub mod larql_tool;
+pub mod manifesto_tool;
 
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
@@ -243,6 +246,9 @@ impl ToolRegistry {
         registry.register(Box::new(nostr_identity_tool::NostrIdentityTool));
         registry.register(Box::new(twin_binding_tool::TwinBindingTool));
         registry.register(Box::new(if_script_tool::IfScriptTool));
+        registry.register(Box::new(ifa_vm_tool::IfaVmTool));
+        registry.register(Box::new(larql_tool::LarqlTool));
+        registry.register(Box::new(manifesto_tool::ManifestoTool));
 
         // Real on-chain settlement via OSOVM's elegbara_router (Sui testnet).
         // Env-gated: OMOKODA_ELEGBARA_PACKAGE / OMOKODA_ELEGBARA_ROUTER_ID must

@@ -33,6 +33,7 @@ use serde_json::json;
 use crate::execution::action_schema::{build_schema, ActionSchema, BehavioralConstraint, ExecutionMode};
 use crate::execution::action_compiler::VerifySpec;
 use crate::usage::TokenUsage;
+use chrono::Utc;
 
 // ─── InterpretDecision ────────────────────────────────────────────────────────
 
@@ -48,11 +49,14 @@ pub enum InterpretDecision {
         receipt_required: bool,
     },
     /// Tool call is blocked by a behavioral constraint derived from a taboo.
+    /// `ebo_required` signals the cost/offering the agent must make to proceed.
     Blocked {
         odu_index: u8,
         constraint_name: String,
         source_taboo: String,
         rationale: String,
+        /// Ebo cost description — e.g. "IntentionString: vow required" or "TimeDelay: 5s".
+        ebo_required: String,
     },
     /// Tool call is refused because the current execution mode lacks the required authority.
     Refused {
@@ -149,11 +153,13 @@ impl ActionInterpreter {
         // 1. Check behavioral constraints from taboos
         for constraint in &schema.behavioral_constraints {
             if constraint.denied_tools.iter().any(|t| t == proposed_tool) {
+                let ebo_required = ebo_for_constraint(&constraint.name);
                 return InterpretDecision::Blocked {
                     odu_index,
                     constraint_name: constraint.name.clone(),
                     source_taboo: constraint.source_taboo.clone(),
                     rationale: constraint.rationale.clone(),
+                    ebo_required,
                 };
             }
             // Check denied patterns against params
@@ -161,6 +167,7 @@ impl ActionInterpreter {
                 let params_lower = proposed_params.to_lowercase();
                 for pattern in &constraint.denied_patterns {
                     if params_lower.contains(pattern.as_str()) {
+                        let ebo_required = ebo_for_constraint(&constraint.name);
                         return InterpretDecision::Blocked {
                             odu_index,
                             constraint_name: constraint.name.clone(),
@@ -169,6 +176,7 @@ impl ActionInterpreter {
                                 "{} (pattern '{}' found in params)",
                                 constraint.rationale, pattern
                             ),
+                            ebo_required,
                         };
                     }
                 }
@@ -324,7 +332,11 @@ impl ActionInterpreter {
             .map(|d| d.as_secs())
             .unwrap_or(0);
 
-        let outcome = if tool_error.is_some() {
+        // Zàngbétò audit — build a CosmogramState from the current schema and
+        // run the anomaly check. A rejected cast downgrades the outcome to Failed.
+        let zangbeto_anomaly = run_zangbeto_audit(odu_index, &schema);
+
+        let outcome = if tool_error.is_some() || zangbeto_anomaly.is_some() {
             InterpretOutcome::Failed
         } else if verify_outcome.passed {
             InterpretOutcome::Committed
@@ -336,8 +348,9 @@ impl ActionInterpreter {
 
         let raw_hash = compute_output_hash(raw_output);
 
+        let effective_error = tool_error.or_else(|| zangbeto_anomaly.as_deref());
         let memory_event = build_memory_event(
-            tool, &opcode, &outcome, raw_output, tool_error, &verify_outcome, &schema,
+            tool, &opcode, &outcome, raw_output, effective_error, &verify_outcome, &schema,
         );
 
         InterpretReceipt {
@@ -378,8 +391,8 @@ impl ActionInterpreter {
         };
 
         let reason = match &decision {
-            InterpretDecision::Blocked { rationale, constraint_name, .. } =>
-                format!("Blocked by {}: {}", constraint_name, rationale),
+            InterpretDecision::Blocked { rationale, constraint_name, ebo_required, .. } =>
+                format!("Blocked by {}: {} | Ebo: {}", constraint_name, rationale, ebo_required),
             InterpretDecision::Refused { reason, execution_mode, .. } =>
                 format!("Refused ({:?}): {}", execution_mode, reason),
             InterpretDecision::Proceed { .. } => "Cancelled".to_string(),
@@ -495,6 +508,75 @@ impl ActionInterpreter {
 }
 
 // ─── Private helpers ──────────────────────────────────────────────────────────
+
+/// Map a constraint name to its Ebo cost description.
+/// Ethics-grade constraints (deception/harm/broadcast) require a ForbiddenBranch vow.
+/// All other violations escalate based on a fresh EboHistory.
+fn ebo_for_constraint(constraint_name: &str) -> String {
+    use ifascript::ebo::{Ebo, EboHistory, EboTrigger};
+    let name = constraint_name.to_uppercase();
+    let (trigger, history) = if name.contains("DECEPTION")
+        || name.contains("HARMFUL")
+        || name.contains("BROADCAST")
+        || name.contains("REACTIVE")
+        || name.contains("DELIBERATION")
+    {
+        (EboTrigger::ForbiddenBranch, EboHistory::new())
+    } else {
+        (EboTrigger::HeapOverflow, EboHistory::new())
+    };
+    let ebo = history.required_ebo(&trigger);
+    match &ebo {
+        Ebo::IntentionString(_) => {
+            "IntentionString: submit a vow containing 'I vow clarity and no harm' (≥20 chars)".to_string()
+        }
+        Ebo::TimeDelay(d) => format!("TimeDelay: {}s cooldown required", d.as_secs()),
+        Ebo::ProofOfWork(diff) => format!("ProofOfWork: difficulty {} required", diff),
+        Ebo::TokenBurn(token) => format!("TokenBurn: burn {} required", token),
+    }
+}
+
+/// Run Zàngbétò audit against a minimal CosmogramState derived from the schema.
+/// Returns `Some(anomaly_message)` if the state fails audit, `None` if clean.
+fn run_zangbeto_audit(odu_index: u8, _schema: &crate::execution::action_schema::ActionSchema) -> Option<String> {
+    use ifascript::cosmogram::{
+        AccessClass, CosmogramState, ConsensusLevel, GovernanceMeta, ZangbetoStatus, ThreatProfile, Day,
+    };
+    use ifascript::soul::MemoryTier;
+    use ifascript::zangbeto::audit_state;
+
+    let state = CosmogramState {
+        odu_id: odu_index as u16,
+        tier: 1,
+        day: Day::Monday,
+        access_class: AccessClass::Public,
+        memory_tier: MemoryTier::Tier3Contributable,
+        archetype_vector: ifascript::archetype::ArchetypeVector::from_odu_day(
+            odu_index as u16,
+            &Day::Monday,
+        ),
+        governance: GovernanceMeta {
+            consensus_level: ConsensusLevel::Individual,
+            zk_proof_required: false,
+            vote_weight: 1.0,
+        },
+        threat: ThreatProfile {
+            zangbeto_audit: ZangbetoStatus::Clean,
+            last_diagnostic: Utc::now(),
+            repair_actions: Vec::new(),
+        },
+        timestamp: Utc::now(),
+        window_open: true,
+        entropy_hash: format!("0x{:x}", odu_index),
+    };
+
+    match audit_state(&state) {
+        Ok(()) => None,
+        Err(ifascript::zangbeto::AuditError::Anomaly(msg)) => {
+            Some(format!("Zàngbétò anomaly: {}", msg))
+        }
+    }
+}
 
 fn is_write_operation(tool: &str) -> bool {
     let t = tool.to_lowercase();
@@ -653,6 +735,7 @@ mod tests {
             constraint_name: "NO_DECEPTION".to_string(),
             source_taboo: "Avoid lies".to_string(),
             rationale: "This Odù forbids deceptive outputs".to_string(),
+            ebo_required: "IntentionString: vow required".to_string(),
         };
         let receipt = ActionInterpreter::commit_blocked(0, "write", decision);
         assert_eq!(receipt.outcome, InterpretOutcome::Blocked);
