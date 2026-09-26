@@ -116,8 +116,8 @@ impl Tool for IfScriptTool {
                 let experience = ifascript::AgentExperience::with_xp(agent_xp);
                 let mem_cast = ifascript::cast_with_memory(&mut vm, &residues, &experience);
                 Some(json!({
-                    "base_odu_name": mem_cast.base.odu.name,
-                    "base_binary": mem_cast.base.binary,
+                    "base_odu_index": mem_cast.base.index,
+                    "base_universal_name": mem_cast.base.universal_name,
                     "composed_id": mem_cast.composed_id,
                     "residues_used": mem_cast.residues_used,
                     "composed": match &mem_cast.composed {
@@ -137,7 +137,15 @@ impl Tool for IfScriptTool {
             let nostr_status = if let Ok(relay_url) = std::env::var("BUZZ_RELAY_URL") {
                 // gates_passed: check if the vessel is aligned (advisory)
                 let gates_passed = directive.vessel <= 16;
-                let receipt = ifascript::CastReceipt::from_cast(&cast, gates_passed);
+                // Build a CastResult from FieldCast to feed into CastReceipt
+                let vm_result = ifascript::vm::CastResult {
+                    index: cast.binary,
+                    vessel: cast.odu.vessel,
+                    file_domain: cast.odu.vessel.file_domain(),
+                    universal_name: cast.odu.universal_name,
+                    prescriptions: cast.odu.prescriptions,
+                };
+                let receipt = ifascript::CastReceipt::from_cast(&vm_result, gates_passed);
 
                 // Derive NostrIdentity deterministically from mnemonic
                 let identity_result: Result<ifascript::NostrIdentity, String> = (|| {

@@ -105,11 +105,10 @@ impl Tool for IfaVmTool {
                     let cast = vm.cast_odu();
                     Ok(json!({
                         "action": "cast",
-                        "odu_name": cast.odu.name,
-                        "universal_name": cast.odu.universal_name,
-                        "binary": cast.binary,
-                        "prescriptions": cast.odu.prescriptions,
-                        "vessel": format!("{:?}", cast.odu.vessel),
+                        "odu_index": cast.index,
+                        "universal_name": cast.universal_name,
+                        "vessel": format!("{:?}", cast.vessel),
+                        "prescriptions": cast.prescriptions,
                         "oracle_intent": oracle_intent,
                     }))
                 }
@@ -119,16 +118,14 @@ impl Tool for IfaVmTool {
                     Ok(json!({
                         "action": "cast_dual",
                         "digital_calabash": {
-                            "odu_name": digital.odu.name,
-                            "universal_name": digital.odu.universal_name,
-                            "binary": digital.binary,
-                            "vessel": format!("{:?}", digital.odu.vessel),
+                            "odu_index": digital.index,
+                            "universal_name": digital.universal_name,
+                            "vessel": format!("{:?}", digital.vessel),
                         },
                         "ifa_corpus": {
-                            "odu_name": ifa.odu.name,
-                            "universal_name": ifa.odu.universal_name,
-                            "binary": ifa.binary,
-                            "vessel": format!("{:?}", ifa.odu.vessel),
+                            "odu_index": ifa.index,
+                            "universal_name": ifa.universal_name,
+                            "vessel": format!("{:?}", ifa.vessel),
                         },
                         "oracle_intent": oracle_intent,
                     }))
@@ -208,7 +205,7 @@ mod tests {
 
     fn ctx(tier: u8) -> ExecutionContext {
         ExecutionContext {
-            agent_id: crate::identity::AgentId::new(),
+            agent_id: crate::identity::AgentId::new("test"),
             name: "test-agent".to_string(),
             tier,
             reputation: 1.0,
@@ -229,8 +226,8 @@ mod tests {
         let (out, _) = result.unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         assert_eq!(v["action"], "cast");
-        assert!(v["odu_name"].is_string());
-        assert!(v["binary"].is_number());
+        assert!(v["universal_name"].is_string());
+        assert!(v["odu_index"].is_number());
     }
 
     #[tokio::test]

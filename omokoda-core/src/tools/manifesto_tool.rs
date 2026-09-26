@@ -122,7 +122,7 @@ impl Tool for ManifestoTool {
                     // Divine odu_id for this principle via IfaVM seeded with agent name
                     let mut vm = ifascript::IfaVM::with_intent(&agent_name);
                     let cast = vm.cast_odu();
-                    let odu_id = cast.binary as u16;
+                    let odu_id = cast.index as u16;
 
                     let clause_id = manifesto.propose(odu_id, &principle, &agent_name);
                     save_manifesto(&path, &manifesto)?;
@@ -131,8 +131,8 @@ impl Tool for ManifestoTool {
                         "action": "propose",
                         "clause_id": clause_id,
                         "odu_id": odu_id,
-                        "odu_name": cast.odu.name,
-                        "vessel": format!("{:?}", cast.odu.vessel),
+                        "universal_name": cast.universal_name,
+                        "vessel": format!("{:?}", cast.vessel),
                         "principle": principle,
                         "level": "Individual",
                     }))
@@ -230,7 +230,7 @@ mod tests {
 
     fn ctx(tier: u8) -> ExecutionContext {
         ExecutionContext {
-            agent_id: crate::identity::AgentId::new(),
+            agent_id: crate::identity::AgentId::new("test"),
             name: format!("test-manifesto-{}", tier),
             tier,
             reputation: 1.0,
