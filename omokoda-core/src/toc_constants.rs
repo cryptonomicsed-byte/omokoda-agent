@@ -34,10 +34,25 @@ pub struct AsePools {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct AseConstants {
     pub emission_per_minute: u64,
-    pub max_daily_emission: u64,
+    pub emission_window_hours: u64,
     pub birth_fee: f64,
     pub micro_per_ase: u64,
     pub pools: AsePools,
+}
+
+impl AseConstants {
+    /// The daily emission cap, DERIVED rather than declared (I-11).
+    ///
+    /// `emission_per_minute * 60 * emission_window_hours`. Held as a computation
+    /// so that `1440` is a literal in exactly one place in the codebase -- the
+    /// Inheritance seat count -- and so that widening the window can never
+    /// silently move a number that was chosen, not timed.
+    ///
+    /// Replaces a `max_daily_emission: u64` field that was deserialised from
+    /// TOML and never read anywhere: a declared constant nobody measured.
+    pub fn max_daily_emission(&self) -> u64 {
+        self.emission_per_minute * 60 * self.emission_window_hours
+    }
 }
 
 /// Dopamine pool constants.
@@ -153,11 +168,17 @@ mod tests {
     fn rust_constants_match_toml() {
         let toc = match TocConstants::load() {
             Ok(t) => t,
-            Err(e) => {
-                // If TOML not available in CI, skip rather than fail.
-                eprintln!("TOC_CONSTANTS not available ({e}), skipping drift check");
-                return;
-            }
+            // NOT `return`. Skipping on error made this test structurally unable
+            // to fail: any parse error or missing field took this branch and the
+            // test reported ok. Established by negative control -- deleting a
+            // required key from TOC_CONSTANTS.toml left the test green, with
+            // "TOML parse error" printed as the *reason* it passed. A
+            // single-source-of-truth check that goes green when the source is
+            // unreadable is not a check; an unreadable source is a failure.
+            Err(e) => panic!(
+                "TOC_CONSTANTS could not be loaded, so constant drift is UNVERIFIED \
+                 (not fine): {e}"
+            ),
         };
 
         assert_eq!(
