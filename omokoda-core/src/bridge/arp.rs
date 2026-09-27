@@ -106,6 +106,11 @@ fn make_receipt_json(
         throne_evaluations: vec![],
         consensus_receipt: None,
         physical_attestation: None,
+        // I-18 gap: zangbeto_anchor is None until Zàngbétò exposes a POST /anchor endpoint.
+        // The existing bus::zangbeto::review_act() returns verdicts but no signed anchor ID.
+        // When that endpoint exists, make build_receipt async and call review_act() here,
+        // using the returned verdict_id as the anchor. Without a real anchor the OSOVM
+        // compute gate (zangbeto_anchor != "") can never fire from this path. Tracked: E-53.
         zangbeto_anchor: None,
         nostr_event_id: None,
         timestamp: now_secs(),
