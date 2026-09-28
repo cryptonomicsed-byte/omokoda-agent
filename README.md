@@ -46,12 +46,10 @@ A daily resonance engine that modulates agent behavior based on the time-stream,
 
 Ọmọ Kọ́dà maintains a rigorous testing standard across its multi-language ecosystem.
 
-**Current Audit Status (May 2026, post-synthesis merge):** `PASSED` ✅
-*   **Total Verified Tests**: `759`
-*   **Rust Workspace**: `637` tests — (409 core unit, 156 core integration/e2e, 63 hermetic unit, 6 hermetic integration, 3 nist_entropy)
-*   **Go (Ops & Monitoring)**: `41` tests — ops, bridge, remote, teleport
-*   **Elixir (Swarm Coordination)**: `49` tests — backends, teammate FSM, permission sync
-*   **Julia (Augury & BB oracle)**: `32` tests — exponential smoothing, garden analytics, BB verifier
+**Current Audit Status (September 2026, post-Phase-9 forensic audit):** `PASSED` ✅
+*   **Total Verified Tests**: `1,052`
+*   **Rust Workspace**: `942` lib + `110` integration tests (0 failures)
+*   **Go/Elixir/Julia** services archived — ideas absorbed into Rust core
 *   **Economic Simulation**: `Verified` (365-day cycle, reputation & synapse decay)
 *   **E2E Flow**: `Verified` (Birth → Think → Act via WASM)
 

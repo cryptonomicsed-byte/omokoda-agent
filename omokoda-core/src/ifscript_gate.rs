@@ -97,7 +97,7 @@ pub enum VesselAlignment {
     Primary,
     /// This category is allowed but logged as cross-vessel activity.
     Permitted,
-    /// This category is denied unless the agent has Tier 6+ override.
+    /// This category is denied regardless of tier (max tier is T5).
     Blocked,
 }
 
@@ -312,18 +312,11 @@ pub fn vessel_action_alignment(vessel: ActionVessel, category: ActionCategory) -
 /// `tool_category` must be determined by the caller from the tool registry.
 /// Returns `VesselAlignment::Primary` if no vessel context is available (fail-open).
 pub fn evaluate_vessel_alignment(
-    vessel:   ActionVessel,
-    category: ActionCategory,
-    tier:     u8,
+    vessel:    ActionVessel,
+    category:  ActionCategory,
+    _tier:     u8,  // reserved — max tier is T5; Blocked cannot be overridden
 ) -> VesselAlignment {
-    let alignment = vessel_action_alignment(vessel, category);
-
-    // Tier 6+ agents can override Blocked alignments — they operate above vessel law.
-    if alignment == VesselAlignment::Blocked && tier >= 6 {
-        return VesselAlignment::Permitted;
-    }
-
-    alignment
+    vessel_action_alignment(vessel, category)
 }
 
 /// Map common tool names to their primary `ActionCategory`.
@@ -687,11 +680,10 @@ mod tests {
     }
 
     #[test]
-    fn tier6_override_lifts_blocked_alignment() {
-        // Restraint vessel normally blocks Execution
+    fn blocked_alignment_is_unconditional() {
+        // Restraint vessel blocks Execution at every tier (max tier is T5; no override exists)
         assert_eq!(vessel_action_alignment(AV::Restraint, AC::Execution), VesselAlignment::Blocked);
-        // Tier 6 overrides it
-        assert_eq!(evaluate_vessel_alignment(AV::Restraint, AC::Execution, 6), VesselAlignment::Permitted);
+        assert_eq!(evaluate_vessel_alignment(AV::Restraint, AC::Execution, 5), VesselAlignment::Blocked);
     }
 
     #[test]
