@@ -86,7 +86,13 @@ fn make_action(action_kind: &str, target: &str, outcome: &str, params: Value) ->
 
 /// Build a canonical ActionReceipt and attach a GIX1 envelope as extra JSON.
 /// Returns the serialised receipt ready for POST to Vantage.
-fn make_receipt_json(
+///
+/// I-18: calls `bus::zangbeto::review_act()` to obtain a real anchor ID.
+/// Fail-open: when Zàngbétò is not configured or unreachable, `zangbeto_anchor`
+/// is `None` and the receipt is emitted without an anchor (same as before),
+/// but when Zàngbétò IS configured the anchor is set so the OSOVM compute gate
+/// can fire on receipts coming through this path.
+async fn make_receipt_json(
     agent_id: &str,
     action_kind: &str,
     target: &str,
@@ -94,6 +100,18 @@ fn make_receipt_json(
     payload: Value,
     previous_hash: Option<&str>,
 ) -> Value {
+    // Request a Zàngbétò review; the returned verdict ID becomes the anchor.
+    // Fail-open: None when Zàngbétò is not wired or the call times out.
+    let zangbeto_anchor: Option<String> =
+        crate::bus::zangbeto::review_act(agent_id, action_kind, target)
+            .await
+            .and_then(|v| {
+                v.get("id")
+                    .or_else(|| v.get("verdict_id"))
+                    .and_then(|id| id.as_str())
+                    .map(str::to_string)
+            });
+
     let receipt_id = Uuid::new_v4();
     let receipt = ActionReceipt {
         receipt_id,
@@ -106,12 +124,7 @@ fn make_receipt_json(
         throne_evaluations: vec![],
         consensus_receipt: None,
         physical_attestation: None,
-        // I-18 gap: zangbeto_anchor is None until Zàngbétò exposes a POST /anchor endpoint.
-        // The existing bus::zangbeto::review_act() returns verdicts but no signed anchor ID.
-        // When that endpoint exists, make build_receipt async and call review_act() here,
-        // using the returned verdict_id as the anchor. Without a real anchor the OSOVM
-        // compute gate (zangbeto_anchor != "") can never fire from this path. Tracked: E-53.
-        zangbeto_anchor: None,
+        zangbeto_anchor,
         nostr_event_id: None,
         timestamp: now_secs(),
         execution_id: None,
@@ -155,7 +168,7 @@ pub async fn receipt_birth(
         "success",
         json!({ "agent_name": agent_name, "genesis_receipt_id": genesis_receipt_id }),
         None,
-    );
+    ).await;
     post_receipt(receipt).await
 }
 
@@ -173,7 +186,7 @@ pub async fn receipt_think(
         "success",
         json!({ "prompt_summary": prompt_summary }),
         previous_hash,
-    );
+    ).await;
     post_receipt(receipt).await
 }
 
@@ -192,7 +205,7 @@ pub async fn receipt_act(
         outcome,
         json!({ "tool_name": tool_name }),
         previous_hash,
-    );
+    ).await;
     post_receipt(receipt).await
 }
 
@@ -216,6 +229,6 @@ pub async fn receipt_lifecycle_transition(
             "node_pubkey": node_pubkey,
         }),
         previous_hash,
-    );
+    ).await;
     post_receipt(receipt).await
 }
