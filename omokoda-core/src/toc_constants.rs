@@ -60,7 +60,7 @@ impl AseConstants {
 pub struct DopamineConstants {
     pub genesis_seed: u64,
     pub transferable: bool,
-    pub ase_to_dopamine: u64,
+    pub agent_burn_rate: u64,
     pub opcode_mint: String,
     pub opcode_decay: String,
     pub opcode_contribution: String,
