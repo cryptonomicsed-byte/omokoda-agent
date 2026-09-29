@@ -4,6 +4,8 @@
 //!   oso-move compile <program.json> --output <out.move>
 //!   oso-move compile <program.json>               (prints to stdout)
 
+#![allow(dead_code)]
+
 mod codegen;
 mod host_env;
 mod ir;
