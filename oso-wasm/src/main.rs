@@ -1,3 +1,5 @@
+#![allow(dead_code)]
+
 mod codegen;
 mod host_env;
 mod ir;
