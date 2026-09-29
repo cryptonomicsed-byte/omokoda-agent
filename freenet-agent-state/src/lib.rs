@@ -13,7 +13,6 @@
 ///
 /// Run unit tests natively (no WASM needed):
 ///   cargo test --lib
-
 pub mod merge;
 pub mod types;
 
