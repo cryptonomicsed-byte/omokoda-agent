@@ -12,14 +12,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 
-use crate::interpreter::Steward;
 use super::runtime::AgentRuntime;
+use crate::interpreter::Steward;
 
 /// Spawn the skill daemon.
 pub fn spawn_skill_daemon(
-    steward:    Arc<Mutex<Steward>>,
-    runtime:    Arc<Mutex<AgentRuntime>>,
-    scan_secs:  u64,
+    steward: Arc<Mutex<Steward>>,
+    runtime: Arc<Mutex<AgentRuntime>>,
+    scan_secs: u64,
 ) {
     if scan_secs == 0 {
         tracing::info!("[skill-daemon] disabled (scan_secs=0)");

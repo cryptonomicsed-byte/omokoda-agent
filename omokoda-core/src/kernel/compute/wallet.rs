@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 pub const AGENT_DOPAMINE_ENDOWMENT: u64 = 86_000_000_000; // ~human neuron count
 pub const AGENT_SYNAPSE_ENDOWMENT: u64 = 86_000_000;
 pub const DOPAMINE_DAILY_DECAY: f64 = 0.01; // 1%/day compound
-pub const SYNAPSE_DAILY_DECAY: f64 = 0.01;  // same rate
+pub const SYNAPSE_DAILY_DECAY: f64 = 0.01; // same rate
 pub const SYNAPSE_CONVERSION_RATIO: f64 = 0.10; // 10 Dopamine → 1 Synapse
 pub const FORK_STAKE_FRACTION: f64 = 0.10;
 pub const STAKE_GATE_FRACTION: f64 = 0.10;

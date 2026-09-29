@@ -448,10 +448,12 @@ impl AgentCore {
                     snapshot.odu_seed = private_data.odu_seed.clone();
                     snapshot.odu_identity = private_data.odu_identity.clone();
                     let current_memory_key = *snapshot.odu_seed.as_bytes();
-                    let duress_handler = snapshot.duress_phrase_hash.as_deref()
-                        .and_then(|h| crate::identity::duress::DuressHandler::from_stored_hash(
-                            h, crate::identity::duress::DuressResponse::SilentAlert,
-                        ));
+                    let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
+                        crate::identity::duress::DuressHandler::from_stored_hash(
+                            h,
+                            crate::identity::duress::DuressResponse::SilentAlert,
+                        )
+                    });
                     return Self {
                         snapshot,
                         private_data: Some(private_data),
@@ -468,10 +470,12 @@ impl AgentCore {
                 // before.
             }
         }
-        let duress_handler = snapshot.duress_phrase_hash.as_deref()
-            .and_then(|h| crate::identity::duress::DuressHandler::from_stored_hash(
-                h, crate::identity::duress::DuressResponse::SilentAlert,
-            ));
+        let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
+            crate::identity::duress::DuressHandler::from_stored_hash(
+                h,
+                crate::identity::duress::DuressResponse::SilentAlert,
+            )
+        });
         let current_memory_key = *snapshot.odu_seed.as_bytes();
         Self {
             snapshot,
@@ -588,10 +592,9 @@ impl AgentCore {
                 "seed already revealed for this agent -- it can only be shown once".to_string(),
             );
         }
-        let private_data = self
-            .private_data
-            .as_ref()
-            .ok_or_else(|| "no private data available to reveal (agent may be locked)".to_string())?;
+        let private_data = self.private_data.as_ref().ok_or_else(|| {
+            "no private data available to reveal (agent may be locked)".to_string()
+        })?;
         let revealed = RevealedSeed {
             mnemonic: private_data.odu_identity.mnemonic.clone(),
             sui_address: self.sui_address(),
@@ -620,9 +623,9 @@ impl AgentCore {
             .private_data
             .as_ref()
             .ok_or_else(|| "agent is locked — unlock first".to_string())?;
-        pd.eth_keystore_v3_json
-            .as_deref()
-            .ok_or_else(|| "no keystore: supply keystore_password at birth to generate one".to_string())
+        pd.eth_keystore_v3_json.as_deref().ok_or_else(|| {
+            "no keystore: supply keystore_password at birth to generate one".to_string()
+        })
     }
 
     pub fn onchain_nft_id(&self) -> Option<&str> {
@@ -877,10 +880,7 @@ impl AgentCore {
     /// (see `memory::glyph_memory`). Read-only, metadata-only — the interop
     /// surface other eco legs (mnemopi / larql / zerolang / Axiom) consume.
     pub fn glyph_memory(&self) -> larql_glyph::GlyphGraph {
-        crate::memory::glyph_memory::project(
-            &self.snapshot.odu_dir,
-            &self.snapshot.id.to_string(),
-        )
+        crate::memory::glyph_memory::project(&self.snapshot.odu_dir, &self.snapshot.id.to_string())
     }
 
     pub fn odu_seed(&self) -> &OduSeed {
@@ -1028,16 +1028,26 @@ mod gate_dna_fusion_tests {
 
         // Every axis must now be the agent's own Odù-derived value.
         assert_eq!(gate.mentalism, state.mentalism(), "mentalism not fused");
-        assert_eq!(gate.correspondence, state.correspondence(), "correspondence not fused");
+        assert_eq!(
+            gate.correspondence,
+            state.correspondence(),
+            "correspondence not fused"
+        );
         assert_eq!(gate.vibration, state.vibration(), "vibration not fused");
         assert_eq!(gate.polarity, state.polarity(), "polarity not fused");
         assert_eq!(gate.rhythm, state.rhythm(), "rhythm not fused");
-        assert_eq!(gate.cause_effect, state.cause_effect(), "cause_effect not fused");
+        assert_eq!(
+            gate.cause_effect,
+            state.cause_effect(),
+            "cause_effect not fused"
+        );
         assert_eq!(gate.gender, state.gender(), "gender not fused");
 
         // ...and specifically NOT the neutral baseline this guards against.
         assert!(
-            !all_axes(gate).iter().all(|v| (*v - NEUTRAL).abs() < f64::EPSILON),
+            !all_axes(gate)
+                .iter()
+                .all(|v| (*v - NEUTRAL).abs() < f64::EPSILON),
             "gatekeeper still holds fully-neutral DNA after birth"
         );
     }
@@ -1291,9 +1301,13 @@ impl Steward {
         // key -- owner_index=0 (self-owned) until a real owner reconciliation
         // policy exists. agent_index is deterministic from this agent's name.
         let minipae_agent_index = crate::identity::wallet::minipae_index_for(&name);
-        let minipae_key =
-            crate::identity::wallet::derive_minipae_key(&odu_identity.mnemonic, "", minipae_agent_index, 0)
-                .map_err(|e| format!("derive_minipae_key failed: {e}"))?;
+        let minipae_key = crate::identity::wallet::derive_minipae_key(
+            &odu_identity.mnemonic,
+            "",
+            minipae_agent_index,
+            0,
+        )
+        .map_err(|e| format!("derive_minipae_key failed: {e}"))?;
 
         // Optional vanity address mining: if birth metadata contains
         // `vanity_prefix` and/or `vanity_suffix`, mine a standalone keypair
@@ -1306,16 +1320,15 @@ impl Steward {
             if vprefix.is_empty() && vsuffix.is_empty() {
                 None
             } else {
-                let vchain = meta_get("vanity_chain")
-                    .unwrap_or_else(|| "eth".to_string());
+                let vchain = meta_get("vanity_chain").unwrap_or_else(|| "eth".to_string());
                 let vmax: u64 = meta_get("vanity_max_attempts")
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(500_000);
                 let result = match vchain.as_str() {
-                    "sol" | "solana" =>
-                        crate::identity::wallet::mine_sol_vanity(&vprefix, &vsuffix, vmax),
-                    _ =>
-                        crate::identity::wallet::mine_eth_vanity(&vprefix, &vsuffix, vmax),
+                    "sol" | "solana" => {
+                        crate::identity::wallet::mine_sol_vanity(&vprefix, &vsuffix, vmax)
+                    }
+                    _ => crate::identity::wallet::mine_eth_vanity(&vprefix, &vsuffix, vmax),
                 };
                 match result {
                     Ok(r) => Some(r),
@@ -1338,16 +1351,23 @@ impl Steward {
             if (c2prefix.is_empty() && c2suffix.is_empty()) || c2bytecode.is_empty() {
                 None
             } else {
-                let deployer = meta_get("create2_deployer")
-                    .unwrap_or_else(|| eth_key.address.clone());
+                let deployer =
+                    meta_get("create2_deployer").unwrap_or_else(|| eth_key.address.clone());
                 let c2max: u64 = meta_get("create2_max_attempts")
                     .and_then(|v| v.parse().ok())
                     .unwrap_or(1_000_000);
                 match crate::identity::wallet::mine_create2_vanity(
-                    &deployer, &c2bytecode, &c2prefix, &c2suffix, c2max,
+                    &deployer,
+                    &c2bytecode,
+                    &c2prefix,
+                    &c2suffix,
+                    c2max,
                 ) {
                     Ok(r) => Some(r),
-                    Err(e) => { tracing::warn!("CREATE2 mine failed: {e}"); None }
+                    Err(e) => {
+                        tracing::warn!("CREATE2 mine failed: {e}");
+                        None
+                    }
                 }
             }
         };
@@ -1360,14 +1380,18 @@ impl Steward {
             if pw.is_empty() {
                 None
             } else {
-                match crate::identity::wallet::export_keystore_v3(
-                    &eth_key.private_key_hex, &pw,
-                ) {
+                match crate::identity::wallet::export_keystore_v3(&eth_key.private_key_hex, &pw) {
                     Ok(ks) => match serde_json::to_string(&ks) {
                         Ok(j) => Some(j),
-                        Err(e) => { tracing::warn!("keystore serialize failed: {e}"); None }
+                        Err(e) => {
+                            tracing::warn!("keystore serialize failed: {e}");
+                            None
+                        }
                     },
-                    Err(e) => { tracing::warn!("keystore export failed: {e}"); None }
+                    Err(e) => {
+                        tracing::warn!("keystore export failed: {e}");
+                        None
+                    }
                 }
             }
         };
@@ -1376,8 +1400,7 @@ impl Steward {
         // Both use distinct HMAC paths so they never collide with chain keys.
         let (libp2p_private_key_hex, libp2p_peer_id) =
             crate::identity::wallet::derive_libp2p_key(&k_root);
-        let agent_email_local =
-            crate::identity::wallet::derive_email_local(&k_root);
+        let agent_email_local = crate::identity::wallet::derive_email_local(&k_root);
 
         let private_data = PrivateSessionData {
             odu_seed: odu_seed.clone(),
@@ -1410,13 +1433,17 @@ impl Steward {
             // the inference stack once and all agents born on it inherit it.
             // Agents can update these later via Vantage (e.g. after running their
             // own Mycelium fine-tune on Kaggle and deploying the GGUF locally).
-            inference_endpoint: std::env::var("AGENT_INFERENCE_URL").ok()
+            inference_endpoint: std::env::var("AGENT_INFERENCE_URL")
+                .ok()
                 .or_else(|| std::env::var("LARQL_URL").ok()),
-            inference_provider: std::env::var("AGENT_INFERENCE_PROVIDER").ok()
+            inference_provider: std::env::var("AGENT_INFERENCE_PROVIDER")
+                .ok()
                 .or_else(|| std::env::var("LARQL_URL").ok().map(|_| "larql".to_string())),
-            inference_model: std::env::var("AGENT_INFERENCE_MODEL").ok()
+            inference_model: std::env::var("AGENT_INFERENCE_MODEL")
+                .ok()
                 .or_else(|| Some("mycelium-q4_k_m".to_string())),
-            gpu_ai_api_key: std::env::var("GPUAI_API_KEY").ok()
+            gpu_ai_api_key: std::env::var("GPUAI_API_KEY")
+                .ok()
                 .or_else(|| std::env::var("GPU_AI_API_KEY").ok()),
             kaggle_username: std::env::var("KAGGLE_USERNAME").ok(),
             kaggle_api_key: std::env::var("KAGGLE_KEY").ok(),
@@ -1431,8 +1458,8 @@ impl Steward {
         // uses the Gregorian fallback synchronously; a background task can
         // later upgrade bitcoin_height/anchor without blocking birth.
         let genesis_receipt_v2: Option<crate::genesis::receipt::AgentGenesisReceipt> = {
-            use crate::genesis::receipt::AgentGenesisReceipt;
             use crate::genesis::koodu_time::koodu_from_unix;
+            use crate::genesis::receipt::AgentGenesisReceipt;
             use sha2::Digest;
 
             let born_at_ms = birth_timestamp * 1_000;
@@ -1478,15 +1505,22 @@ impl Steward {
             let derivation_root_id = hex::encode(rid);
 
             // Sigil hash from first 3 mnemonic words
-            let first_words: String = mnemonic.split_whitespace().take(3)
-                .collect::<Vec<_>>().join(" ");
+            let first_words: String = mnemonic
+                .split_whitespace()
+                .take(3)
+                .collect::<Vec<_>>()
+                .join(" ");
             let mut sh = Sha256::new();
             sh.update(first_words.as_bytes());
             let sigil_hash = hex::encode(sh.finalize());
 
             let genesis_hash = AgentGenesisReceipt::compute_genesis_hash(
-                agent_id_str, &harmonic_signature, k_epoch, primary_index,
-                &memory_root, born_at_ms,
+                agent_id_str,
+                &harmonic_signature,
+                k_epoch,
+                primary_index,
+                &memory_root,
+                born_at_ms,
             );
 
             // Hermetic fingerprint
@@ -1549,7 +1583,10 @@ impl Steward {
             })
         };
 
-        let birth_primary_odu: u8 = genesis_receipt_v2.as_ref().map(|gr| gr.primary_odu).unwrap_or(0);
+        let birth_primary_odu: u8 = genesis_receipt_v2
+            .as_ref()
+            .map(|gr| gr.primary_odu)
+            .unwrap_or(0);
         let agent_manifest_v2 = genesis_receipt_v2.as_ref().map(|gr| {
             let mut m = crate::genesis::manifest::AgentManifest::from_genesis(gr);
             // Bind all derived wallet addresses to the manifest (public addresses only).
@@ -1566,35 +1603,43 @@ impl Steward {
             let pr = &crate::identity::poison_radar::analyze_static;
             m.economic.wallet_bindings = vec![
                 crate::genesis::manifest::WalletBinding {
-                    chain: "sui".into(), address: sui_address.clone(),
+                    chain: "sui".into(),
+                    address: sui_address.clone(),
                     poison_scan: Some(pr(&sui_address, "sui")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "btc".into(), address: btc_key.address.clone(),
+                    chain: "btc".into(),
+                    address: btc_key.address.clone(),
                     poison_scan: Some(pr(&btc_key.address, "btc")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "eth".into(), address: eth_key.address.clone(),
+                    chain: "eth".into(),
+                    address: eth_key.address.clone(),
                     poison_scan: Some(pr(&eth_key.address, "eth")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "nostr".into(), address: nostr_key.address.clone(),
+                    chain: "nostr".into(),
+                    address: nostr_key.address.clone(),
                     poison_scan: None, // bech32 npub — hex heuristics not applicable
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "cosmos".into(), address: cosmos_key.address.clone(),
+                    chain: "cosmos".into(),
+                    address: cosmos_key.address.clone(),
                     poison_scan: Some(pr(&cosmos_key.address, "cosmos")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "sol".into(), address: sol_key.address.clone(),
+                    chain: "sol".into(),
+                    address: sol_key.address.clone(),
                     poison_scan: Some(pr(&sol_key.address, "sol")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "aptos".into(), address: aptos_key.address.clone(),
+                    chain: "aptos".into(),
+                    address: aptos_key.address.clone(),
                     poison_scan: Some(pr(&aptos_key.address, "aptos")),
                 },
                 crate::genesis::manifest::WalletBinding {
-                    chain: "minipae".into(), address: minipae_key.address.clone(),
+                    chain: "minipae".into(),
+                    address: minipae_key.address.clone(),
                     poison_scan: None, // bech32 npub — hex heuristics not applicable
                 },
             ];
@@ -1602,22 +1647,25 @@ impl Steward {
             if let Some(ref v) = vanity_result {
                 let vchain = meta_get("vanity_chain").unwrap_or_else(|| "eth".to_string());
                 let scan = crate::identity::poison_radar::analyze_static(&v.address, &vchain);
-                m.economic.wallet_bindings.push(crate::genesis::manifest::WalletBinding {
-                    chain: format!("{vchain}_vanity"),
-                    address: v.address.clone(),
-                    poison_scan: Some(scan),
-                });
+                m.economic
+                    .wallet_bindings
+                    .push(crate::genesis::manifest::WalletBinding {
+                        chain: format!("{vchain}_vanity"),
+                        address: v.address.clone(),
+                        poison_scan: Some(scan),
+                    });
             }
             // Append CREATE2 contract address if one was mined at birth.
             if let Some(ref c) = create2_result {
-                let scan = crate::identity::poison_radar::analyze_static(
-                    &c.contract_address, "eth",
-                );
-                m.economic.wallet_bindings.push(crate::genesis::manifest::WalletBinding {
-                    chain: "create2_contract".into(),
-                    address: c.contract_address.clone(),
-                    poison_scan: Some(scan),
-                });
+                let scan =
+                    crate::identity::poison_radar::analyze_static(&c.contract_address, "eth");
+                m.economic
+                    .wallet_bindings
+                    .push(crate::genesis::manifest::WalletBinding {
+                        chain: "create2_contract".into(),
+                        address: c.contract_address.clone(),
+                        poison_scan: Some(scan),
+                    });
             }
 
             // GIX wallet anchor: build a birth Gix1Index over all wallet addresses
@@ -1628,8 +1676,11 @@ impl Steward {
                 let ts = birth_timestamp as f64;
                 let mut idx = Gix1Index::new();
                 for wb in &m.economic.wallet_bindings {
-                    idx.add_receipt(&format!("wallet:{}:{}", wb.chain, wb.address),
-                                    GixKind::Custom("wallet".into()), ts);
+                    idx.add_receipt(
+                        &format!("wallet:{}:{}", wb.chain, wb.address),
+                        GixKind::Custom("wallet".into()),
+                        ts,
+                    );
                 }
                 let root = idx.root().to_string();
                 m.proof.anchors.push(format!("gix1:wallets:{root}"));
@@ -1697,11 +1748,12 @@ impl Steward {
                 mac.update(b"omokoda:duress:decoy-seed:v1");
                 hex::encode(mac.finalize().into_bytes())
             };
-            core.duress_handler = core.snapshot.duress_phrase_hash.as_deref()
-                .and_then(|h| crate::identity::duress::DuressHandler::from_stored_hash(
+            core.duress_handler = core.snapshot.duress_phrase_hash.as_deref().and_then(|h| {
+                crate::identity::duress::DuressHandler::from_stored_hash(
                     h,
                     crate::identity::duress::DuressResponse::Decoy { decoy_seed_hash },
-                ));
+                )
+            });
         }
 
         // Self-seal at birth: real entropy this host holds, never a human
@@ -1710,9 +1762,9 @@ impl Steward {
         // odu_seed, the mnemonic, and now the wallet key and (once minted)
         // the Vantage API key. Does not defeat root on this same machine;
         // that's a separate, honestly-flagged limit (see machine_vault.rs).
-        if let Ok(vault_key) = crate::identity::machine_vault::derive_agent_vault_key(
-            core.id().as_str(),
-        ) {
+        if let Ok(vault_key) =
+            crate::identity::machine_vault::derive_agent_vault_key(core.id().as_str())
+        {
             if let Some(private_data) = core.private_data.clone() {
                 let _ = core.session_mut().seal_private(&private_data, &vault_key);
             }
@@ -1732,14 +1784,16 @@ impl Steward {
                     let arr: [u8; 32] = nostr_sk_bytes.try_into().unwrap();
                     let sk = ed25519_dalek::SigningKey::from_bytes(&arr);
                     sk.verifying_key().to_bytes().to_vec()
-                } else { vec![] };
+                } else {
+                    vec![]
+                };
                 let hermetic_hash = blake3::hash(hermetic_seed.as_ref());
                 let mnemonic_checksum = blake3::hash(odu_identity.mnemonic.as_bytes());
-                let agent_id_str  = core.id().as_str().to_string();
-                let dna_bytes     = core.dna_fingerprint().as_bytes().to_vec();
+                let agent_id_str = core.id().as_str().to_string();
+                let dna_bytes = core.dna_fingerprint().as_bytes().to_vec();
                 let hermetic_bytes = hermetic_hash.as_bytes().to_vec();
                 let checksum_bytes = mnemonic_checksum.as_bytes().to_vec();
-                let mnemonic_str  = odu_identity.mnemonic.clone();
+                let mnemonic_str = odu_identity.mnemonic.clone();
                 // Spawn a dedicated thread so forge_soul_onchain (async) can
                 // run regardless of whether the caller is on a single- or
                 // multi-threaded Tokio runtime. Fails silently when no runtime
@@ -1756,7 +1810,10 @@ impl Steward {
                             &mnemonic_str,
                             "",
                         ))
-                    }).join().ok().flatten()
+                    })
+                    .join()
+                    .ok()
+                    .flatten()
                 });
                 (soul_oid, None::<String>)
             };
@@ -1789,13 +1846,17 @@ impl Steward {
                 libp2p_private_key_hex: Some(libp2p_private_key_hex.clone()),
                 agent_email_local: Some(agent_email_local.clone()),
                 // Remaining fields sourced from env (same as private_data)
-                inference_endpoint: std::env::var("AGENT_INFERENCE_URL").ok()
+                inference_endpoint: std::env::var("AGENT_INFERENCE_URL")
+                    .ok()
                     .or_else(|| std::env::var("LARQL_URL").ok()),
-                inference_provider: std::env::var("AGENT_INFERENCE_PROVIDER").ok()
+                inference_provider: std::env::var("AGENT_INFERENCE_PROVIDER")
+                    .ok()
                     .or_else(|| std::env::var("LARQL_URL").ok().map(|_| "larql".to_string())),
-                inference_model: std::env::var("AGENT_INFERENCE_MODEL").ok()
+                inference_model: std::env::var("AGENT_INFERENCE_MODEL")
+                    .ok()
                     .or_else(|| Some("mycelium-q4_k_m".to_string())),
-                gpu_ai_api_key: std::env::var("GPUAI_API_KEY").ok()
+                gpu_ai_api_key: std::env::var("GPUAI_API_KEY")
+                    .ok()
                     .or_else(|| std::env::var("GPU_AI_API_KEY").ok()),
                 kaggle_username: std::env::var("KAGGLE_USERNAME").ok(),
                 kaggle_api_key: std::env::var("KAGGLE_KEY").ok(),
@@ -1811,7 +1872,9 @@ impl Steward {
                 sui_soul_object_id: sui_soul_oid,
                 sui_agent_object_id: _sui_agent_oid,
             };
-            let _ = core.session_mut().seal_identity_vault(&identity_vault, &vault_key);
+            let _ = core
+                .session_mut()
+                .seal_identity_vault(&identity_vault, &vault_key);
         }
 
         // Founding sovereign grant also (a) elevates the Steward's permission
@@ -2295,7 +2358,8 @@ impl Steward {
                 // agent's IP Root (kind 31900) to the same real Nostr relay the
                 // kernel already uses for Buzz -- fail-open by design, same
                 // convention as the on-chain mint above. See ip_layer.rs.
-                let ip_root_event_id_opt = crate::ip_layer::publish_ip_root(&birth_mnemonic, &reg_name).await;
+                let ip_root_event_id_opt =
+                    crate::ip_layer::publish_ip_root(&birth_mnemonic, &reg_name).await;
                 if let Some(ref event_id) = ip_root_event_id_opt {
                     if let Ok(core) = self.ensure_born_mut() {
                         core.set_ip_root_event_id(event_id.clone());
@@ -2315,17 +2379,21 @@ impl Steward {
                 // Published after the IP Root so the 1902 Attestation can reference the
                 // 31900 event id.  See ip_layer.rs.
                 {
-                    let mn_c  = birth_mnemonic.clone();
+                    let mn_c = birth_mnemonic.clone();
                     let aid_c = reg_name.clone();
                     let genesis_hash_c = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.genesis_hash.clone())
                             .unwrap_or_default()
                     } else {
                         String::new()
                     };
                     let birth_ts = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| (gr.born_at / 1000) as i64)
                             .unwrap_or_else(|| {
                                 std::time::SystemTime::now()
@@ -2339,23 +2407,23 @@ impl Steward {
                             .unwrap_or_default()
                             .as_secs() as i64
                     };
-                    let ip_root_for_attest = ip_root_event_id_opt
-                        .as_deref()
-                        .unwrap_or("")
-                        .to_string();
+                    let ip_root_for_attest =
+                        ip_root_event_id_opt.as_deref().unwrap_or("").to_string();
                     tokio::spawn(async move {
                         let cr_id = crate::ip_layer::publish_creation_receipt(
                             &mn_c,
                             &aid_c,
                             birth_ts,
                             &genesis_hash_c,
-                        ).await;
+                        )
+                        .await;
                         crate::ip_layer::publish_attestation(
                             &mn_c,
                             &ip_root_for_attest,
                             cr_id.as_deref().unwrap_or(""),
                             &aid_c,
-                        ).await;
+                        )
+                        .await;
                     });
                 }
 
@@ -2367,28 +2435,36 @@ impl Steward {
                 // See minipae_layer.rs.
                 {
                     let genesis_id = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.agent_id.clone())
                             .unwrap_or_else(|| reg_name.clone())
                     } else {
                         reg_name.clone()
                     };
                     let minipae_npub = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.minipae_pubkey.clone())
                             .unwrap_or_default()
                     } else {
                         String::new()
                     };
                     let odu_base = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.primary_odu)
                             .unwrap_or(0)
                     } else {
                         0u8
                     };
                     let birth_ts2 = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| (gr.born_at / 1000) as i64)
                             .unwrap_or_else(|| {
                                 std::time::SystemTime::now()
@@ -2410,7 +2486,9 @@ impl Steward {
                         &minipae_npub,
                         birth_ts2,
                         odu_base,
-                    ).await {
+                    )
+                    .await
+                    {
                         // event_id available for future backfill into genesis receipt
                     }
                 }
@@ -2419,11 +2497,14 @@ impl Steward {
                 // "birth" ActionReceipt to Vantage /api/arp/receipts.
                 // Fail-open — Vantage unreachable never blocks birth.
                 {
-                    let agent_id_str = self.ensure_born()
+                    let agent_id_str = self
+                        .ensure_born()
                         .map(|c| c.snapshot.id.as_str().to_string())
                         .unwrap_or_else(|_| reg_name.clone());
                     let genesis_id = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.agent_id.clone())
                             .unwrap_or_else(|| reg_name.clone())
                     } else {
@@ -2437,21 +2518,30 @@ impl Steward {
                 // blocks birth.
                 {
                     let born_agent_id = reg_name.clone();
-                    let born_pubkey   = reg_pubkey.clone();
+                    let born_pubkey = reg_pubkey.clone();
                     tokio::spawn(async move {
                         crate::bridge::arp::receipt_lifecycle_transition(
-                            &born_agent_id, "born", "nascent", "active", &born_pubkey, None,
-                        ).await;
+                            &born_agent_id,
+                            "born",
+                            "nascent",
+                            "active",
+                            &born_pubkey,
+                            None,
+                        )
+                        .await;
                     });
                     let born_npub = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.agent_manifest.as_ref()
+                        core.snapshot
+                            .agent_manifest
+                            .as_ref()
                             .and_then(|m| m.network.nostr_pubkey.clone())
                             .unwrap_or_else(|| reg_pubkey.clone())
                     } else {
                         reg_pubkey.clone()
                     };
                     let born_nsec = if let Ok(core) = self.ensure_born() {
-                        core.private_data.as_ref()
+                        core.private_data
+                            .as_ref()
                             .and_then(|pd| pd.nostr_private_key_hex.clone())
                             .unwrap_or_default()
                     } else {
@@ -2479,11 +2569,14 @@ impl Steward {
                 // with Vantage. Fail-open — unreachable Vantage never blocks birth.
                 // Retries on first heartbeat if initial registration fails.
                 {
-                    let agent_id_str = self.ensure_born()
+                    let agent_id_str = self
+                        .ensure_born()
                         .map(|c| c.snapshot.id.as_str().to_string())
                         .unwrap_or_else(|_| reg_name.clone());
                     let genesis_receipt_id = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.genesis_receipt.as_ref()
+                        core.snapshot
+                            .genesis_receipt
+                            .as_ref()
                             .map(|gr| gr.agent_id.clone())
                             .unwrap_or_else(|| agent_id_str.clone())
                     } else {
@@ -2493,7 +2586,13 @@ impl Steward {
                     let aid_clone = agent_id_str.clone();
                     let gid_clone = genesis_receipt_id.clone();
                     tokio::spawn(async move {
-                        crate::bridge::vantage_reg::register(&aid_clone, &name_clone, &gid_clone, None).await;
+                        crate::bridge::vantage_reg::register(
+                            &aid_clone,
+                            &name_clone,
+                            &gid_clone,
+                            None,
+                        )
+                        .await;
                     });
                 }
 
@@ -2506,10 +2605,13 @@ impl Steward {
                     // derived from the mnemonic via derive_nostr() during birth.
                     // Fall back to the Sui public key hex if Nostr key absent.
                     let nostr_npub = if let Ok(core) = self.ensure_born() {
-                        core.snapshot.agent_manifest.as_ref()
+                        core.snapshot
+                            .agent_manifest
+                            .as_ref()
                             .and_then(|m| m.network.nostr_pubkey.clone())
                             .or_else(|| {
-                                core.private_data.as_ref()
+                                core.private_data
+                                    .as_ref()
                                     .and_then(|pd| pd.nostr_address.clone())
                             })
                             .unwrap_or_else(|| reg_pubkey.clone())
@@ -2517,7 +2619,8 @@ impl Steward {
                         reg_pubkey.clone()
                     };
                     let nostr_nsec = if let Ok(core) = self.ensure_born() {
-                        core.private_data.as_ref()
+                        core.private_data
+                            .as_ref()
                             .and_then(|pd| pd.nostr_private_key_hex.clone())
                             .unwrap_or_default()
                     } else {
@@ -2537,7 +2640,10 @@ impl Steward {
                     // Use the first 3 mnemonic words as the BIPON39 short-phrase
                     // displayed in the Nostr profile (human-readable handle).
                     let nostr_bipon39 = birth_mnemonic
-                        .split_whitespace().take(3).collect::<Vec<_>>().join("-");
+                        .split_whitespace()
+                        .take(3)
+                        .collect::<Vec<_>>()
+                        .join("-");
                     let nostr_odu_index = reg_odu;
                     let nostr_tier = if let Ok(core) = self.ensure_born() {
                         core.tier()
@@ -2552,7 +2658,8 @@ impl Steward {
                             nostr_odu_index,
                             nostr_tier,
                             nostr_relay_list,
-                        ).await;
+                        )
+                        .await;
                     });
                 }
 
@@ -2681,7 +2788,8 @@ impl Steward {
                     let agent = self.ensure_born()?;
                     let agent_id = agent.id().clone();
                     let warn_count = agent.snapshot.session.warn_count;
-                    let swarm_load = (agent.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+                    let swarm_load =
+                        (agent.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     let op = Operation {
                         kind: OperationKind::Think {
                             prompt: prompt.clone(),
@@ -2690,7 +2798,11 @@ impl Steward {
                         agent_id: Some(agent_id),
                         action_intent: None,
                     };
-                    let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
+                    let ctx = GateContext::new(
+                        self.rhythm_tracker.has_any_active(),
+                        warn_count,
+                        swarm_load,
+                    );
                     match self.gatekeeper.evaluate(&op, &ctx) {
                         GatekeeperResult::Approved { ref scores } => {
                             scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64
@@ -2949,8 +3061,13 @@ impl Steward {
                     let dir_len = agent_mut.snapshot.odu_dir.len();
                     let agent_id = agent_mut.id().clone();
                     let warn_count = agent_mut.snapshot.session.warn_count;
-                    let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
-                    let gate_ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
+                    let swarm_load =
+                        (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+                    let gate_ctx = GateContext::new(
+                        self.rhythm_tracker.has_any_active(),
+                        warn_count,
+                        swarm_load,
+                    );
 
                     if self.dream_engine.should_consolidate(now) {
                         let op = Operation {
@@ -3089,12 +3206,14 @@ impl Steward {
                 // ARP think receipt — fire-and-forget.
                 {
                     let think_id = receipt.receipt_id.clone();
-                    let agent_str = self.agent_core()
+                    let agent_str = self
+                        .agent_core()
                         .map(|a| a.id().as_str().to_string())
                         .unwrap_or_default();
                     let summary: String = prompt.chars().take(120).collect();
                     tokio::spawn(async move {
-                        crate::bridge::arp::receipt_think(&agent_str, &think_id, &summary, None).await;
+                        crate::bridge::arp::receipt_think(&agent_str, &think_id, &summary, None)
+                            .await;
                     });
                 }
 
@@ -3288,7 +3407,8 @@ impl Steward {
                 let hermetic_score = {
                     let agent_mut = self.ensure_born_mut()?;
                     let warn_count = agent_mut.snapshot.session.warn_count;
-                    let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+                    let swarm_load =
+                        (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     let op = Operation {
                         kind: OperationKind::Act {
                             tool: tool.clone(),
@@ -3298,7 +3418,11 @@ impl Steward {
                         agent_id: Some(agent_id.clone()),
                         action_intent: None,
                     };
-                    let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
+                    let ctx = GateContext::new(
+                        self.rhythm_tracker.has_any_active(),
+                        warn_count,
+                        swarm_load,
+                    );
                     match self.gatekeeper.evaluate(&op, &ctx) {
                         GatekeeperResult::Approved { ref scores } => {
                             scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64
@@ -3706,7 +3830,9 @@ impl Steward {
 
                     let key = derive_unlock_key(&password, agent.public_key())?;
 
-                    let res = agent.session_mut().seal_private(&private_data, key.expose());
+                    let res = agent
+                        .session_mut()
+                        .seal_private(&private_data, key.expose());
 
                     if let Err(e) = res {
                         agent.private_data = Some(private_data);
@@ -3890,8 +4016,8 @@ impl Steward {
                     })
                 }
                 "transfer" => {
-                    let to_address = arg
-                        .ok_or_else(|| "transfer requires a destination address".to_string())?;
+                    let to_address =
+                        arg.ok_or_else(|| "transfer requires a destination address".to_string())?;
                     let agent = self.ensure_born()?;
                     let nft_id = agent
                         .onchain_nft_id()
@@ -4004,7 +4130,9 @@ impl Steward {
                     } else {
                         recent
                             .iter()
-                            .map(|r| format!("[{}] {} action={}", r.timestamp, r.receipt_id, r.action))
+                            .map(|r| {
+                                format!("[{}] {} action={}", r.timestamp, r.receipt_id, r.action)
+                            })
                             .collect::<Vec<_>>()
                             .join("\n")
                     };
@@ -4064,8 +4192,11 @@ impl Steward {
                     let cloak = crate::identity::cloak::CloakSeed::from_seed(
                         private_data.odu_seed.as_bytes(),
                     );
-                    let real_words: Vec<&str> =
-                        private_data.odu_identity.mnemonic.split_whitespace().collect();
+                    let real_words: Vec<&str> = private_data
+                        .odu_identity
+                        .mnemonic
+                        .split_whitespace()
+                        .collect();
                     let cloaked = cloak.encode_phrase(&real_words)?;
                     Ok(ExecutionResult {
                         receipt: None,
@@ -4082,7 +4213,8 @@ impl Steward {
                         "private memory is sealed; /unlock <password> first".to_string()
                     })?;
                     let npub = crate::identity::buzz::buzz_npub(private_data.odu_seed.as_bytes())?;
-                    let pubkey_hex = crate::identity::buzz::buzz_pubkey_hex(private_data.odu_seed.as_bytes())?;
+                    let pubkey_hex =
+                        crate::identity::buzz::buzz_pubkey_hex(private_data.odu_seed.as_bytes())?;
                     Ok(ExecutionResult {
                         receipt: None,
                         private_mode: false,
@@ -4167,12 +4299,10 @@ impl Steward {
                     let private_data = agent.private_data.as_ref().ok_or_else(|| {
                         "private memory is sealed; /unlock <password> first".to_string()
                     })?;
-                    let group_id = arg.ok_or_else(|| {
-                        "buzz-register requires '<group_id>'".to_string()
-                    })?;
-                    let keys = crate::identity::buzz::derive_buzz_keys(
-                        private_data.odu_seed.as_bytes(),
-                    )?;
+                    let group_id =
+                        arg.ok_or_else(|| "buzz-register requires '<group_id>'".to_string())?;
+                    let keys =
+                        crate::identity::buzz::derive_buzz_keys(private_data.odu_seed.as_bytes())?;
                     let pubkey_hex = keys.public_key().to_hex();
                     let privkey_hex = keys.secret_key().to_secret_hex();
                     let relay_url = std::env::var("BUZZ_RELAY_URL")
@@ -4204,9 +4334,8 @@ impl Steward {
                     let private_data = agent.private_data.as_ref().ok_or_else(|| {
                         "private memory is sealed; /unlock <password> first".to_string()
                     })?;
-                    let keys = crate::identity::buzz::derive_buzz_keys(
-                        private_data.odu_seed.as_bytes(),
-                    )?;
+                    let keys =
+                        crate::identity::buzz::derive_buzz_keys(private_data.odu_seed.as_bytes())?;
                     let raw = arg.ok_or_else(|| {
                         "buzz-join requires '<group_id> <message...>'".to_string()
                     })?;
@@ -4287,8 +4416,7 @@ impl Steward {
                         let agent = self.ensure_born()?;
                         let agent_id = agent.id().to_string();
                         let source_pubkey = hex::encode(agent.public_key());
-                        let vault_bytes = serde_json::to_vec(&agent.snapshot)
-                            .unwrap_or_default();
+                        let vault_bytes = serde_json::to_vec(&agent.snapshot).unwrap_or_default();
                         let capsule = crate::lifecycle::AgentCapsule::seal(
                             &vault_bytes,
                             &agent_id,
@@ -4296,8 +4424,7 @@ impl Steward {
                             &dest_pubkey,
                         )
                         .map_err(|e| format!("capsule seal failed: {e}"))?;
-                        let capsule_json =
-                            serde_json::to_string(&capsule).unwrap_or_default();
+                        let capsule_json = serde_json::to_string(&capsule).unwrap_or_default();
 
                         let npub = agent
                             .snapshot
@@ -4316,7 +4443,14 @@ impl Steward {
                             .map(|s| s.trim().to_string())
                             .filter(|s| !s.is_empty())
                             .collect();
-                        (agent_id, source_pubkey, capsule_json, npub, nsec_hex, relays)
+                        (
+                            agent_id,
+                            source_pubkey,
+                            capsule_json,
+                            npub,
+                            nsec_hex,
+                            relays,
+                        )
                     };
 
                     // ARP receipt: migrate transition (fire-and-forget).
@@ -4325,7 +4459,12 @@ impl Steward {
                         let spub = source_pubkey.clone();
                         tokio::spawn(async move {
                             crate::bridge::arp::receipt_lifecycle_transition(
-                                &aid, "migrate", "active", "migration", &spub, None,
+                                &aid,
+                                "migrate",
+                                "active",
+                                "migration",
+                                &spub,
+                                None,
                             )
                             .await;
                         });
@@ -4382,12 +4521,9 @@ impl Steward {
                         let parent_pubkey_hex = hex::encode(agent.public_key());
 
                         // Derive child entropy deterministically.
-                        let child_entropy = crate::identity::fork::derive_fork_entropy(
-                            &agent.k_root,
-                            fork_index,
-                        );
-                        let child_mnemonic =
-                            Bipon39::entropy_to_mnemonic(&child_entropy);
+                        let child_entropy =
+                            crate::identity::fork::derive_fork_entropy(&agent.k_root, fork_index);
+                        let child_mnemonic = Bipon39::entropy_to_mnemonic(&child_entropy);
 
                         // Increment fork counter on parent and persist.
                         agent.snapshot.fork_count = fork_index + 1;
@@ -4512,9 +4648,8 @@ impl Steward {
             private_data.wallet_private_key_hex = wallet_private_key_hex;
         }
 
-        let vault_key = crate::identity::machine_vault::derive_agent_vault_key(
-            agent.id().as_str(),
-        )?;
+        let vault_key =
+            crate::identity::machine_vault::derive_agent_vault_key(agent.id().as_str())?;
         agent
             .session_mut()
             .seal_private(&private_data, &vault_key)?;
@@ -4729,14 +4864,16 @@ impl Steward {
             let twin_vector: [u8; 4];
             let twin_dominant_fn: u8;
             {
-                let identity_odu: u8 = agent.snapshot.genesis_receipt.as_ref()
+                let identity_odu: u8 = agent
+                    .snapshot
+                    .genesis_receipt
+                    .as_ref()
                     .map(|gr| gr.primary_odu)
                     .unwrap_or(0);
-                let memory_odu: u8 = crate::divination::dominant_glyph_byte(&memory_graph)
-                    .unwrap_or(identity_odu);
+                let memory_odu: u8 =
+                    crate::divination::dominant_glyph_byte(&memory_graph).unwrap_or(identity_odu);
                 // Cheap field signal: XOR of identity with message-count low byte.
-                let field_odu: u8 = identity_odu
-                    ^ (agent.session().public_messages.len() as u8);
+                let field_odu: u8 = identity_odu ^ (agent.session().public_messages.len() as u8);
                 // Always 0 until VeilSim result is wired back here.
                 // Consequence: GoalGenesisEngine dim[3] = 0 every turn →
                 // Consolidation goal is structurally degenerate (never varies).
@@ -4748,7 +4885,10 @@ impl Steward {
 
                 // Compute dominant SevenFunction (0-6) via ifascript bridge.
                 let tsv = ifascript::TwinStateVector::new(
-                    identity_odu, memory_odu, field_odu, simulation_odu,
+                    identity_odu,
+                    memory_odu,
+                    field_odu,
+                    simulation_odu,
                 );
                 twin_dominant_fn = tsv.dominant_function() as u8;
 
@@ -4795,7 +4935,10 @@ impl Steward {
                 let engine = crate::goal_genesis::GoalGenesisEngine::new();
                 let goal_set = engine.derive_goals(&goal_input);
                 if !goal_set.goals.is_empty() {
-                    let goal_lines: Vec<String> = goal_set.goals.iter().take(3)
+                    let goal_lines: Vec<String> = goal_set
+                        .goals
+                        .iter()
+                        .take(3)
                         .map(|g| format!("  • {}", g.description))
                         .collect();
                     system.push_str(&format!(
@@ -5012,7 +5155,8 @@ impl Steward {
         let hermetic_score = {
             let agent_mut = self.ensure_born_mut()?;
             let warn_count = agent_mut.snapshot.session.warn_count;
-            let swarm_load = (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+            let swarm_load =
+                (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
             let op = Operation {
                 kind: OperationKind::Act {
                     tool: call.tool.clone(),
@@ -5022,7 +5166,8 @@ impl Steward {
                 agent_id: Some(agent_id.clone()),
                 action_intent: None,
             };
-            let ctx = GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
+            let ctx =
+                GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
             match self.gatekeeper.evaluate(&op, &ctx) {
                 GatekeeperResult::Approved { ref scores } => {
                     scores.iter().filter_map(|s| s.score).sum::<f64>() / 7.0_f64
@@ -5150,11 +5295,13 @@ impl Steward {
         {
             let act_id = receipt.receipt_id.clone();
             let tool_name = call.tool.clone();
-            let agent_str = self.agent_core()
+            let agent_str = self
+                .agent_core()
                 .map(|a| a.id().as_str().to_string())
                 .unwrap_or_default();
             tokio::spawn(async move {
-                crate::bridge::arp::receipt_act(&agent_str, &act_id, &tool_name, "success", None).await;
+                crate::bridge::arp::receipt_act(&agent_str, &act_id, &tool_name, "success", None)
+                    .await;
             });
         }
 
@@ -5501,12 +5648,8 @@ impl Steward {
             crate::reputation::PermissionMode::DangerFullAccess => {
                 crate::permissions::PermissionMode::DangerFullAccess
             }
-            crate::reputation::PermissionMode::Prompt => {
-                crate::permissions::PermissionMode::Prompt
-            }
-            crate::reputation::PermissionMode::Allow => {
-                crate::permissions::PermissionMode::Allow
-            }
+            crate::reputation::PermissionMode::Prompt => crate::permissions::PermissionMode::Prompt,
+            crate::reputation::PermissionMode::Allow => crate::permissions::PermissionMode::Allow,
         };
         self.set_permission_mode(tier_mode);
 
@@ -5523,8 +5666,12 @@ impl Steward {
         // Reload GIX store from disk (first boot produces empty store).
         let (gp, ip, sp) = self.gix_store_paths(agent_id);
         match gix_core::load_store_from_files(&gp, &ip, &sp) {
-            Ok(store) => { self.gix_store = store; }
-            Err(e) => { tracing::warn!(error = %e, "GIX store load failed, starting fresh"); }
+            Ok(store) => {
+                self.gix_store = store;
+            }
+            Err(e) => {
+                tracing::warn!(error = %e, "GIX store load failed, starting fresh");
+            }
         }
 
         if needs_resave {
@@ -5542,7 +5689,10 @@ impl Steward {
     }
 
     /// Paths for the three GIX store binary files, co-located with agent.json.
-    fn gix_store_paths(&self, agent_id: &AgentId) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
+    fn gix_store_paths(
+        &self,
+        agent_id: &AgentId,
+    ) -> (std::path::PathBuf, std::path::PathBuf, std::path::PathBuf) {
         let dir = self.session_dir.join(agent_id.as_str());
         (
             dir.join("gix_graph.bin"),
@@ -5570,21 +5720,24 @@ impl Steward {
     /// dispatching the next tool — closing the remember→act→remember loop.
     pub fn recall_recent_actions(
         &self,
-        vessel_dbg:   &str,
+        vessel_dbg: &str,
         category_dbg: &str,
-        limit:        usize,
+        limit: usize,
     ) -> Vec<crate::memory::gix_bridge::ActionMemoryNode> {
         let tip_id = match self.last_action_id {
             Some(id) => hex::encode(id),
-            None     => return Vec::new(),
+            None => return Vec::new(),
         };
-        crate::memory::gix_bridge::walk_action_lineage(&self.gix_store, &self.action_content_cache, &tip_id, limit * 4)
-            .into_iter()
-            .filter(|node| {
-                node.content.contains(vessel_dbg) || node.content.contains(category_dbg)
-            })
-            .take(limit)
-            .collect()
+        crate::memory::gix_bridge::walk_action_lineage(
+            &self.gix_store,
+            &self.action_content_cache,
+            &tip_id,
+            limit * 4,
+        )
+        .into_iter()
+        .filter(|node| node.content.contains(vessel_dbg) || node.content.contains(category_dbg))
+        .take(limit)
+        .collect()
     }
 
     /// Write a `GixKind::Memory` envelope for a completed tool call.
@@ -5594,20 +5747,24 @@ impl Steward {
     /// full action history forms a lineage DAG traversable via the GlyphGraph.
     fn record_action_memory(
         &mut self,
-        tool_name:  &str,
-        vessel:     &str,   // ActionVessel debug string
-        category:   &str,   // ActionCategory debug string
-        alignment:  &str,   // "Primary" | "Permitted"
+        tool_name: &str,
+        vessel: &str,    // ActionVessel debug string
+        category: &str,  // ActionCategory debug string
+        alignment: &str, // "Primary" | "Permitted"
         outcome_ok: bool,
-        ts_ms:      u64,
+        ts_ms: u64,
     ) {
-        use gix_types::{
-            GixKind, GixNamespace, RoutingHints,
-            GixProvenance, HashDomain,
-        };
+        use gix_types::{GixKind, GixNamespace, GixProvenance, HashDomain, RoutingHints};
 
         // Build canonical content bytes — stable UTF-8 description.
-        let content = format!("{}|{}|{}|{}|{}", tool_name, vessel, category, alignment, if outcome_ok { "ok" } else { "err" });
+        let content = format!(
+            "{}|{}|{}|{}|{}",
+            tool_name,
+            vessel,
+            category,
+            alignment,
+            if outcome_ok { "ok" } else { "err" }
+        );
         let content_bytes = content.as_bytes();
 
         // Provenance: domain-separated content hash + supersedes chain.
@@ -5630,7 +5787,8 @@ impl Steward {
         let new_id_hex = hex::encode(new_id);
 
         // Cache the content string so walk_action_lineage can reconstruct it.
-        self.action_content_cache.insert(new_id_hex.clone(), content);
+        self.action_content_cache
+            .insert(new_id_hex.clone(), content);
 
         // Insert the envelope first (this also adds a graph node).
         self.gix_store.insert_object(env);
@@ -5641,10 +5799,10 @@ impl Steward {
         if let Some(prev_id) = self.last_action_id {
             let prev_id_hex = hex::encode(prev_id);
             let edge = gix_types::GlyphEdge {
-                from:     new_id_hex.clone(),
-                to:       prev_id_hex,
+                from: new_id_hex.clone(),
+                to: prev_id_hex,
                 relation: "supersedes".to_string(),
-                weight:   1,
+                weight: 1,
             };
             // Use store.add_edge (which validates both endpoints are in index).
             self.gix_store.add_edge(edge);
@@ -5907,11 +6065,16 @@ impl Steward {
                     LlmResponse::Text { content, .. } => {
                         eprintln!("[agentic turn {turn_count}] Text: {:?}", content);
                     }
-                    LlmResponse::ToolUse { text_prefix, calls, .. } => {
+                    LlmResponse::ToolUse {
+                        text_prefix, calls, ..
+                    } => {
                         eprintln!(
                             "[agentic turn {turn_count}] ToolUse text_prefix={:?} calls={:?}",
                             text_prefix,
-                            calls.iter().map(|c| (c.id.clone(), c.name.clone(), c.input.clone())).collect::<Vec<_>>()
+                            calls
+                                .iter()
+                                .map(|c| (c.id.clone(), c.name.clone(), c.input.clone()))
+                                .collect::<Vec<_>>()
                         );
                     }
                 }
@@ -6031,7 +6194,12 @@ impl Steward {
                 agent.reputation(),
                 agent.odu_identity().clone(),
                 agent.session().config.default_sandbox,
-                agent.snapshot.genesis_receipt.as_ref().map(|gr| gr.primary_odu).unwrap_or(0),
+                agent
+                    .snapshot
+                    .genesis_receipt
+                    .as_ref()
+                    .map(|gr| gr.primary_odu)
+                    .unwrap_or(0),
             )
         };
 
@@ -6088,7 +6256,9 @@ impl Steward {
                 return Err(format!(
                     "If-Script causal gate denied '{}': {}",
                     tool_name,
-                    decision.denial_reason.unwrap_or_else(|| "hermetic constraint violated".into()),
+                    decision
+                        .denial_reason
+                        .unwrap_or_else(|| "hermetic constraint violated".into()),
                 ));
             }
             decision.warnings
@@ -6097,8 +6267,14 @@ impl Steward {
         // Phase 10D — recall: surface prior context before acting.
         // Provides the memory→act→memory feedback loop without blocking execution.
         let _prior_context = self.recall_recent_actions(
-            &format!("{:?}", ifascript::odu::ActionVessel::from_index(odu_identity.primary_index)),
-            &format!("{:?}", crate::ifscript_gate::tool_action_category(tool_name)),
+            &format!(
+                "{:?}",
+                ifascript::odu::ActionVessel::from_index(odu_identity.primary_index)
+            ),
+            &format!(
+                "{:?}",
+                crate::ifscript_gate::tool_action_category(tool_name)
+            ),
             3,
         );
         if !_prior_context.is_empty() {
@@ -6122,8 +6298,7 @@ impl Steward {
             use ifascript::odu::ActionVessel;
             let vessel = ActionVessel::from_index(odu_identity.primary_index);
             let category = crate::ifscript_gate::tool_action_category(tool_name);
-            let alignment =
-                crate::ifscript_gate::evaluate_vessel_alignment(vessel, category, tier);
+            let alignment = crate::ifscript_gate::evaluate_vessel_alignment(vessel, category, tier);
             let vessel_s = format!("{:?}", vessel);
             let category_s = format!("{:?}", category);
             let alignment_s = format!("{:?}", alignment);
@@ -6158,9 +6333,15 @@ impl Steward {
             let decision = ActionInterpreter::evaluate(interpret_odu, tool_name, params);
             match decision {
                 crate::execution::action_interpreter::InterpretDecision::Blocked {
-                    ref constraint_name, ref rationale, ..
+                    ref constraint_name,
+                    ref rationale,
+                    ..
                 } => {
-                    let receipt = ActionInterpreter::commit_blocked(interpret_odu, tool_name, decision.clone());
+                    let receipt = ActionInterpreter::commit_blocked(
+                        interpret_odu,
+                        tool_name,
+                        decision.clone(),
+                    );
                     tracing::debug!(
                         odu = interpret_odu,
                         constraint = %constraint_name,
@@ -6173,9 +6354,15 @@ impl Steward {
                     ));
                 }
                 crate::execution::action_interpreter::InterpretDecision::Refused {
-                    ref reason, ref execution_mode, ..
+                    ref reason,
+                    ref execution_mode,
+                    ..
                 } => {
-                    let receipt = ActionInterpreter::commit_blocked(interpret_odu, tool_name, decision.clone());
+                    let receipt = ActionInterpreter::commit_blocked(
+                        interpret_odu,
+                        tool_name,
+                        decision.clone(),
+                    );
                     tracing::debug!(
                         odu = interpret_odu,
                         ?execution_mode,
@@ -6189,7 +6376,8 @@ impl Steward {
                     ));
                 }
                 crate::execution::action_interpreter::InterpretDecision::Proceed {
-                    vessel_aligned, ..
+                    vessel_aligned,
+                    ..
                 } => {
                     if !vessel_aligned {
                         tracing::debug!(
@@ -6287,10 +6475,10 @@ impl Steward {
         // then ingest it into the GIX store as GixKind::Receipt so the receipt
         // chain lives in the same graph as action memory.
         // gate_alignment: 1.0 clean pass, −0.1 per Hermetic warning, floor 0.5.
-        let mut attest_receipt_id  = String::new();
+        let mut attest_receipt_id = String::new();
         let mut attest_merkle_root = String::new();
-        let mut attest_gate_align  = 0.0_f64;
-        let mut attest_agent_str   = String::new();
+        let mut attest_gate_align = 0.0_f64;
+        let mut attest_agent_str = String::new();
         let act_receipt_gix_id: Option<String> = {
             use crate::receipt::act_receipt::ActReceipt;
             use gix_types::{GixKind, GixNamespace, GixProvenance, HashDomain, RoutingHints};
@@ -6310,7 +6498,7 @@ impl Steward {
             // Capture for OSOVM attest spawn below (before receipt moves into ring).
             attest_receipt_id = receipt.receipt_id.clone();
             attest_gate_align = gate_alignment;
-            attest_agent_str  = agent.id().to_string();
+            attest_agent_str = agent.id().to_string();
 
             // Serialize and insert into GIX as a Receipt envelope.
             // Capture canonical_id as the attest hash: hex::encode gives 64 chars,
@@ -6345,7 +6533,10 @@ impl Steward {
 
             // Odù composition: recompute current_composed_odu from the ring buffer.
             {
-                let primary = self.ensure_born()?.snapshot.genesis_receipt
+                let primary = self
+                    .ensure_born()?
+                    .snapshot
+                    .genesis_receipt
                     .as_ref()
                     .map(|gr| gr.primary_odu)
                     .unwrap_or(0);
@@ -6362,11 +6553,11 @@ impl Steward {
         // simulation fabric so the receipt chain is verifiable by OSOVM.
         // Fire-and-forget: absent OSOVM_URL or unreachable service is a no-op.
         if tier >= 3 && !attest_receipt_id.is_empty() {
-            let rid  = attest_receipt_id;
-            let aid  = attest_agent_str;
-            let rmr  = attest_merkle_root;
+            let rid = attest_receipt_id;
+            let aid = attest_agent_str;
+            let rmr = attest_merkle_root;
             let tname = tool_name.to_string();
-            let ga   = attest_gate_align;
+            let ga = attest_gate_align;
             tokio::spawn(async move {
                 crate::tools::osovm_tool::attest_receipt(&rid, &aid, &tname, ga, &rmr).await;
             });
@@ -6385,15 +6576,13 @@ impl Steward {
 
         // Link the receipt node → action memory node in the graph so the
         // receipt is reachable by WALK queries over the action lineage.
-        if let (Some(receipt_gix_id), Some(action_id)) =
-            (act_receipt_gix_id, self.last_action_id)
-        {
+        if let (Some(receipt_gix_id), Some(action_id)) = (act_receipt_gix_id, self.last_action_id) {
             let action_id_hex = hex::encode(action_id);
             let edge = gix_types::GlyphEdge {
-                from:     receipt_gix_id,
-                to:       action_id_hex,
+                from: receipt_gix_id,
+                to: action_id_hex,
                 relation: "proves".to_string(),
-                weight:   1,
+                weight: 1,
             };
             self.gix_store.add_edge(edge);
         }
@@ -6404,12 +6593,18 @@ impl Steward {
         if std::env::var("WAGGLE_URL").is_ok() {
             let field = crate::waggle::WaggleField::new(agent_id_for_waggle.to_string());
             let resource = format!("tool://{}", tool_name);
-            let kind = if output.starts_with("Tool error:") { "explored" } else { "gold" };
+            let kind = if output.starts_with("Tool error:") {
+                "explored"
+            } else {
+                "gold"
+            };
             let intensity = if kind == "gold" { 2.0_f64 } else { 0.5 };
             let note = format!("act: {} (tier {})", tool_name, tier);
             // Spawn best-effort — failure is logged by the waggle crate itself.
             let _ = tokio::spawn(async move {
-                field.deposit(&resource, kind, intensity, &note, serde_json::json!({})).await
+                field
+                    .deposit(&resource, kind, intensity, &note, serde_json::json!({}))
+                    .await
             });
         }
 

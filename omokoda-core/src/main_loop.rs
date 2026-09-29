@@ -291,10 +291,7 @@ impl MainLoop {
         }
 
         match &event {
-            LoopEvent::UserInput {
-                prompt,
-                private: _,
-            } => {
+            LoopEvent::UserInput { prompt, private: _ } => {
                 if !self.state.can_accept_input() {
                     self.queue.push_front(event.clone());
                     return TurnOutcome::Continue {

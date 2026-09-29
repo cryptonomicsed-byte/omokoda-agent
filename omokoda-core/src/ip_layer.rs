@@ -188,11 +188,10 @@ pub async fn publish_attestation(
     })
     .to_string();
 
-    let mut builder = EventBuilder::new(Kind::Custom(ATTESTATION_KIND), content)
-        .tag(Tag::custom(
-            TagKind::custom("agent_id"),
-            vec![agent_id.to_string()],
-        ));
+    let mut builder = EventBuilder::new(Kind::Custom(ATTESTATION_KIND), content).tag(Tag::custom(
+        TagKind::custom("agent_id"),
+        vec![agent_id.to_string()],
+    ));
 
     if !ip_root_event_id.is_empty() {
         builder = builder.tag(Tag::custom(
@@ -309,7 +308,10 @@ mod tests {
         unsafe {
             std::env::remove_var("IP_LAYER_RELAY_URL");
         }
-        assert!(result.is_none(), "expected None when no relay accepts the event, got {result:?}");
+        assert!(
+            result.is_none(),
+            "expected None when no relay accepts the event, got {result:?}"
+        );
     }
 
     #[tokio::test]
@@ -318,7 +320,10 @@ mod tests {
             .expect("test entropy should produce a valid mnemonic")
             .join(" ");
         let result = publish_twin_binding(&mnemonic, "", "veilsim-1to1", None, None).await;
-        assert!(result.is_none(), "expected None for empty sim_id, got {result:?}");
+        assert!(
+            result.is_none(),
+            "expected None for empty sim_id, got {result:?}"
+        );
     }
 
     #[tokio::test]
@@ -327,7 +332,10 @@ mod tests {
             .expect("test entropy should produce a valid mnemonic")
             .join(" ");
         let result = publish_twin_binding(&mnemonic, "sim-42", "  ", None, None).await;
-        assert!(result.is_none(), "expected None for blank twin_kind, got {result:?}");
+        assert!(
+            result.is_none(),
+            "expected None for blank twin_kind, got {result:?}"
+        );
     }
 
     /// Same regression coverage as the IP Root test above, for the Twin
@@ -352,6 +360,9 @@ mod tests {
         unsafe {
             std::env::remove_var("IP_LAYER_RELAY_URL");
         }
-        assert!(result.is_none(), "expected None when no relay accepts the event, got {result:?}");
+        assert!(
+            result.is_none(),
+            "expected None when no relay accepts the event, got {result:?}"
+        );
     }
 }

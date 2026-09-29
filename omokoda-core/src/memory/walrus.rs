@@ -217,11 +217,7 @@ impl WalrusClient {
     ///    If the binary is absent or the conversion fails, falls back to raw PLY.
     /// 3. Uploads whichever bytes are available via `store_blob`.
     /// 4. Returns a [`SplatAnchor`] with provenance fields.
-    pub async fn store_splat(
-        &self,
-        ply_path: &Path,
-        label: &str,
-    ) -> Result<SplatAnchor, String> {
+    pub async fn store_splat(&self, ply_path: &Path, label: &str) -> Result<SplatAnchor, String> {
         // ── 1. Read original PLY ──────────────────────────────────────────────
         let ply_bytes = std::fs::read(ply_path)
             .map_err(|e| format!("store_splat: cannot read PLY {}: {e}", ply_path.display()))?;

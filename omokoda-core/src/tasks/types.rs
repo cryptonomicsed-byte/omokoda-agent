@@ -385,7 +385,10 @@ mod gix_tests {
 
     #[test]
     fn complete_stamps_gix1_canonical_id() {
-        let task = run_task(TaskKind::Think { prompt: "test".into(), private: false });
+        let task = run_task(TaskKind::Think {
+            prompt: "test".into(),
+            private: false,
+        });
         assert!(task.gix1_canonical_id.is_some());
         let hex = task.gix1_canonical_id.unwrap();
         assert_eq!(hex.len(), 64, "canonical_id should be 32-byte hex");
@@ -394,21 +397,33 @@ mod gix_tests {
     #[test]
     fn pending_task_has_no_gix1() {
         let mut mgr = TaskManager::new();
-        let id = mgr.submit(TaskKind::Think { prompt: "x".into(), private: false });
+        let id = mgr.submit(TaskKind::Think {
+            prompt: "x".into(),
+            private: false,
+        });
         assert!(mgr.get(&id).unwrap().gix1_canonical_id.is_none());
     }
 
     #[test]
     fn two_tasks_have_distinct_gix1_ids() {
-        let t1 = run_task(TaskKind::Think { prompt: "a".into(), private: false });
-        let t2 = run_task(TaskKind::Think { prompt: "b".into(), private: false });
+        let t1 = run_task(TaskKind::Think {
+            prompt: "a".into(),
+            private: false,
+        });
+        let t2 = run_task(TaskKind::Think {
+            prompt: "b".into(),
+            private: false,
+        });
         assert_ne!(t1.gix1_canonical_id, t2.gix1_canonical_id);
     }
 
     #[test]
     fn failed_task_has_no_gix1() {
         let mut mgr = TaskManager::new();
-        let id = mgr.submit(TaskKind::Think { prompt: "x".into(), private: false });
+        let id = mgr.submit(TaskKind::Think {
+            prompt: "x".into(),
+            private: false,
+        });
         mgr.start(&id);
         mgr.fail(&id, "oops".into());
         assert!(mgr.get(&id).unwrap().gix1_canonical_id.is_none());

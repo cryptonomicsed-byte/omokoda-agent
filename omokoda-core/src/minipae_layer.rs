@@ -61,7 +61,7 @@ pub async fn post_genesis_engram_http(
     odu_base: u8,
 ) -> Option<String> {
     // Hash the mnemonic — never expose the raw mnemonic over HTTP.
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     let mut h = Sha256::new();
     h.update(mnemonic.as_bytes());
     let bipon39_mnemonic_hash = hex::encode(h.finalize());
@@ -125,7 +125,10 @@ pub async fn publish_minipae_birth(
 
     let builder = EventBuilder::new(Kind::Custom(MINIPAE_BIRTH_KIND), content)
         .tag(Tag::identifier(format!("birth:{agent_name}")))
-        .tag(Tag::custom(TagKind::custom("genesis"), vec![genesis_receipt_id.to_string()]));
+        .tag(Tag::custom(
+            TagKind::custom("genesis"),
+            vec![genesis_receipt_id.to_string()],
+        ));
 
     sign_and_publish(keys, builder).await
 }
@@ -146,11 +149,11 @@ pub async fn publish_minipae_birth_full(
 ) -> Option<String> {
     // HTTP engram to minipae Python service — fire-and-forget.
     {
-        let mnemonic_c  = mnemonic.to_string();
-        let agent_id_c  = agent_id.to_string();
-        let npub_c      = npub.to_string();
-        let odu         = odu_base;
-        let ts          = birth_timestamp_secs;
+        let mnemonic_c = mnemonic.to_string();
+        let agent_id_c = agent_id.to_string();
+        let npub_c = npub.to_string();
+        let odu = odu_base;
+        let ts = birth_timestamp_secs;
         tokio::spawn(async move {
             post_genesis_engram_http(&agent_id_c, &npub_c, &mnemonic_c, ts, odu).await;
         });

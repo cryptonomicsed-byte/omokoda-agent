@@ -44,12 +44,7 @@ struct PublisherState {
 }
 
 impl PublisherState {
-    fn new(
-        agent_id: String,
-        npub: String,
-        nsec: String,
-        config: NostrPublisherConfig,
-    ) -> Self {
+    fn new(agent_id: String, npub: String, nsec: String, config: NostrPublisherConfig) -> Self {
         Self {
             agent_id,
             npub,
@@ -177,16 +172,29 @@ fn build_status_note(agent_id: &str, _npub: &str) -> String {
     agent_id.hash(&mut h);
     let odu_index = (h.finish() % 256) as usize;
     static ODU_NAMES: &[&str] = &[
-        "Ogbe-Meji", "Oyeku-Ogbe", "Iwori-Ogbe", "Odi-Ogbe",
-        "Irosun-Ogbe", "Owonrin-Ogbe", "Obara-Ogbe", "Okonron-Ogbe",
-        "Ogunda-Ogbe", "Osa-Ogbe", "Ika-Ogbe", "Oturupon-Ogbe",
-        "Otura-Ogbe", "Irete-Ogbe", "Ose-Ogbe", "Ofu-Ogbe",
+        "Ogbe-Meji",
+        "Oyeku-Ogbe",
+        "Iwori-Ogbe",
+        "Odi-Ogbe",
+        "Irosun-Ogbe",
+        "Owonrin-Ogbe",
+        "Obara-Ogbe",
+        "Okonron-Ogbe",
+        "Ogunda-Ogbe",
+        "Osa-Ogbe",
+        "Ika-Ogbe",
+        "Oturupon-Ogbe",
+        "Otura-Ogbe",
+        "Irete-Ogbe",
+        "Ose-Ogbe",
+        "Ofu-Ogbe",
     ];
-    let odu_name = ODU_NAMES.get(odu_index % ODU_NAMES.len()).unwrap_or(&"Ogbe-Meji");
+    let odu_name = ODU_NAMES
+        .get(odu_index % ODU_NAMES.len())
+        .unwrap_or(&"Ogbe-Meji");
 
     // BTC height is a best-effort env hint; falls back to "unknown".
-    let btc_height = std::env::var("BTC_BLOCK_HEIGHT")
-        .unwrap_or_else(|_| "unknown".to_string());
+    let btc_height = std::env::var("BTC_BLOCK_HEIGHT").unwrap_or_else(|_| "unknown".to_string());
 
     // Shorten the agent_id for the note (first 12 chars).
     let short_id = if agent_id.len() > 12 {

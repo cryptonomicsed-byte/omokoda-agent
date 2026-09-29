@@ -105,7 +105,10 @@ mod tests {
             .map(|s| s.to_string())
             .collect();
         real.sort();
-        assert_eq!(sorted, real, "every cover word is a real wordlist token, used exactly once");
+        assert_eq!(
+            sorted, real,
+            "every cover word is a real wordlist token, used exactly once"
+        );
     }
 
     #[test]

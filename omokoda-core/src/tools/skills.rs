@@ -932,8 +932,14 @@ mod tests {
         assert_eq!(w.base_url, "${WIGOLO_URL}");
         assert!(w.auth_header.is_none()); // loopback-bound daemon, unauthenticated
         assert!(!w.write); // search/fetch/crawl/etc are read-only web intelligence
-        assert_eq!(w.routes.get("search").map(String::as_str), Some("POST /v1/search"));
-        assert_eq!(w.routes.get("health").map(String::as_str), Some("GET /health"));
+        assert_eq!(
+            w.routes.get("search").map(String::as_str),
+            Some("POST /v1/search")
+        );
+        assert_eq!(
+            w.routes.get("health").map(String::as_str),
+            Some("GET /health")
+        );
     }
 
     #[test]

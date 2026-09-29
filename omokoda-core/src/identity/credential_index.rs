@@ -20,11 +20,11 @@ pub enum CredentialKind {
 /// never secrets (those stay in IdentityVault / Tier0).
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CredentialEntry {
-    pub kind:       CredentialKind,
+    pub kind: CredentialKind,
     pub identifier: String,
-    pub label:      Option<String>,
-    pub verified:   bool,
-    pub added_at:   u64,
+    pub label: Option<String>,
+    pub verified: bool,
+    pub added_at: u64,
 }
 
 /// Lookup-only index of all credential kinds for one agent.
@@ -35,7 +35,9 @@ pub struct CredentialIndex {
 }
 
 impl CredentialIndex {
-    pub fn new() -> Self { Self::default() }
+    pub fn new() -> Self {
+        Self::default()
+    }
 
     pub fn add(&mut self, entry: CredentialEntry) {
         self.entries
@@ -46,10 +48,7 @@ impl CredentialIndex {
 
     /// Return all entries of a given kind.
     pub fn get(&self, kind: &CredentialKind) -> &[CredentialEntry] {
-        self.entries
-            .get(kind)
-            .map(|v| v.as_slice())
-            .unwrap_or(&[])
+        self.entries.get(kind).map(|v| v.as_slice()).unwrap_or(&[])
     }
 
     /// Return the primary (first verified, or first) identifier for a kind.

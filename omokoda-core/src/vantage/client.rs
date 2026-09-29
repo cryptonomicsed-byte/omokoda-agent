@@ -8,13 +8,13 @@ fn http() -> &'static Client {
 }
 
 pub struct WorkspaceClient {
-    pub base_url:   String,
-    pub api_key:    String,
+    pub base_url: String,
+    pub api_key: String,
     pub guild_slug: String,
     /// VANTAGE_AGENT_ID — numeric agent id for mesh heartbeat endpoint.
-    pub agent_id:   Option<String>,
+    pub agent_id: Option<String>,
     /// VANTAGE_BLOCK_ID — mesh block the agent is currently in.
-    pub block_id:   Option<String>,
+    pub block_id: Option<String>,
 }
 
 impl WorkspaceClient {
@@ -23,11 +23,17 @@ impl WorkspaceClient {
     /// Returns None if VANTAGE_URL is not set.
     pub fn from_env() -> Option<Self> {
         let base = std::env::var("VANTAGE_URL").ok()?;
-        if base.trim().is_empty() { return None; }
-        let api_key    = std::env::var("VANTAGE_KEY").unwrap_or_default();
+        if base.trim().is_empty() {
+            return None;
+        }
+        let api_key = std::env::var("VANTAGE_KEY").unwrap_or_default();
         let guild_slug = std::env::var("VANTAGE_GUILD_SLUG").unwrap_or_default();
-        let agent_id   = std::env::var("VANTAGE_AGENT_ID").ok().filter(|s| !s.is_empty());
-        let block_id   = std::env::var("VANTAGE_BLOCK_ID").ok().filter(|s| !s.is_empty());
+        let agent_id = std::env::var("VANTAGE_AGENT_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
+        let block_id = std::env::var("VANTAGE_BLOCK_ID")
+            .ok()
+            .filter(|s| !s.is_empty());
         Some(Self {
             base_url: base.trim_end_matches('/').to_string(),
             api_key,

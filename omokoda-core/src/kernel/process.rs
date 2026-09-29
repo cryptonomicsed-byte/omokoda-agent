@@ -17,15 +17,15 @@ pub enum ProcessState {
 
 #[derive(Debug, Clone)]
 pub struct AgentProcess {
-    pub pid:        Pid,
-    pub agent_id:   String,
-    pub boot_id:    String,
-    pub state:      ProcessState,
+    pub pid: Pid,
+    pub agent_id: String,
+    pub boot_id: String,
+    pub state: ProcessState,
     pub started_at: u64,
     pub updated_at: u64,
     /// Current resource consumption snapshot
     pub cpu_millis: u64,
-    pub mem_bytes:  u64,
+    pub mem_bytes: u64,
 }
 
 impl AgentProcess {
@@ -51,7 +51,7 @@ impl AgentProcess {
 
 #[derive(Debug, Default)]
 pub struct ProcessTable {
-    inner:    RwLock<HashMap<Pid, AgentProcess>>,
+    inner: RwLock<HashMap<Pid, AgentProcess>>,
     next_pid: std::sync::atomic::AtomicU64,
 }
 
@@ -64,7 +64,8 @@ impl ProcessTable {
     }
 
     pub fn alloc_pid(&self) -> Pid {
-        self.next_pid.fetch_add(1, std::sync::atomic::Ordering::Relaxed)
+        self.next_pid
+            .fetch_add(1, std::sync::atomic::Ordering::Relaxed)
     }
 
     pub fn spawn(&self, agent_id: impl Into<String>, boot_id: impl Into<String>) -> Pid {

@@ -109,15 +109,13 @@ impl Tool for SettleTransactionTaxTool {
                 serde_json::to_string(&receipt).map_err(|e| e.to_string())?,
                 crate::usage::TokenUsage::default(),
             )),
-            None => Err(
-                "settle_transaction_tax: on-chain call failed even though \
+            None => Err("settle_transaction_tax: on-chain call failed even though \
                  OMOKODA_ELEGBARA_PACKAGE/OMOKODA_ELEGBARA_ROUTER_ID are set — this means the \
                  `sui` binary is missing, the coin object/type is invalid or not owned by this \
                  wallet, gas was insufficient, or the network call itself failed. Check kernel \
                  stderr for the underlying `sui client call` error (logged by onchain.rs) before \
                  retrying."
-                    .to_string(),
-            ),
+                .to_string()),
         }
     }
 }
@@ -181,13 +179,7 @@ mod tests {
         let policy = crate::permissions::PermissionPolicy::default();
         let params = json!({"coin_object_id": "0xabc", "coin_type": "0x2::sui::SUI"}).to_string();
         let out = registry
-            .execute(
-                "settle_transaction_tax",
-                &params,
-                ctx(3),
-                &policy,
-                None,
-            )
+            .execute("settle_transaction_tax", &params, ctx(3), &policy, None)
             .await;
         assert!(out.is_err());
         let msg = out.unwrap_err();
@@ -202,8 +194,14 @@ mod tests {
         let out = SettleTransactionTaxTool.execute(&params, &ctx(4)).await;
         assert!(out.is_err());
         let msg = out.unwrap_err();
-        assert!(msg.contains("OMOKODA_ELEGBARA_PACKAGE"), "unexpected message: {msg}");
-        assert!(msg.contains("OMOKODA_ELEGBARA_ROUTER_ID"), "unexpected message: {msg}");
+        assert!(
+            msg.contains("OMOKODA_ELEGBARA_PACKAGE"),
+            "unexpected message: {msg}"
+        );
+        assert!(
+            msg.contains("OMOKODA_ELEGBARA_ROUTER_ID"),
+            "unexpected message: {msg}"
+        );
         assert!(msg.contains("not configured"), "unexpected message: {msg}");
     }
 
@@ -223,9 +221,7 @@ mod tests {
     async fn execute_rejects_bad_params_before_touching_env() {
         let _guard = ENV_LOCK.lock().unwrap();
         clear_env();
-        let out = SettleTransactionTaxTool
-            .execute("{}", &ctx(4))
-            .await;
+        let out = SettleTransactionTaxTool.execute("{}", &ctx(4)).await;
         assert!(out.is_err());
     }
 }

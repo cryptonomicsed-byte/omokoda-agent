@@ -288,10 +288,7 @@ mod tests {
 
     #[test]
     fn follows_chain_links_same_path_entries() {
-        let dir = dir_with(&[
-            ("turn one", "chat/s", "t"),
-            ("turn two", "chat/s", "t"),
-        ]);
+        let dir = dir_with(&[("turn one", "chat/s", "t"), ("turn two", "chat/s", "t")]);
         let graph = project(&dir, "owner");
         let from = hex::encode(larql_glyph::content_hash("turn one"));
         // WALK depth-1 from the first entry reaches the second via "follows".
@@ -312,7 +309,11 @@ mod tests {
         assert_eq!(graph.select(|_| true).len(), 2);
 
         let scoped = filter_snapshot(&graph, &["topic:mesh".to_string()], None);
-        assert_eq!(scoped.select(|_| true).len(), 1, "only the tagged node is shared");
+        assert_eq!(
+            scoped.select(|_| true).len(),
+            1,
+            "only the tagged node is shared"
+        );
         let shared_id = hex::encode(larql_glyph::content_hash("public thought"));
         assert!(scoped.describe(&shared_id).is_ok());
         let hidden_id = hex::encode(larql_glyph::content_hash("private thought"));
@@ -342,7 +343,10 @@ mod tests {
         let x = hex::encode(larql_glyph::content_hash("x"));
         let desc = follows_only.describe(&x).unwrap();
         assert!(
-            desc.outgoing.iter().chain(desc.incoming.iter()).all(|e| e.relation == "follows"),
+            desc.outgoing
+                .iter()
+                .chain(desc.incoming.iter())
+                .all(|e| e.relation == "follows"),
             "only the follows relation should survive the grant"
         );
     }
@@ -354,12 +358,19 @@ mod tests {
         let entries = anchor_entries(&graph);
         assert_eq!(entries.len(), 2);
         for (id, digest) in &entries {
-            assert_eq!(id, &hex::encode(digest), "digest must decode back to its own id");
+            assert_eq!(
+                id,
+                &hex::encode(digest),
+                "digest must decode back to its own id"
+            );
         }
         let root = larql_glyph::merkle_root(&entries).unwrap();
         assert_ne!(root, larql_glyph::GIX1_EMPTY_ROOT);
         // Deterministic: same graph, same root.
-        assert_eq!(root, larql_glyph::merkle_root(&anchor_entries(&graph)).unwrap());
+        assert_eq!(
+            root,
+            larql_glyph::merkle_root(&anchor_entries(&graph)).unwrap()
+        );
     }
 
     #[test]

@@ -26,8 +26,8 @@ pub enum DaemonStatus {
 /// One entry in the daemon registry.
 #[derive(Debug, Clone)]
 pub struct DaemonEntry {
-    pub name:    String,
-    pub status:  DaemonStatus,
+    pub name: String,
+    pub status: DaemonStatus,
     /// Wall-clock seconds of last successful tick.
     pub last_tick_secs: u64,
 }
@@ -59,7 +59,9 @@ impl DaemonRegistry {
 
     pub fn mark_crashed(&mut self, name: &str, reason: impl Into<String>) {
         if let Some(e) = self.daemons.get_mut(name) {
-            e.status = DaemonStatus::Crashed { reason: reason.into() };
+            e.status = DaemonStatus::Crashed {
+                reason: reason.into(),
+            };
         }
     }
 
@@ -71,7 +73,9 @@ impl DaemonRegistry {
             .collect()
     }
 
-    pub fn all(&self) -> &HashMap<String, DaemonEntry> { &self.daemons }
+    pub fn all(&self) -> &HashMap<String, DaemonEntry> {
+        &self.daemons
+    }
 }
 
 /// The canonical per-agent OS kernel.
@@ -79,26 +83,26 @@ impl DaemonRegistry {
 /// Hold via `Arc<Mutex<AgentRuntime>>` and share across tasks.
 pub struct AgentRuntime {
     /// Agent id (matches Steward's AgentCore id).
-    pub agent_id:  String,
+    pub agent_id: String,
     /// Tier label e.g. "resident", "citizen", "sovereign".
-    pub tier:      String,
+    pub tier: String,
     /// Head of the tamper-evident heartbeat chain.
     pub chain_head: Option<AgentHeartbeat>,
     /// Registry of active daemons.
-    pub daemons:   DaemonRegistry,
+    pub daemons: DaemonRegistry,
 }
 
 impl AgentRuntime {
     /// Create a fresh runtime for `agent_id`.  The heartbeat chain starts at genesis.
     pub fn new(agent_id: impl Into<String>, tier: impl Into<String>) -> Arc<Mutex<Self>> {
         let agent_id = agent_id.into();
-        let tier     = tier.into();
-        let genesis  = AgentHeartbeat::genesis(&agent_id, &tier);
+        let tier = tier.into();
+        let genesis = AgentHeartbeat::genesis(&agent_id, &tier);
         Arc::new(Mutex::new(Self {
             agent_id,
             tier,
             chain_head: Some(genesis),
-            daemons:    DaemonRegistry::default(),
+            daemons: DaemonRegistry::default(),
         }))
     }
 
@@ -106,13 +110,13 @@ impl AgentRuntime {
     /// Returns the new beat (caller may publish it to Vantage / Zàngbétò).
     pub fn advance_chain(
         &mut self,
-        state:         HeartbeatState,
-        current_work:  Option<String>,
+        state: HeartbeatState,
+        current_work: Option<String>,
     ) -> AgentHeartbeat {
         let active = self.daemons.active_names();
         let next = match &self.chain_head {
             Some(prev) => AgentHeartbeat::next_from(prev, state, active, current_work),
-            None       => AgentHeartbeat::genesis(&self.agent_id, &self.tier),
+            None => AgentHeartbeat::genesis(&self.agent_id, &self.tier),
         };
         self.chain_head = Some(next.clone());
         next

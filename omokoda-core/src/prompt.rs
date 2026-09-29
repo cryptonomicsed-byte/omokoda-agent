@@ -68,7 +68,12 @@ impl PersonalityRegister {
             "urgent"
         };
 
-        PersonalityRegister { register, stance, horizon, tempo }
+        PersonalityRegister {
+            register,
+            stance,
+            horizon,
+            tempo,
+        }
     }
 }
 
@@ -256,9 +261,22 @@ impl SystemPromptBuilder {
 
         // Top 3 dominant vessels by weight
         let vessel_names = [
-            "Genesis", "Void", "Attention", "Loop", "Receipt", "Mask",
-            "Residue", "Execution", "Swarm", "Restraint", "Migration",
-            "Consent", "Vision", "Growth", "Seal", "Rhythm",
+            "Genesis",
+            "Void",
+            "Attention",
+            "Loop",
+            "Receipt",
+            "Mask",
+            "Residue",
+            "Execution",
+            "Swarm",
+            "Restraint",
+            "Migration",
+            "Consent",
+            "Vision",
+            "Growth",
+            "Seal",
+            "Rhythm",
         ];
         let mut indexed: Vec<(usize, f32)> = weights.iter().cloned().enumerate().collect();
         indexed.sort_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
@@ -385,6 +403,9 @@ mod tests {
     #[test]
     fn ori_character_absent_without_weights() {
         let prompt = make_builder().build();
-        assert!(!prompt.contains("Orí character"), "section must not appear without weights");
+        assert!(
+            !prompt.contains("Orí character"),
+            "section must not appear without weights"
+        );
     }
 }

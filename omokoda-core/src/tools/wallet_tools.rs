@@ -96,11 +96,7 @@ impl Tool for WalletGetTool {
         let vc = vantage().ok_or_else(no_backend)?;
         let v: serde_json::Value = serde_json::from_str(params).map_err(|e| e.to_string())?;
         let wallet_id = v["wallet_id"].as_str().ok_or("missing wallet_id")?;
-        let path = format!(
-            "{}/{}",
-            agent_path(context),
-            urlencoding::encode(wallet_id)
-        );
+        let path = format!("{}/{}", agent_path(context), urlencoding::encode(wallet_id));
         let res = vc.get(&path).await?;
         Ok((res.to_string(), crate::usage::TokenUsage::default()))
     }

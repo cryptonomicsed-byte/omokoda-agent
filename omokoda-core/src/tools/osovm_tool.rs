@@ -21,8 +21,7 @@ use super::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
 fn osovm_url() -> String {
-    std::env::var("OSOVM_URL")
-        .unwrap_or_else(|_| "http://localhost:7780".to_string())
+    std::env::var("OSOVM_URL").unwrap_or_else(|_| "http://localhost:7780".to_string())
 }
 
 async fn osovm_post(path: &str, body: Value) -> Result<String, String> {
@@ -40,7 +39,10 @@ async fn osovm_post(path: &str, body: Value) -> Result<String, String> {
         .await
         .map_err(|e| format!("OSOVM response parse error: {e}"))?;
     if val.get("status").and_then(|v| v.as_str()) == Some("error") {
-        return Err(format!("OSOVM error: {}", val.get("error").unwrap_or(&json!("unknown"))));
+        return Err(format!(
+            "OSOVM error: {}",
+            val.get("error").unwrap_or(&json!("unknown"))
+        ));
     }
     Ok(serde_json::to_string_pretty(&val).unwrap_or_default())
 }
@@ -108,13 +110,19 @@ pub struct OsovmRunTool;
 
 #[async_trait]
 impl Tool for OsovmRunTool {
-    fn name(&self) -> &str { "osovm_run" }
+    fn name(&self) -> &str {
+        "osovm_run"
+    }
     fn description(&self) -> &str {
         "Execute an OSOVM opcode (e.g. IMPACT, RECEIPT, VEIL, TRANSFER). \
          Returns f1_score, ase_minted, receipts, and vm_state_hash."
     }
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -146,14 +154,20 @@ pub struct OsovmVeilsimTool;
 
 #[async_trait]
 impl Tool for OsovmVeilsimTool {
-    fn name(&self) -> &str { "osovm_veilsim" }
+    fn name(&self) -> &str {
+        "osovm_veilsim"
+    }
     fn description(&self) -> &str {
         "Run a VeilSim physics scenario in OSOVM. \
          Provide veil_ids, entity_count, step_count. \
          Returns f1_score, energy_drift, robustness, and receipt."
     }
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -183,12 +197,18 @@ pub struct OsovmHealthTool;
 
 #[async_trait]
 impl Tool for OsovmHealthTool {
-    fn name(&self) -> &str { "osovm_health" }
+    fn name(&self) -> &str {
+        "osovm_health"
+    }
     fn description(&self) -> &str {
         "Check if the OSOVM simulation engine is running and healthy."
     }
-    fn required_tier(&self) -> u8 { 0 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        0
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({ "type": "object", "properties": {}, "required": [] }))
     }
@@ -230,13 +250,19 @@ mod tests {
     use super::*;
 
     #[test]
-    fn tool_count() { assert_eq!(osovm_tools().len(), 3); }
+    fn tool_count() {
+        assert_eq!(osovm_tools().len(), 3);
+    }
 
     #[test]
-    fn osovm_run_is_write() { assert!(OsovmRunTool.is_write_operation()); }
+    fn osovm_run_is_write() {
+        assert!(OsovmRunTool.is_write_operation());
+    }
 
     #[test]
-    fn osovm_health_is_read() { assert!(!OsovmHealthTool.is_write_operation()); }
+    fn osovm_health_is_read() {
+        assert!(!OsovmHealthTool.is_write_operation());
+    }
 
     #[test]
     fn names() {

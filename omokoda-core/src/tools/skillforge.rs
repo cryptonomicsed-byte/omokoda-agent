@@ -393,10 +393,13 @@ impl SkillForgeTool {
     /// ever replaces it with an equivalent-shape manifest, never removes the
     /// fallback path.
     async fn creation_elixir(&self, name: &str, a: &RepoAnalysis) -> Option<SkillManifestEntry> {
-        let auth_hint = a.auth_hint.as_ref().map(|h| super::skillforge_bus::AuthHintOut {
-            header: &h.header,
-            env: &h.env,
-        });
+        let auth_hint = a
+            .auth_hint
+            .as_ref()
+            .map(|h| super::skillforge_bus::AuthHintOut {
+                header: &h.header,
+                env: &h.env,
+            });
         let facts = super::skillforge_bus::ManifestFacts {
             name,
             classification: &a.classification,
@@ -495,7 +498,12 @@ impl SkillForgeTool {
     /// text). Fail-soft: `None` (unreachable service, missing/partial
     /// response, or a write failure) leaves `transformation()`'s Python path
     /// as the only generator, unchanged from before this leg existed.
-    async fn transformation_clojure(&self, name: &str, a: &RepoAnalysis, port: u32) -> Option<Transformation> {
+    async fn transformation_clojure(
+        &self,
+        name: &str,
+        a: &RepoAnalysis,
+        port: u32,
+    ) -> Option<Transformation> {
         let facts = super::skillforge_bus::TemplateFacts {
             name,
             port,
@@ -1131,7 +1139,10 @@ impl Tool for SkillForgeTool {
         // whatever a route-declaration regex happened to find.
         let discovery = self.boot_and_discover(&analysis).await;
         for (k, v) in &discovery.discovered_routes {
-            analysis.candidate_routes.entry(k.clone()).or_insert_with(|| v.clone());
+            analysis
+                .candidate_routes
+                .entry(k.clone())
+                .or_insert_with(|| v.clone());
         }
         let fully_forged = discovery.booted;
         super::skillforge_bus::coordinate_transition(&run_id, "discovery").await;

@@ -32,7 +32,10 @@ pub fn run() -> Result<()> {
         std::io::stdout().flush()?;
         let answer = read_line(is_tty);
         if !answer.trim().eq_ignore_ascii_case("y") {
-            println!("{}", "Onboard cancelled. Existing config unchanged.".dimmed());
+            println!(
+                "{}",
+                "Onboard cancelled. Existing config unchanged.".dimmed()
+            );
             return Ok(());
         }
     }
@@ -174,12 +177,7 @@ pub fn run() -> Result<()> {
 
     // ── Station 9: Zàngbétò ─────────────────────────────────────────────────
     station(9, "Zàngbétò integration");
-    cfg.zangbeto = configure_service(
-        is_tty,
-        "Zangbeto",
-        &cfg.zangbeto,
-        "http://localhost:7794",
-    );
+    cfg.zangbeto = configure_service(is_tty, "Zangbeto", &cfg.zangbeto, "http://localhost:7794");
 
     // ── Station 10: OSOVM ────────────────────────────────────────────────────
     station(10, "OSOVM integration");
@@ -191,29 +189,37 @@ pub fn run() -> Result<()> {
 
     // ── Station 12: Security defaults ───────────────────────────────────────
     station(12, "Security defaults");
-    println!("  sandbox          = {}", cfg.security.sandbox.to_string().cyan());
-    println!("  workspace_boundary = {}", cfg.security.workspace_boundary.to_string().cyan());
-    println!("  ssrf_guard       = {}", cfg.security.ssrf_guard.to_string().cyan());
-    println!("  receipt_required = {}", cfg.security.receipt_required.to_string().cyan());
-    let keep = prompt_default(
-        is_tty,
-        "  Keep security defaults? [Y/n]: ",
-        "y",
+    println!(
+        "  sandbox          = {}",
+        cfg.security.sandbox.to_string().cyan()
     );
+    println!(
+        "  workspace_boundary = {}",
+        cfg.security.workspace_boundary.to_string().cyan()
+    );
+    println!(
+        "  ssrf_guard       = {}",
+        cfg.security.ssrf_guard.to_string().cyan()
+    );
+    println!(
+        "  receipt_required = {}",
+        cfg.security.receipt_required.to_string().cyan()
+    );
+    let keep = prompt_default(is_tty, "  Keep security defaults? [Y/n]: ", "y");
     if keep.trim().eq_ignore_ascii_case("n") {
         cfg.security.sandbox = confirm(is_tty, "  Enable sandbox? [Y/n]: ", true);
         cfg.security.workspace_boundary =
             confirm(is_tty, "  Enable workspace_boundary? [Y/n]: ", true);
         cfg.security.ssrf_guard = confirm(is_tty, "  Enable ssrf_guard? [Y/n]: ", true);
-        cfg.security.receipt_required =
-            confirm(is_tty, "  Enable receipt_required? [Y/n]: ", true);
+        cfg.security.receipt_required = confirm(is_tty, "  Enable receipt_required? [Y/n]: ", true);
     } else {
         println!("  {} Security defaults kept.", "✓".green());
     }
 
     // ── Station 13: Memory defaults ─────────────────────────────────────────
     station(13, "Memory subsystem defaults");
-    println!("  episodic={} semantic={} procedural={} dream={} gix={}",
+    println!(
+        "  episodic={} semantic={} procedural={} dream={} gix={}",
         cfg.memory.episodic.to_string().cyan(),
         cfg.memory.semantic.to_string().cyan(),
         cfg.memory.procedural.to_string().cyan(),
@@ -292,7 +298,11 @@ fn prompt_default(is_tty: bool, prompt: &str, default: &str) -> String {
             line
         }
     } else {
-        println!("  {} {} (non-tty, using default)", prompt.dimmed(), default.cyan());
+        println!(
+            "  {} {} (non-tty, using default)",
+            prompt.dimmed(),
+            default.cyan()
+        );
         default.to_string()
     }
 }
@@ -310,7 +320,11 @@ fn configure_service(
     current: &ServiceSection,
     default_url: &str,
 ) -> ServiceSection {
-    let status = if current.enabled { "enabled" } else { "disabled" };
+    let status = if current.enabled {
+        "enabled"
+    } else {
+        "disabled"
+    };
     let enable = confirm(
         is_tty,
         &format!("  Enable {name}? (currently {status}) [y/N]: "),
@@ -370,8 +384,16 @@ fn print_summary(cfg: &OmokodaConfig) {
     };
 
     println!("  {:20} {}", "agent.name:", cfg.agent.name.cyan());
-    println!("  {:20} {}", "agent.display_name:", cfg.agent.display_name.cyan());
-    println!("  {:20} {}", "agent.environment:", cfg.agent.environment.cyan());
+    println!(
+        "  {:20} {}",
+        "agent.display_name:",
+        cfg.agent.display_name.cyan()
+    );
+    println!(
+        "  {:20} {}",
+        "agent.environment:",
+        cfg.agent.environment.cyan()
+    );
     println!(
         "  {:20} {}",
         "model.provider:",
@@ -395,9 +417,14 @@ fn print_summary(cfg: &OmokodaConfig) {
     println!("  {:20} {}", "osovm.enabled:", yes(cfg.osovm.enabled));
     println!("  {:20} {}", "ucx.enabled:", yes(cfg.ucx.enabled));
     println!("  {:20} {}", "security.sandbox:", yes(cfg.security.sandbox));
-    println!("  {:20} {}", "security.receipt_required:", yes(cfg.security.receipt_required));
+    println!(
+        "  {:20} {}",
+        "security.receipt_required:",
+        yes(cfg.security.receipt_required)
+    );
     println!("  {:20} {}", "memory.enabled:", yes(cfg.memory.enabled));
-    println!("  {:20} gix={} episodic={} semantic={} procedural={} dream={}",
+    println!(
+        "  {:20} gix={} episodic={} semantic={} procedural={} dream={}",
         "memory subsystems:",
         yes(cfg.memory.gix),
         yes(cfg.memory.episodic),

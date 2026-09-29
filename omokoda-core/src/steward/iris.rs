@@ -107,7 +107,9 @@ pub struct IrisEngine {
 
 impl Default for IrisEngine {
     fn default() -> Self {
-        Self { decisions: VecDeque::with_capacity(200) }
+        Self {
+            decisions: VecDeque::with_capacity(200),
+        }
     }
 }
 

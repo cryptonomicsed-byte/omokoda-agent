@@ -31,13 +31,13 @@ pub enum TransportKind {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct NetworkMessage {
     /// Which transport to use.
-    pub transport:   TransportKind,
+    pub transport: TransportKind,
     /// Destination: relay URL (Nostr), DIP route (Dip), device_id (Mesh), endpoint (Vantage).
     pub destination: String,
     /// Event kind (Nostr NIP kind, DIP verb, Vantage HTTP method, etc.)
-    pub kind:        u32,
+    pub kind: u32,
     /// Payload serialised as JSON.
-    pub payload:     Value,
+    pub payload: Value,
     /// Optional correlation / reply-to ID.
     pub correlation_id: Option<String>,
 }
@@ -47,28 +47,25 @@ pub struct NetworkMessage {
 #[derive(Debug, Clone)]
 pub struct NetworkConfig {
     /// Primary Nostr relay WebSocket URLs.
-    pub nostr_relays:   Vec<String>,
+    pub nostr_relays: Vec<String>,
     /// Nostr agent private key (hex, 32 bytes). Empty = read-only mode.
-    pub nostr_privkey:  String,
+    pub nostr_privkey: String,
     /// DIP broker base URL (default http://localhost:7792).
-    pub dip_url:        String,
+    pub dip_url: String,
     /// Vantage base URL (e.g. https://omokoda.duckdns.org).
-    pub vantage_url:    String,
+    pub vantage_url: String,
     /// Vantage API key / bearer token.
-    pub vantage_key:    String,
+    pub vantage_key: String,
 }
 
 impl Default for NetworkConfig {
     fn default() -> Self {
         Self {
-            nostr_relays:  vec!["wss://relay.damus.io".to_string()],
+            nostr_relays: vec!["wss://relay.damus.io".to_string()],
             nostr_privkey: String::new(),
-            dip_url:       std::env::var("DIP_URL")
-                               .unwrap_or_else(|_| "http://localhost:7792".into()),
-            vantage_url:   std::env::var("VANTAGE_URL")
-                               .unwrap_or_default(),
-            vantage_key:   std::env::var("VANTAGE_KEY")
-                               .unwrap_or_default(),
+            dip_url: std::env::var("DIP_URL").unwrap_or_else(|_| "http://localhost:7792".into()),
+            vantage_url: std::env::var("VANTAGE_URL").unwrap_or_default(),
+            vantage_key: std::env::var("VANTAGE_KEY").unwrap_or_default(),
         }
     }
 }
@@ -76,14 +73,13 @@ impl Default for NetworkConfig {
 impl NetworkConfig {
     pub fn from_env() -> Self {
         Self {
-            nostr_relays:  std::env::var("NOSTR_RELAYS")
-                               .map(|s| s.split(',').map(str::to_string).collect())
-                               .unwrap_or_else(|_| vec!["wss://relay.damus.io".into()]),
+            nostr_relays: std::env::var("NOSTR_RELAYS")
+                .map(|s| s.split(',').map(str::to_string).collect())
+                .unwrap_or_else(|_| vec!["wss://relay.damus.io".into()]),
             nostr_privkey: std::env::var("NOSTR_PRIVKEY").unwrap_or_default(),
-            dip_url:       std::env::var("DIP_URL")
-                               .unwrap_or_else(|_| "http://localhost:7792".into()),
-            vantage_url:   std::env::var("VANTAGE_URL").unwrap_or_default(),
-            vantage_key:   std::env::var("VANTAGE_KEY").unwrap_or_default(),
+            dip_url: std::env::var("DIP_URL").unwrap_or_else(|_| "http://localhost:7792".into()),
+            vantage_url: std::env::var("VANTAGE_URL").unwrap_or_default(),
+            vantage_key: std::env::var("VANTAGE_KEY").unwrap_or_default(),
         }
     }
 }
@@ -91,14 +87,14 @@ impl NetworkConfig {
 /// In-flight message counters per transport (for observability).
 #[derive(Debug, Default, Clone)]
 pub struct NetworkStats {
-    pub sent:   HashMap<String, u64>,
+    pub sent: HashMap<String, u64>,
     pub errors: HashMap<String, u64>,
 }
 
 pub struct ProtocolRouter {
-    config:  NetworkConfig,
-    client:  reqwest::Client,
-    stats:   Arc<Mutex<NetworkStats>>,
+    config: NetworkConfig,
+    client: reqwest::Client,
+    stats: Arc<Mutex<NetworkStats>>,
 }
 
 impl ProtocolRouter {
@@ -123,9 +119,9 @@ impl ProtocolRouter {
     /// Callers should treat errors as advisory — the kernel continues.
     pub async fn send(&self, msg: NetworkMessage) -> Result<(), String> {
         let result = match msg.transport {
-            TransportKind::Nostr   => self.send_nostr(&msg).await,
-            TransportKind::Dip     => self.send_dip(&msg).await,
-            TransportKind::Mesh    => self.send_mesh(&msg).await,
+            TransportKind::Nostr => self.send_nostr(&msg).await,
+            TransportKind::Dip => self.send_dip(&msg).await,
+            TransportKind::Mesh => self.send_mesh(&msg).await,
             TransportKind::Vantage => self.send_vantage(&msg).await,
         };
         let key = format!("{:?}", msg.transport);
@@ -210,13 +206,16 @@ impl ProtocolRouter {
     // ── shared HTTP helper ────────────────────────────────────────────────────
 
     async fn post_json(&self, url: &str, body: &Value, auth: Option<&str>) -> Result<(), String> {
-        let mut req = self.client.post(url)
+        let mut req = self
+            .client
+            .post(url)
             .header("Content-Type", "application/json")
             .json(body);
         if let Some(token) = auth {
             req = req.header("Authorization", token);
         }
-        req.send().await
+        req.send()
+            .await
             .map_err(|e| format!("network error: {e}"))?
             .error_for_status()
             .map_err(|e| format!("HTTP error: {e}"))?;

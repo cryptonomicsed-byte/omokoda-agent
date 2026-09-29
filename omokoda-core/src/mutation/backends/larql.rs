@@ -18,18 +18,17 @@ use crate::memory::dag::CausalMemoryDag;
 use crate::memory::larql_query::{self, MemoryQuery};
 use crate::memory::memdir::OduDirectory;
 use crate::memory::reflection::ReflectionLedger;
-use crate::mutation::{MutationDomain, MutationPlan};
 use crate::mutation::router::{
     ApplyResult, BackendContext, InspectResult, MutationBackend, ValidationResult,
 };
+use crate::mutation::{MutationDomain, MutationPlan};
 
 pub struct LARQLBackend;
 
 impl LARQLBackend {
     /// Parse the LARQL query from `plan.operation`.
     fn parse_query(plan: &MutationPlan) -> Result<MemoryQuery, String> {
-        larql_query::parse_query(&plan.operation)
-            .map_err(|e| format!("LARQL parse error: {e}"))
+        larql_query::parse_query(&plan.operation).map_err(|e| format!("LARQL parse error: {e}"))
     }
 
     /// Execute a query against the provided context, returning formatted lines.
@@ -52,9 +51,15 @@ impl LARQLBackend {
     fn require_context<'a>(
         ctx: &'a BackendContext<'_>,
     ) -> Result<(&'a OduDirectory, &'a CausalMemoryDag, &'a ReflectionLedger), String> {
-        let dir = ctx.memory_dir.ok_or("LARQL backend requires memory_dir in context")?;
-        let dag = ctx.causal_dag.ok_or("LARQL backend requires causal_dag in context")?;
-        let refl = ctx.reflection.ok_or("LARQL backend requires reflection in context")?;
+        let dir = ctx
+            .memory_dir
+            .ok_or("LARQL backend requires memory_dir in context")?;
+        let dag = ctx
+            .causal_dag
+            .ok_or("LARQL backend requires causal_dag in context")?;
+        let refl = ctx
+            .reflection
+            .ok_or("LARQL backend requires reflection in context")?;
         Ok((dir, dag, refl))
     }
 }
@@ -88,7 +93,11 @@ impl MutationBackend for LARQLBackend {
         })
     }
 
-    fn validate(&self, plan: &MutationPlan, ctx: &BackendContext) -> Result<ValidationResult, String> {
+    fn validate(
+        &self,
+        plan: &MutationPlan,
+        ctx: &BackendContext,
+    ) -> Result<ValidationResult, String> {
         // 1. Parse the query — if it doesn't parse, the plan is invalid.
         let query = match Self::parse_query(plan) {
             Ok(q) => q,
@@ -107,12 +116,15 @@ impl MutationBackend for LARQLBackend {
             // need live data to be meaningful.
             let needs_live = matches!(
                 query,
-                MemoryQuery::VerifyEntity(_) | MemoryQuery::VerifyPathContains(_) | MemoryQuery::TraceCausal(_)
+                MemoryQuery::VerifyEntity(_)
+                    | MemoryQuery::VerifyPathContains(_)
+                    | MemoryQuery::TraceCausal(_)
             );
             if needs_live {
                 return Ok(ValidationResult {
                     passed: false,
-                    reason: "LARQL VERIFY/TRACE requires live memory context (none provided)".to_string(),
+                    reason: "LARQL VERIFY/TRACE requires live memory context (none provided)"
+                        .to_string(),
                 });
             }
         }
@@ -162,8 +174,8 @@ mod tests {
     use crate::memory::dag::CausalMemoryDag;
     use crate::memory::memdir::{OduDirectory, OduEntry};
     use crate::memory::reflection::ReflectionLedger;
-    use crate::mutation::{MutationDomain, MutationPlan};
     use crate::mutation::router::BackendContext;
+    use crate::mutation::{MutationDomain, MutationPlan};
 
     fn model_plan(op: &str) -> MutationPlan {
         let mut p = MutationPlan::from_tool_call("agent", op, ActionCategory::Learning, 3, 0);

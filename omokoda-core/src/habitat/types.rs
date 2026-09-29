@@ -12,49 +12,49 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Area {
     /// Stable identifier — e.g. "node-room-a", "home-office", "field-site-3".
-    pub area_id:     String,
+    pub area_id: String,
     /// Human-readable label.
-    pub label:       String,
+    pub label: String,
     /// Optional GPS bounding box [lat_min, lon_min, lat_max, lon_max].
-    pub bbox:        Option<[f64; 4]>,
+    pub bbox: Option<[f64; 4]>,
     /// Floor / floor-plan identifier for indoor spaces.
-    pub floor:       Option<String>,
+    pub floor: Option<String>,
     /// Custom metadata (building ID, provider region, zone type, etc.)
-    pub meta:        serde_json::Value,
+    pub meta: serde_json::Value,
 }
 
 /// A physical or virtual resource that the agent can sense or control.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct PhysicalResource {
     /// Stable identifier.
-    pub resource_id:   String,
+    pub resource_id: String,
     /// Type tag — "sensor", "actuator", "network", "power", "storage", "peer".
-    pub kind:          String,
+    pub kind: String,
     /// Area this resource belongs to.
-    pub area_id:       String,
+    pub area_id: String,
     /// Human-readable label.
-    pub label:         String,
+    pub label: String,
     /// Last known value (unit is resource-type specific).
-    pub last_value:    Option<serde_json::Value>,
+    pub last_value: Option<serde_json::Value>,
     /// Unix seconds of last update.
-    pub last_seen_at:  Option<u64>,
+    pub last_seen_at: Option<u64>,
 }
 
 /// Composite habitat address — locates an agent in the physical-digital space.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct HabitatAddress {
     /// Owning agent's id.
-    pub agent_id:     String,
+    pub agent_id: String,
     /// Current primary area.
-    pub area_id:      Option<String>,
+    pub area_id: Option<String>,
     /// GPS coordinates (lat, lon) if available.
-    pub gps:          Option<(f64, f64)>,
+    pub gps: Option<(f64, f64)>,
     /// IP address of the local device.
-    pub ip:           Option<String>,
+    pub ip: Option<String>,
     /// Meshtastic node address if on-mesh.
-    pub mesh_node:    Option<String>,
+    pub mesh_node: Option<String>,
     /// Nostr npub for this agent's public Nostr presence.
-    pub nostr_npub:   Option<String>,
+    pub nostr_npub: Option<String>,
     /// Unix seconds — when this address was last confirmed.
     pub confirmed_at: u64,
 }
@@ -63,7 +63,10 @@ impl HabitatAddress {
     /// Serialize to `NetworkRepr { network: "habitat", address: "<area_id|agent_id>" }`.
     /// Satisfies acceptance criterion: AGENT_HABITAT_SPEC.md line 426.
     pub fn to_network_repr(&self) -> crate::bridge::NetworkRepr {
-        let address = self.area_id.clone().unwrap_or_else(|| self.agent_id.clone());
+        let address = self
+            .area_id
+            .clone()
+            .unwrap_or_else(|| self.agent_id.clone());
         crate::bridge::NetworkRepr {
             network: "habitat".to_string(),
             address,
@@ -103,16 +106,16 @@ impl HabitatAddress {
 /// address and an optional OmoHome URL for the physical-world integration layer.
 #[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Habitat {
-    pub habitat_id:   String,
-    pub agent_id:     String,
-    pub areas:        Vec<Area>,
-    pub resources:    Vec<PhysicalResource>,
+    pub habitat_id: String,
+    pub agent_id: String,
+    pub areas: Vec<Area>,
+    pub resources: Vec<PhysicalResource>,
     pub home_address: HabitatAddress,
     /// URL of the agent's OmoHome (Home Assistant) instance, if any.
-    pub omohome_url:  Option<String>,
+    pub omohome_url: Option<String>,
     /// GIX1 index — one envelope per registered area / upserted resource.
     #[serde(default)]
-    pub gix1_index:   Gix1Index,
+    pub gix1_index: Gix1Index,
 }
 
 impl Habitat {
@@ -120,13 +123,13 @@ impl Habitat {
     /// Reads `OMOHOME_URL` env var automatically.
     pub fn new(agent_id: &str) -> Self {
         Self {
-            habitat_id:  format!("habitat:{agent_id}"),
-            agent_id:    agent_id.to_string(),
-            areas:       Vec::new(),
-            resources:   Vec::new(),
-            gix1_index:  Gix1Index::new(),
+            habitat_id: format!("habitat:{agent_id}"),
+            agent_id: agent_id.to_string(),
+            areas: Vec::new(),
+            resources: Vec::new(),
+            gix1_index: Gix1Index::new(),
             home_address: HabitatAddress {
-                agent_id:    agent_id.to_string(),
+                agent_id: agent_id.to_string(),
                 confirmed_at: std::time::SystemTime::now()
                     .duration_since(std::time::UNIX_EPOCH)
                     .unwrap_or_default()
@@ -166,7 +169,11 @@ impl Habitat {
             RoutingHints::default(),
         );
         self.gix1_index.insert_gix1(env);
-        if let Some(existing) = self.resources.iter_mut().find(|r| r.resource_id == resource.resource_id) {
+        if let Some(existing) = self
+            .resources
+            .iter_mut()
+            .find(|r| r.resource_id == resource.resource_id)
+        {
             *existing = resource;
         } else {
             self.resources.push(resource);
@@ -175,7 +182,10 @@ impl Habitat {
 
     /// All resources within a given area.
     pub fn resources_in(&self, area_id: &str) -> Vec<&PhysicalResource> {
-        self.resources.iter().filter(|r| r.area_id == area_id).collect()
+        self.resources
+            .iter()
+            .filter(|r| r.area_id == area_id)
+            .collect()
     }
 }
 

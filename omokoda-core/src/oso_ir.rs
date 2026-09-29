@@ -11,7 +11,6 @@
 ///   in one pass (not fail-fast), so the compiler can surface all errors.
 ///
 /// Phase 21.2 — OSO-IR validation gate.
-
 use serde::{Deserialize, Serialize};
 
 // ── Top-level document ────────────────────────────────────────────────────────
@@ -192,8 +191,9 @@ impl OsoIR {
         }
 
         // Settlement share sum must not exceed 1.0
-        let share_sum =
-            self.settlement.creator_share + self.settlement.burn_share + self.settlement.provider_share;
+        let share_sum = self.settlement.creator_share
+            + self.settlement.burn_share
+            + self.settlement.provider_share;
         if share_sum > 1.0 + f64::EPSILON {
             errors.push(format!(
                 "settlement shares sum to {:.4} — must be ≤ 1.0",
@@ -230,12 +230,13 @@ impl OsoIR {
         match self.contract_class {
             ContractClass::Work => {
                 if self.capabilities.is_empty() {
-                    errors.push(
-                        "work contracts must declare at least one capability".to_string(),
-                    );
+                    errors.push("work contracts must declare at least one capability".to_string());
                 }
                 if !self.evidence.required {
-                    errors.push("work contracts require evidence (evidence.required must be true)".to_string());
+                    errors.push(
+                        "work contracts require evidence (evidence.required must be true)"
+                            .to_string(),
+                    );
                 }
                 if self.settlement.provider_share <= 0.5 {
                     errors.push(format!(
@@ -251,14 +252,10 @@ impl OsoIR {
 
             ContractClass::Agent => {
                 if !self.assets_have_field("agent_id") {
-                    errors.push(
-                        "agent contracts require an asset with field 'agent_id'".to_string(),
-                    );
+                    errors
+                        .push("agent contracts require an asset with field 'agent_id'".to_string());
                 }
-                self.require_lifecycle_states(
-                    &["REGISTERED", "DEREGISTERED"],
-                    &mut errors,
-                );
+                self.require_lifecycle_states(&["REGISTERED", "DEREGISTERED"], &mut errors);
             }
 
             ContractClass::Financial => {
@@ -342,7 +339,9 @@ impl OsoIR {
     // ── Internal helpers ──────────────────────────────────────────────────────
 
     fn assets_have_field(&self, field: &str) -> bool {
-        self.assets.iter().any(|a| a.fields.iter().any(|f| f == field))
+        self.assets
+            .iter()
+            .any(|a| a.fields.iter().any(|f| f == field))
     }
 
     fn assets_have_any_field(&self, fields: &[&str]) -> bool {
@@ -467,7 +466,9 @@ mod tests {
         let json = minimal_work_ir().replace("0.85", "0.40");
         let result = OsoIR::parse_and_validate(&json);
         let errs = result.unwrap_err();
-        assert!(errs.iter().any(|e| e.contains("provider_share must exceed 0.5")));
+        assert!(errs
+            .iter()
+            .any(|e| e.contains("provider_share must exceed 0.5")));
     }
 
     #[test]
@@ -510,12 +511,18 @@ mod tests {
         }"#;
         let result = OsoIR::parse_and_validate(gov);
         let errs = result.unwrap_err();
-        assert!(errs.iter().any(|e| e.contains("governance quorum must be >= 7")));
+        assert!(errs
+            .iter()
+            .any(|e| e.contains("governance quorum must be >= 7")));
     }
 
     #[test]
     fn validate_json_convenience_fn() {
         let result = validate_json(minimal_work_ir());
-        assert!(result.starts_with("valid:"), "expected valid, got: {}", result);
+        assert!(
+            result.starts_with("valid:"),
+            "expected valid, got: {}",
+            result
+        );
     }
 }

@@ -58,15 +58,15 @@ pub async fn register(
     }
 
     let val: Value = resp.json().await.ok()?;
-    val["api_key"].as_str().map(str::to_string)
+    val["api_key"]
+        .as_str()
+        .map(str::to_string)
         .or_else(|| val["key"].as_str().map(str::to_string))
 }
 
 /// Send a simple presence heartbeat. Returns true on success.
 pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
-    let key = api_key_override
-        .map(str::to_string)
-        .unwrap_or_else(api_key);
+    let key = api_key_override.map(str::to_string).unwrap_or_else(api_key);
     if key.is_empty() {
         return false;
     }
@@ -84,10 +84,7 @@ pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
 /// Tries up to `max_attempts` with 1 s / 2 s / 4 s delay (capped at 16 s).
 /// Runs to completion in the caller's async context — spawn in a detached
 /// task if you do not want to wait.
-pub async fn heartbeat_with_retry(
-    api_key_override: Option<&str>,
-    max_attempts: u32,
-) -> bool {
+pub async fn heartbeat_with_retry(api_key_override: Option<&str>, max_attempts: u32) -> bool {
     let mut delay_secs = 1u64;
     for attempt in 0..max_attempts {
         if heartbeat(api_key_override).await {

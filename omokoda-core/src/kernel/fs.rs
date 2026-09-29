@@ -24,10 +24,10 @@ pub enum FsNodeKind {
 
 #[derive(Debug, Clone)]
 pub struct FsNode {
-    pub path:       String,
-    pub kind:       FsNodeKind,
-    pub owner:      String,    // agent_id
-    pub readable_by: Vec<String>,  // agent_ids; empty = owner only
+    pub path: String,
+    pub kind: FsNodeKind,
+    pub owner: String,            // agent_id
+    pub readable_by: Vec<String>, // agent_ids; empty = owner only
     pub created_at: u64,
     pub modified_at: u64,
 }
@@ -60,13 +60,15 @@ impl FsNode {
 
 impl SovereignFS {
     pub fn new() -> Self {
-        let fs = Self { nodes: RwLock::new(HashMap::new()) };
+        let fs = Self {
+            nodes: RwLock::new(HashMap::new()),
+        };
         // Bootstrap permanent mount points
         for root in ["/agents", "/twins", "/evidence", "/devices", "/shared"] {
-            fs.nodes.write().unwrap().insert(
-                root.to_string(),
-                FsNode::dir(root, "kernel"),
-            );
+            fs.nodes
+                .write()
+                .unwrap()
+                .insert(root.to_string(), FsNode::dir(root, "kernel"));
         }
         fs
     }
@@ -76,14 +78,19 @@ impl SovereignFS {
         let base = format!("/agents/{agent_id}");
         for subdir in ["memory", "vault", "receipts", "skills", "daemons"] {
             let path = format!("{base}/{subdir}");
-            self.nodes.write().unwrap().entry(path.clone()).or_insert_with(|| FsNode::dir(path, agent_id));
+            self.nodes
+                .write()
+                .unwrap()
+                .entry(path.clone())
+                .or_insert_with(|| FsNode::dir(path, agent_id));
         }
     }
 
     pub fn write(&self, path: &str, owner: &str, content: Vec<u8>) -> Result<(), FsError> {
         self.assert_ownership(path, owner)?;
         let mut nodes = self.nodes.write().unwrap();
-        let node = nodes.entry(path.to_string())
+        let node = nodes
+            .entry(path.to_string())
             .or_insert_with(|| FsNode::file(path, owner, vec![]));
         node.kind = FsNodeKind::File { content };
         node.modified_at = now_secs();
@@ -103,19 +110,31 @@ impl SovereignFS {
     }
 
     pub fn mkdir(&self, path: &str, owner: &str) {
-        self.nodes.write().unwrap()
+        self.nodes
+            .write()
+            .unwrap()
             .entry(path.to_string())
             .or_insert_with(|| FsNode::dir(path, owner));
     }
 
     pub fn list(&self, dir: &str, requestor: &str) -> Vec<String> {
         let nodes = self.nodes.read().unwrap();
-        let prefix = if dir.ends_with('/') { dir.to_string() } else { format!("{dir}/") };
-        nodes.keys()
+        let prefix = if dir.ends_with('/') {
+            dir.to_string()
+        } else {
+            format!("{dir}/")
+        };
+        nodes
+            .keys()
             .filter(|k| {
-                k.starts_with(&prefix) &&
-                !k[prefix.len()..].contains('/') &&
-                nodes.get(*k).map(|n| n.owner == requestor || n.readable_by.contains(&requestor.to_string())).unwrap_or(false)
+                k.starts_with(&prefix)
+                    && !k[prefix.len()..].contains('/')
+                    && nodes
+                        .get(*k)
+                        .map(|n| {
+                            n.owner == requestor || n.readable_by.contains(&requestor.to_string())
+                        })
+                        .unwrap_or(false)
             })
             .cloned()
             .collect()
@@ -169,7 +188,9 @@ impl SovereignFS {
 }
 
 impl Default for SovereignFS {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 #[derive(Debug, thiserror::Error)]

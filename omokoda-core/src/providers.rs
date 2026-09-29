@@ -241,8 +241,8 @@ impl ProviderRegistry {
         if let Ok(url) = std::env::var("OSO_BRAIN_URL") {
             if !url.is_empty() {
                 let token = std::env::var("OSO_BRAIN_TOKEN").unwrap_or_default();
-                let model = std::env::var("OSO_BRAIN_MODEL")
-                    .unwrap_or_else(|_| "oso-brain".to_string());
+                let model =
+                    std::env::var("OSO_BRAIN_MODEL").unwrap_or_else(|_| "oso-brain".to_string());
                 registry.register(Box::new(OpenAIProvider::compatible(
                     "oso-brain",
                     ProviderClass::RegisteredLocal,
@@ -407,18 +407,22 @@ impl ProviderRegistry {
             // tool/function calling — falls back to the first available provider
             // if none declare tool_calling = true (e.g. Ollama without tools).
             let needs_tools = !tools.is_empty();
-            self.providers.iter().map(Box::as_ref).find(|p| {
-                if private_mode && !self.is_allowed_in_private(p.metadata()) {
-                    return false;
-                }
-                !needs_tools || p.capabilities().tool_calling
-            })
-            .or_else(|| {
-                // Fallback: ignore tool_calling requirement, just return first allowed
-                self.providers.iter().map(Box::as_ref).find(|p| {
-                    !private_mode || self.is_allowed_in_private(p.metadata())
+            self.providers
+                .iter()
+                .map(Box::as_ref)
+                .find(|p| {
+                    if private_mode && !self.is_allowed_in_private(p.metadata()) {
+                        return false;
+                    }
+                    !needs_tools || p.capabilities().tool_calling
                 })
-            })
+                .or_else(|| {
+                    // Fallback: ignore tool_calling requirement, just return first allowed
+                    self.providers
+                        .iter()
+                        .map(Box::as_ref)
+                        .find(|p| !private_mode || self.is_allowed_in_private(p.metadata()))
+                })
         } else {
             self.get_provider(provider_name)
         };
@@ -520,7 +524,13 @@ impl ProviderRegistry {
         history: &[ConversationMessage],
         private_mode: bool,
     ) -> Result<(String, TokenUsage), String> {
-        self.route_think_with_requirements(prompt, history, private_mode, &ThinkRequirements::default()).await
+        self.route_think_with_requirements(
+            prompt,
+            history,
+            private_mode,
+            &ThinkRequirements::default(),
+        )
+        .await
     }
 
     /// Like `route_think` but skips any provider that cannot satisfy `reqs`.
@@ -615,7 +625,11 @@ impl ProviderRegistry {
         params: Option<&GenerationParams>,
     ) -> Result<(String, TokenUsage), String> {
         self.route_think_with_params_and_requirements(
-            prompt, history, private_mode, params, &ThinkRequirements::default(),
+            prompt,
+            history,
+            private_mode,
+            params,
+            &ThinkRequirements::default(),
         )
         .await
     }

@@ -141,7 +141,9 @@ impl HomeDir {
 
     /// `~/.omokoda/constitution/permissions/permissions.toml`
     pub fn permissions_toml(&self) -> PathBuf {
-        self.constitution.join("permissions").join("permissions.toml")
+        self.constitution
+            .join("permissions")
+            .join("permissions.toml")
     }
 
     /// `~/.omokoda/config.toml` — operator configuration (OmokodaConfig)
@@ -212,10 +214,7 @@ mod tests {
     #[test]
     fn config_toml_path_is_direct_child_of_root() {
         let (_dir, home) = tmp_home();
-        assert_eq!(
-            home.config_toml().parent().unwrap(),
-            home.root.as_path()
-        );
+        assert_eq!(home.config_toml().parent().unwrap(), home.root.as_path());
     }
 
     #[test]

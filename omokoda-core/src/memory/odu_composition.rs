@@ -145,11 +145,11 @@ mod tests {
     #[test]
     fn same_birth_different_alignment_diverges() {
         let r_high = make_receipt("h", 1.0);
-        let r_low  = make_receipt("h", 0.5); // same id suffix, different alignment
-        // Force distinct receipt_ids by using different suffixes
+        let r_low = make_receipt("h", 0.5); // same id suffix, different alignment
+                                            // Force distinct receipt_ids by using different suffixes
         let r_low2 = make_receipt("l", 0.5);
         let refs_high: Vec<&ActReceipt> = vec![&r_high];
-        let refs_low:  Vec<&ActReceipt> = vec![&r_low2];
+        let refs_low: Vec<&ActReceipt> = vec![&r_low2];
         let a = compose_odu(5, &refs_high);
         let b = compose_odu(5, &refs_low);
         assert_ne!(a.experience_weight, b.experience_weight);
@@ -157,9 +157,8 @@ mod tests {
 
     #[test]
     fn window_caps_at_16() {
-        let receipts: Vec<ActReceipt> = (0..20)
-            .map(|i| make_receipt(&i.to_string(), 1.0))
-            .collect();
+        let receipts: Vec<ActReceipt> =
+            (0..20).map(|i| make_receipt(&i.to_string(), 1.0)).collect();
         let refs: Vec<&ActReceipt> = receipts.iter().collect();
         let result = compose_odu(3, &refs);
         assert_eq!(result.receipt_count, 16);

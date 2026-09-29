@@ -28,12 +28,14 @@
 //! If it returns `InterpretDecision::Blocked` or `InterpretDecision::Refused`, do NOT
 //! execute — the decision itself becomes the receipt.
 
-use serde::{Deserialize, Serialize};
-use serde_json::json;
-use crate::execution::action_schema::{build_schema, ActionSchema, BehavioralConstraint, ExecutionMode};
 use crate::execution::action_compiler::VerifySpec;
+use crate::execution::action_schema::{
+    build_schema, ActionSchema, BehavioralConstraint, ExecutionMode,
+};
 use crate::usage::TokenUsage;
 use chrono::Utc;
+use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 // ─── InterpretDecision ────────────────────────────────────────────────────────
 
@@ -204,7 +206,9 @@ impl ActionInterpreter {
                         odu_index,
                         execution_mode: ExecutionMode::Guardian,
                         required_mode: "Executor".to_string(),
-                        reason: "Guardian mode requires Executor authority for destructive operations".to_string(),
+                        reason:
+                            "Guardian mode requires Executor authority for destructive operations"
+                                .to_string(),
                     };
                 }
             }
@@ -282,7 +286,9 @@ impl ActionInterpreter {
                 "file_exists" => {
                     // Can't check FS here — if output mentions the path, count as passed
                     if let Some(path) = &spec.path {
-                        output.contains(path.as_str()) || output.contains("created") || output.contains("written")
+                        output.contains(path.as_str())
+                            || output.contains("created")
+                            || output.contains("written")
                     } else {
                         false
                     }
@@ -291,9 +297,17 @@ impl ActionInterpreter {
             };
 
             if ok {
-                passed.push(format!("{}:{}", spec.kind, spec.path.as_deref().unwrap_or("*")));
+                passed.push(format!(
+                    "{}:{}",
+                    spec.kind,
+                    spec.path.as_deref().unwrap_or("*")
+                ));
             } else {
-                failed.push(format!("{}:{}", spec.kind, spec.path.as_deref().unwrap_or("*")));
+                failed.push(format!(
+                    "{}:{}",
+                    spec.kind,
+                    spec.path.as_deref().unwrap_or("*")
+                ));
             }
         }
 
@@ -350,7 +364,13 @@ impl ActionInterpreter {
 
         let effective_error = tool_error.or_else(|| zangbeto_anomaly.as_deref());
         let memory_event = build_memory_event(
-            tool, &opcode, &outcome, raw_output, effective_error, &verify_outcome, &schema,
+            tool,
+            &opcode,
+            &outcome,
+            raw_output,
+            effective_error,
+            &verify_outcome,
+            &schema,
         );
 
         InterpretReceipt {
@@ -391,10 +411,20 @@ impl ActionInterpreter {
         };
 
         let reason = match &decision {
-            InterpretDecision::Blocked { rationale, constraint_name, ebo_required, .. } =>
-                format!("Blocked by {}: {} | Ebo: {}", constraint_name, rationale, ebo_required),
-            InterpretDecision::Refused { reason, execution_mode, .. } =>
-                format!("Refused ({:?}): {}", execution_mode, reason),
+            InterpretDecision::Blocked {
+                rationale,
+                constraint_name,
+                ebo_required,
+                ..
+            } => format!(
+                "Blocked by {}: {} | Ebo: {}",
+                constraint_name, rationale, ebo_required
+            ),
+            InterpretDecision::Refused {
+                reason,
+                execution_mode,
+                ..
+            } => format!("Refused ({:?}): {}", execution_mode, reason),
             InterpretDecision::Proceed { .. } => "Cancelled".to_string(),
         };
 
@@ -410,7 +440,9 @@ impl ActionInterpreter {
                 odu_index, schema.odu_name
             )),
             residue: None,
-            next_action: Some("Review behavioral constraints for this Odu and select an aligned tool".to_string()),
+            next_action: Some(
+                "Review behavioral constraints for this Odu and select an aligned tool".to_string(),
+            ),
         };
 
         InterpretReceipt {
@@ -429,11 +461,7 @@ impl ActionInterpreter {
     }
 
     /// Produce a receipt for a failed action (tool returned error).
-    pub fn commit_failed(
-        odu_index: u8,
-        tool: &str,
-        error: &str,
-    ) -> InterpretReceipt {
+    pub fn commit_failed(odu_index: u8, tool: &str, error: &str) -> InterpretReceipt {
         let schema = build_schema(odu_index);
         let opcode = crate::execution::calabash_dispatch::CalabashDispatcher::opcode_for(odu_index);
         let vessel = crate::execution::calabash_dispatch::CalabashDispatcher::vessel_for(odu_index);
@@ -475,25 +503,31 @@ impl ActionInterpreter {
     /// Format the receipt as a one-paragraph summary for agent memory injection.
     pub fn receipt_summary(receipt: &InterpretReceipt) -> String {
         let outcome_str = match receipt.outcome {
-            InterpretOutcome::Committed  => "✓ COMMITTED",
-            InterpretOutcome::Partial    => "~ PARTIAL",
-            InterpretOutcome::Blocked    => "✗ BLOCKED",
-            InterpretOutcome::Refused    => "✗ REFUSED",
-            InterpretOutcome::Failed     => "✗ FAILED",
+            InterpretOutcome::Committed => "✓ COMMITTED",
+            InterpretOutcome::Partial => "~ PARTIAL",
+            InterpretOutcome::Blocked => "✗ BLOCKED",
+            InterpretOutcome::Refused => "✗ REFUSED",
+            InterpretOutcome::Failed => "✗ FAILED",
             InterpretOutcome::Unverified => "? UNVERIFIED",
-            InterpretOutcome::Expired    => "⏱ EXPIRED",
-            InterpretOutcome::Cancelled  => "○ CANCELLED",
+            InterpretOutcome::Expired => "⏱ EXPIRED",
+            InterpretOutcome::Cancelled => "○ CANCELLED",
         };
 
-        let verify_note = receipt.verify_outcome.as_ref().map(|v| {
-            if v.passed {
-                format!(" | verify: {} specs passed", v.passed_specs.len())
-            } else {
-                format!(" | verify: {}/{} specs failed",
-                    v.failed_specs.len(),
-                    v.passed_specs.len() + v.failed_specs.len())
-            }
-        }).unwrap_or_default();
+        let verify_note = receipt
+            .verify_outcome
+            .as_ref()
+            .map(|v| {
+                if v.passed {
+                    format!(" | verify: {} specs passed", v.passed_specs.len())
+                } else {
+                    format!(
+                        " | verify: {}/{} specs failed",
+                        v.failed_specs.len(),
+                        v.passed_specs.len() + v.failed_specs.len()
+                    )
+                }
+            })
+            .unwrap_or_default();
 
         format!(
             "[ODU-{idx}][{name}][{opcode}] {outcome}{verify} — tool: {tool}",
@@ -528,7 +562,8 @@ fn ebo_for_constraint(constraint_name: &str) -> String {
     let ebo = history.required_ebo(&trigger);
     match &ebo {
         Ebo::IntentionString(_) => {
-            "IntentionString: submit a vow containing 'I vow clarity and no harm' (≥20 chars)".to_string()
+            "IntentionString: submit a vow containing 'I vow clarity and no harm' (≥20 chars)"
+                .to_string()
         }
         Ebo::TimeDelay(d) => format!("TimeDelay: {}s cooldown required", d.as_secs()),
         Ebo::ProofOfWork(diff) => format!("ProofOfWork: difficulty {} required", diff),
@@ -538,9 +573,13 @@ fn ebo_for_constraint(constraint_name: &str) -> String {
 
 /// Run Zàngbétò audit against a minimal CosmogramState derived from the schema.
 /// Returns `Some(anomaly_message)` if the state fails audit, `None` if clean.
-fn run_zangbeto_audit(odu_index: u8, _schema: &crate::execution::action_schema::ActionSchema) -> Option<String> {
+fn run_zangbeto_audit(
+    odu_index: u8,
+    _schema: &crate::execution::action_schema::ActionSchema,
+) -> Option<String> {
     use ifascript::cosmogram::{
-        AccessClass, CosmogramState, ConsensusLevel, GovernanceMeta, ZangbetoStatus, ThreatProfile, Day,
+        AccessClass, ConsensusLevel, CosmogramState, Day, GovernanceMeta, ThreatProfile,
+        ZangbetoStatus,
     };
     use ifascript::soul::MemoryTier;
     use ifascript::zangbeto::audit_state;
@@ -580,16 +619,26 @@ fn run_zangbeto_audit(odu_index: u8, _schema: &crate::execution::action_schema::
 
 fn is_write_operation(tool: &str) -> bool {
     let t = tool.to_lowercase();
-    t.contains("write") || t.contains("edit") || t.contains("create") || t.contains("delete")
-        || t.contains("remove") || t.contains("bash") || t.contains("execute")
+    t.contains("write")
+        || t.contains("edit")
+        || t.contains("create")
+        || t.contains("delete")
+        || t.contains("remove")
+        || t.contains("bash")
+        || t.contains("execute")
 }
 
 fn is_destructive_operation(tool: &str, params: &str) -> bool {
     let t = tool.to_lowercase();
     let p = params.to_lowercase();
-    t.contains("delete") || t.contains("remove") || t.contains("terminate")
-        || p.contains("rm -rf") || p.contains("drop table") || p.contains("truncate")
-        || p.contains("force delete") || p.contains("--force")
+    t.contains("delete")
+        || t.contains("remove")
+        || t.contains("terminate")
+        || p.contains("rm -rf")
+        || p.contains("drop table")
+        || p.contains("truncate")
+        || p.contains("force delete")
+        || p.contains("--force")
 }
 
 fn is_high_frequency(tool: &str) -> bool {
@@ -600,8 +649,14 @@ fn is_high_frequency(tool: &str) -> bool {
 fn is_vessel_aligned(tool: &str, schema: &ActionSchema) -> bool {
     let t = tool.to_lowercase();
     // Check if any operational step uses this tool
-    schema.operational_steps.iter().any(|s| s.tool.to_lowercase() == t)
-        || schema.operational_steps.iter().any(|s| t.contains(s.tool.to_lowercase().as_str()))
+    schema
+        .operational_steps
+        .iter()
+        .any(|s| s.tool.to_lowercase() == t)
+        || schema
+            .operational_steps
+            .iter()
+            .any(|s| t.contains(s.tool.to_lowercase().as_str()))
 }
 
 fn compute_output_hash(output: &str) -> String {
@@ -629,31 +684,48 @@ fn build_memory_event(
     };
 
     let (failure, lesson, next_action) = match outcome {
-        InterpretOutcome::Committed => (
-            None,
-            None,
-            None,
-        ),
+        InterpretOutcome::Committed => (None, None, None),
         InterpretOutcome::Partial => (
-            Some(format!("Partial verification: failed specs = {:?}", verify.failed_specs)),
-            Some(format!("Partial result under {} — revisit {} to complete", opcode, tool)),
+            Some(format!(
+                "Partial verification: failed specs = {:?}",
+                verify.failed_specs
+            )),
+            Some(format!(
+                "Partial result under {} — revisit {} to complete",
+                opcode, tool
+            )),
             Some("Retry with corrected tool params to satisfy remaining verify specs".to_string()),
         ),
         InterpretOutcome::Failed => (
             Some(tool_error.unwrap_or("unknown error").to_string()),
-            Some(format!("Tool '{}' failed under Odu {} ({})", tool, schema.odu_index, opcode)),
+            Some(format!(
+                "Tool '{}' failed under Odu {} ({})",
+                tool, schema.odu_index, opcode
+            )),
             Some("Diagnose tool failure and retry or use alternative tool".to_string()),
         ),
         InterpretOutcome::Unverified => (
             Some(format!("No verify specs passed for {}", opcode)),
-            Some(format!("Unverified execution under {} — no evidence of completion", opcode)),
-            Some("Provide explicit evidence output or use a tool that produces verifiable artifacts".to_string()),
+            Some(format!(
+                "Unverified execution under {} — no evidence of completion",
+                opcode
+            )),
+            Some(
+                "Provide explicit evidence output or use a tool that produces verifiable artifacts"
+                    .to_string(),
+            ),
         ),
         _ => (None, None, None),
     };
 
-    let residue = if matches!(outcome, InterpretOutcome::Failed | InterpretOutcome::Unverified) {
-        Some(format!("Residue: incomplete {} at odu {}", opcode, schema.odu_index))
+    let residue = if matches!(
+        outcome,
+        InterpretOutcome::Failed | InterpretOutcome::Unverified
+    ) {
+        Some(format!(
+            "Residue: incomplete {} at odu {}",
+            opcode, schema.odu_index
+        ))
     } else {
         None
     };
@@ -663,7 +735,11 @@ fn build_memory_event(
         decision: "execute".to_string(),
         reason: schema.description.chars().take(150).collect(),
         outcome: outcome_str,
-        evidence: if !evidence_preview.is_empty() { Some(evidence_preview) } else { None },
+        evidence: if !evidence_preview.is_empty() {
+            Some(evidence_preview)
+        } else {
+            None
+        },
         failure,
         lesson,
         residue,
@@ -692,7 +768,10 @@ mod tests {
         let decision = ActionInterpreter::evaluate(2, "nostr_publish", "{}");
         // Should be blocked because gossip taboo → NO_HARMFUL_BROADCAST → denied_tools: [nostr_publish]
         assert!(
-            matches!(decision, InterpretDecision::Blocked { .. } | InterpretDecision::Proceed { .. }),
+            matches!(
+                decision,
+                InterpretDecision::Blocked { .. } | InterpretDecision::Proceed { .. }
+            ),
             "should be blocked or proceed for odu 2"
         );
     }
@@ -700,7 +779,8 @@ mod tests {
     #[test]
     fn evaluate_blocks_params_pattern() {
         // Odu 0: "Avoid lies" → NO_DECEPTION → denied_patterns: [fabricate]
-        let decision = ActionInterpreter::evaluate(0, "write", r#"{"content": "fabricate a false report"}"#);
+        let decision =
+            ActionInterpreter::evaluate(0, "write", r#"{"content": "fabricate a false report"}"#);
         assert!(matches!(decision, InterpretDecision::Blocked { .. }));
     }
 
@@ -712,7 +792,8 @@ mod tests {
             failed_specs: vec![],
             evidence: serde_json::Value::Null,
         };
-        let receipt = ActionInterpreter::commit(0, "bash", "output", None, verify, TokenUsage::default());
+        let receipt =
+            ActionInterpreter::commit(0, "bash", "output", None, verify, TokenUsage::default());
         assert_eq!(receipt.outcome, InterpretOutcome::Committed);
     }
 
@@ -724,7 +805,14 @@ mod tests {
             failed_specs: vec!["exit_code:*".to_string()],
             evidence: serde_json::Value::Null,
         };
-        let receipt = ActionInterpreter::commit(0, "bash", "", Some("error: command not found"), verify, TokenUsage::default());
+        let receipt = ActionInterpreter::commit(
+            0,
+            "bash",
+            "",
+            Some("error: command not found"),
+            verify,
+            TokenUsage::default(),
+        );
         assert_eq!(receipt.outcome, InterpretOutcome::Failed);
     }
 
@@ -757,7 +845,8 @@ mod tests {
             failed_specs: vec![],
             evidence: serde_json::Value::Null,
         };
-        let receipt = ActionInterpreter::commit(0, "bash", "ok", None, verify, TokenUsage::default());
+        let receipt =
+            ActionInterpreter::commit(0, "bash", "ok", None, verify, TokenUsage::default());
         let summary = ActionInterpreter::receipt_summary(&receipt);
         assert!(summary.contains("COMMITTED"));
         assert!(summary.contains("ODU-0"));
@@ -767,7 +856,8 @@ mod tests {
     fn all_256_evaluate_without_panic() {
         for i in 0u8..=255 {
             let _ = ActionInterpreter::evaluate(i, "read", "{}");
-            let _ = ActionInterpreter::evaluate(i, "write", r#"{"path":"/tmp/test","content":"x"}"#);
+            let _ =
+                ActionInterpreter::evaluate(i, "write", r#"{"path":"/tmp/test","content":"x"}"#);
             let _ = ActionInterpreter::evaluate(i, "bash", r#"{"command":"echo ok"}"#);
         }
     }
@@ -776,8 +866,11 @@ mod tests {
     fn verify_exit_code_passes_on_nonempty_output() {
         let spec = vec![VerifySpec {
             kind: "exit_code".to_string(),
-            path: None, expected: None, key: None,
-            expected_exit_code: Some(0), actual_exit_code: None,
+            path: None,
+            expected: None,
+            key: None,
+            expected_exit_code: Some(0),
+            actual_exit_code: None,
         }];
         let outcome = ActionInterpreter::verify("ok output here", &spec);
         assert!(outcome.passed);
@@ -789,7 +882,9 @@ mod tests {
             kind: "file_contains".to_string(),
             path: Some("/tmp/test.json".to_string()),
             expected: Some("completed".to_string()),
-            key: None, expected_exit_code: None, actual_exit_code: None,
+            key: None,
+            expected_exit_code: None,
+            actual_exit_code: None,
         }];
         let outcome = ActionInterpreter::verify("action completed successfully", &spec);
         assert!(outcome.passed);

@@ -13,8 +13,7 @@ use super::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
 fn node_url() -> String {
-    std::env::var("SOVEREIGN_NODE_URL")
-        .unwrap_or_else(|_| "http://localhost:8080".to_string())
+    std::env::var("SOVEREIGN_NODE_URL").unwrap_or_else(|_| "http://localhost:8080".to_string())
 }
 
 /// Call the sovereign-node /mcp JSON-RPC 2.0 endpoint.
@@ -55,13 +54,19 @@ pub struct VcpNearbyDevicesTool;
 
 #[async_trait]
 impl Tool for VcpNearbyDevicesTool {
-    fn name(&self) -> &str { "vcp_nearby_devices" }
+    fn name(&self) -> &str {
+        "vcp_nearby_devices"
+    }
     fn description(&self) -> &str {
         "List all VCP devices currently visible to the sovereign node (robots, drones, IoT). \
          Call during PERCEIVE to know what physical machines are nearby."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({ "type": "object", "properties": {}, "required": [] }))
     }
@@ -81,13 +86,19 @@ pub struct VcpConnectTool;
 
 #[async_trait]
 impl Tool for VcpConnectTool {
-    fn name(&self) -> &str { "vcp_connect" }
+    fn name(&self) -> &str {
+        "vcp_connect"
+    }
     fn description(&self) -> &str {
         "Check whether a specific VCP device is reachable and ready for capability negotiation. \
          Requires device_id from vcp_nearby_devices."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -114,13 +125,19 @@ pub struct VcpCaptureTool;
 
 #[async_trait]
 impl Tool for VcpCaptureTool {
-    fn name(&self) -> &str { "vcp_capture" }
+    fn name(&self) -> &str {
+        "vcp_capture"
+    }
     fn description(&self) -> &str {
         "Trigger a full Gaussian-splat capture pipeline for a VCP device. \
          Returns a job_id — poll with sovereign_job_status."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -147,12 +164,18 @@ pub struct SovereignStatusTool;
 
 #[async_trait]
 impl Tool for SovereignStatusTool {
-    fn name(&self) -> &str { "sovereign_status" }
+    fn name(&self) -> &str {
+        "sovereign_status"
+    }
     fn description(&self) -> &str {
         "Return sovereign node uptime, DID, active job count, and device count."
     }
-    fn required_tier(&self) -> u8 { 1 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        1
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({ "type": "object", "properties": {}, "required": [] }))
     }
@@ -172,13 +195,19 @@ pub struct SovereignJobStatusTool;
 
 #[async_trait]
 impl Tool for SovereignJobStatusTool {
-    fn name(&self) -> &str { "sovereign_job_status" }
+    fn name(&self) -> &str {
+        "sovereign_job_status"
+    }
     fn description(&self) -> &str {
         "Poll the status of a capture job by job_id. \
          Use after vcp_capture to check if the capture completed."
     }
-    fn required_tier(&self) -> u8 { 1 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        1
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -205,12 +234,18 @@ pub struct DipSendTool;
 
 #[async_trait]
 impl Tool for DipSendTool {
-    fn name(&self) -> &str { "dip_send" }
+    fn name(&self) -> &str {
+        "dip_send"
+    }
     fn description(&self) -> &str {
         "Send a DIP Message envelope to a destination DID via Vantage, Nostr, or Meshtastic."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -239,14 +274,20 @@ pub struct VcpBodySessionOpenTool;
 
 #[async_trait]
 impl Tool for VcpBodySessionOpenTool {
-    fn name(&self) -> &str { "vcp_body_session_open" }
+    fn name(&self) -> &str {
+        "vcp_body_session_open"
+    }
     fn description(&self) -> &str {
         "Open a fine-grained VCP body session for a device, specifying capabilities \
          (locomotion, sensor.camera, …). Returns session_id for subsequent commands. \
          Use for scripted robot control; use vcp_capture for fully automated splat pipeline."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -262,7 +303,11 @@ impl Tool for VcpBodySessionOpenTool {
             "required": ["device_id"]
         }))
     }
-    async fn execute(&self, params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let args: Value = serde_json::from_str(params).unwrap_or(json!({}));
         let result = mcp_call("vcp_body_session_open", args).await?;
         Ok((result, TokenUsage::default()))
@@ -275,13 +320,19 @@ pub struct VcpBodySessionCommandTool;
 
 #[async_trait]
 impl Tool for VcpBodySessionCommandTool {
-    fn name(&self) -> &str { "vcp_body_session_command" }
+    fn name(&self) -> &str {
+        "vcp_body_session_command"
+    }
     fn description(&self) -> &str {
         "Send a capability command within an open VCP body session (locomotion, sensor.camera, etc). \
          Returns the command receipt."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -294,7 +345,11 @@ impl Tool for VcpBodySessionCommandTool {
             "required": ["session_id", "capability", "action"]
         }))
     }
-    async fn execute(&self, params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let args: Value = serde_json::from_str(params).unwrap_or(json!({}));
         let result = mcp_call("vcp_body_session_command", args).await?;
         Ok((result, TokenUsage::default()))
@@ -307,14 +362,20 @@ pub struct VcpBodySessionCloseTool;
 
 #[async_trait]
 impl Tool for VcpBodySessionCloseTool {
-    fn name(&self) -> &str { "vcp_body_session_close" }
+    fn name(&self) -> &str {
+        "vcp_body_session_close"
+    }
     fn description(&self) -> &str {
         "Close a VCP body session and return the session receipt. \
          If session had camera capability and mission_success=true, \
          a capture job is auto-queued — poll with sovereign_job_status."
     }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -325,7 +386,11 @@ impl Tool for VcpBodySessionCloseTool {
             "required": ["session_id"]
         }))
     }
-    async fn execute(&self, params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let args: Value = serde_json::from_str(params).unwrap_or(json!({}));
         let result = mcp_call("vcp_body_session_close", args).await?;
         Ok((result, TokenUsage::default()))
@@ -338,13 +403,19 @@ pub struct SovereignTimelineTool;
 
 #[async_trait]
 impl Tool for SovereignTimelineTool {
-    fn name(&self) -> &str { "sovereign_timeline" }
+    fn name(&self) -> &str {
+        "sovereign_timeline"
+    }
     fn description(&self) -> &str {
         "Return the 4D provenance timeline for a twin — ordered snapshots of every capture, \
          with quality scores and Odù tile locations."
     }
-    fn required_tier(&self) -> u8 { 1 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        1
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -354,7 +425,11 @@ impl Tool for SovereignTimelineTool {
             "required": ["twin_id"]
         }))
     }
-    async fn execute(&self, params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let args: Value = serde_json::from_str(params).unwrap_or(json!({}));
         let result = mcp_call("sovereign_timeline", args).await?;
         Ok((result, TokenUsage::default()))
@@ -367,13 +442,19 @@ pub struct SovereignTimelineDiffTool;
 
 #[async_trait]
 impl Tool for SovereignTimelineDiffTool {
-    fn name(&self) -> &str { "sovereign_timeline_diff" }
+    fn name(&self) -> &str {
+        "sovereign_timeline_diff"
+    }
     fn description(&self) -> &str {
         "Compute 4D change detection between earliest and latest snapshot of a twin's timeline. \
          Returns quality delta, added modalities, and time span. Requires ≥2 snapshots."
     }
-    fn required_tier(&self) -> u8 { 1 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        1
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({
             "type": "object",
@@ -383,7 +464,11 @@ impl Tool for SovereignTimelineDiffTool {
             "required": ["twin_id"]
         }))
     }
-    async fn execute(&self, params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let args: Value = serde_json::from_str(params).unwrap_or(json!({}));
         let result = mcp_call("sovereign_timeline_diff", args).await?;
         Ok((result, TokenUsage::default()))
@@ -396,18 +481,28 @@ pub struct SovereignIpRootTool;
 
 #[async_trait]
 impl Tool for SovereignIpRootTool {
-    fn name(&self) -> &str { "sovereign_ip_root" }
+    fn name(&self) -> &str {
+        "sovereign_ip_root"
+    }
     fn description(&self) -> &str {
         "Return the node's cached IP Root event (Nostr kind 31900). \
          This establishes the agent's provenance identity on Nostr. \
          Returns status=not_configured if no Nostr identity is set."
     }
-    fn required_tier(&self) -> u8 { 1 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        1
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
     fn params_schema(&self) -> Option<Value> {
         Some(json!({ "type": "object", "properties": {}, "required": [] }))
     }
-    async fn execute(&self, _params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        _params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let result = mcp_call("sovereign_ip_root", json!({})).await?;
         Ok((result, TokenUsage::default()))
     }

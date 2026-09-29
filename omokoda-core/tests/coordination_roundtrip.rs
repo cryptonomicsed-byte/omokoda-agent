@@ -7,8 +7,8 @@
 
 use httpmock::prelude::*;
 use omokoda_core::coordination::{CoordinationClient, MessageType, WorkRef, WorkState};
-use std::sync::OnceLock;
 use omokoda_core::receipt::Receipt;
+use std::sync::OnceLock;
 
 fn client(server: &MockServer) -> CoordinationClient {
     CoordinationClient::new(server.base_url(), "builders").with_api_key("test-key")
@@ -53,7 +53,9 @@ async fn a_claim_posts_a_form_and_reports_the_transition() {
         .expect("claim");
 
     mock.assert();
-    let link = posted.work_ref_link.expect("a claim should report its link");
+    let link = posted
+        .work_ref_link
+        .expect("a claim should report its link");
     assert!(link.transitioned);
 }
 
@@ -238,7 +240,8 @@ async fn the_join_handshake_never_sends_a_secret() {
         when.method(POST)
             .path("/api/guilds/builders/join-confirm")
             .matches(body_carries_no_secret);
-        then.status(200).json_body(serde_json::json!({"joined": true}));
+        then.status(200)
+            .json_body(serde_json::json!({"joined": true}));
     });
 
     let client = CoordinationClient::new(server.base_url(), "builders");
@@ -248,6 +251,9 @@ async fn the_join_handshake_never_sends_a_secret() {
         .expect("challenge");
     assert_eq!(challenge.kind, 22242);
 
-    client.join_confirm(&keys, &challenge).await.expect("confirm");
+    client
+        .join_confirm(&keys, &challenge)
+        .await
+        .expect("confirm");
     confirm.assert();
 }

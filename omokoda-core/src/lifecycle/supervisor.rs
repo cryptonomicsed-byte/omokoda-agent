@@ -16,25 +16,28 @@ type SpawnFn = Box<dyn Fn() -> Pin<Box<dyn Future<Output = ()> + Send>> + Send +
 
 /// A registered daemon entry with its live handle.
 pub struct DaemonHandle {
-    pub name:          String,
+    pub name: String,
     pub restart_count: u32,
-    pub started_at:    u64,
-    pub handle:        JoinHandle<()>,
+    pub started_at: u64,
+    pub handle: JoinHandle<()>,
     /// Factory that produces a fresh task future for restarts.
-    spawn_fn:          SpawnFn,
+    spawn_fn: SpawnFn,
 }
 
 /// Supervises a set of named background daemons.
 /// On `supervise_loop()`, polls every `poll_secs` seconds and restarts any
 /// daemon whose JoinHandle has finished (panic or clean exit).
 pub struct DaemonSupervisor {
-    daemons:   HashMap<String, DaemonHandle>,
+    daemons: HashMap<String, DaemonHandle>,
     poll_secs: u64,
 }
 
 impl DaemonSupervisor {
     pub fn new(poll_secs: u64) -> Self {
-        Self { daemons: HashMap::new(), poll_secs }
+        Self {
+            daemons: HashMap::new(),
+            poll_secs,
+        }
     }
 
     /// Register a daemon with its name and a factory closure.
@@ -52,13 +55,16 @@ impl DaemonSupervisor {
         });
         let handle = tokio::spawn((spawn_fn)());
         info!(daemon = %name, "supervisor: registered and started");
-        self.daemons.insert(name.clone(), DaemonHandle {
-            name,
-            restart_count: 0,
-            started_at: now_secs(),
-            handle,
-            spawn_fn,
-        });
+        self.daemons.insert(
+            name.clone(),
+            DaemonHandle {
+                name,
+                restart_count: 0,
+                started_at: now_secs(),
+                handle,
+                spawn_fn,
+            },
+        );
     }
 
     /// Names of currently-running daemons.  Feed into AgentHeartbeat.active_daemons.
@@ -73,9 +79,8 @@ impl DaemonSupervisor {
     /// Supervision loop — runs forever. Checks each daemon on every tick;
     /// restarts those whose handles have finished.
     pub async fn supervise_loop(mut self) {
-        let mut ticker = tokio::time::interval(
-            std::time::Duration::from_secs(self.poll_secs.max(1)),
-        );
+        let mut ticker =
+            tokio::time::interval(std::time::Duration::from_secs(self.poll_secs.max(1)));
         loop {
             ticker.tick().await;
             for entry in self.daemons.values_mut() {
@@ -104,7 +109,10 @@ fn now_secs() -> u64 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::sync::{Arc, atomic::{AtomicU32, Ordering}};
+    use std::sync::{
+        atomic::{AtomicU32, Ordering},
+        Arc,
+    };
 
     #[tokio::test]
     async fn register_and_running_names() {
@@ -134,7 +142,9 @@ mod tests {
         let mut sup = DaemonSupervisor::new(1);
         sup.register("crasher", move || {
             let c2 = c.clone();
-            async move { c2.fetch_add(1, Ordering::SeqCst); }
+            async move {
+                c2.fetch_add(1, Ordering::SeqCst);
+            }
         });
         // Wait for first run to finish
         tokio::time::sleep(std::time::Duration::from_millis(50)).await;

@@ -11,34 +11,35 @@
 
 use omokoda_core::memory::engine::MemoryTier;
 use omokoda_core::memory::gix_bridge::{
-    audit_memory_root, build_gix1_index,
-    entry_to_minipae_locator, entry_with_provenance, memory_merkle_root,
-    merkle_proof, project_gix, GixNamespace,
+    audit_memory_root, build_gix1_index, entry_to_minipae_locator, entry_with_provenance,
+    memory_merkle_root, merkle_proof, project_gix, GixNamespace,
 };
 use omokoda_core::memory::memdir::{OduDirectory, OduEntry};
 
 use gix_core::{
-    content_hash, load_store_from_files, save_store_to_files,
-    CanonicalObjectStore, GixFold, GixVisibility, GlyphEdge,
+    content_hash, load_store_from_files, save_store_to_files, CanonicalObjectStore, GixFold,
+    GixVisibility, GlyphEdge,
 };
 
 // ── fixtures ──────────────────────────────────────────────────────────────────
 
 fn entry(id: &str, content: &str, path: &str, ts: u64, tags: &[&str]) -> OduEntry {
     OduEntry {
-        id:            id.into(),
-        content:       content.into(),
-        importance:    0.5,
-        created_at:    ts,
+        id: id.into(),
+        content: content.into(),
+        importance: 0.5,
+        created_at: ts,
         last_accessed: ts,
-        tags:          tags.iter().map(|t| t.to_string()).collect(),
-        path:          path.into(),
+        tags: tags.iter().map(|t| t.to_string()).collect(),
+        path: path.into(),
     }
 }
 
 fn dir_with(entries: Vec<OduEntry>) -> OduDirectory {
     let mut d = OduDirectory::new();
-    for e in entries { d.insert(e); }
+    for e in entries {
+        d.insert(e);
+    }
     d
 }
 
@@ -47,9 +48,9 @@ fn dir_with(entries: Vec<OduEntry>) -> OduDirectory {
 #[test]
 fn memory_merkle_root_is_deterministic_and_auditable() {
     let dir = dir_with(vec![
-        entry("e1", "alpha memory",  "memory/core",  100, &[]),
-        entry("e2", "beta memory",   "memory/core",  200, &[]),
-        entry("e3", "gamma memory",  "memory/other", 300, &[]),
+        entry("e1", "alpha memory", "memory/core", 100, &[]),
+        entry("e2", "beta memory", "memory/core", 200, &[]),
+        entry("e3", "gamma memory", "memory/other", 300, &[]),
     ]);
 
     let root1 = memory_merkle_root(&dir);
@@ -62,23 +63,33 @@ fn memory_merkle_root_is_deterministic_and_auditable() {
 
     // audit_memory_root must accept the root we just computed.
     let audit = audit_memory_root(&dir, &root1);
-    assert!(audit.is_ok(), "stored root must audit against same directory: {audit:?}");
+    assert!(
+        audit.is_ok(),
+        "stored root must audit against same directory: {audit:?}"
+    );
 }
 
 #[test]
 fn audit_memory_root_fails_when_dir_changes() {
-    let dir1 = dir_with(vec![
-        entry("e1", "original memory", "memory/core", 100, &[]),
-    ]);
+    let dir1 = dir_with(vec![entry(
+        "e1",
+        "original memory",
+        "memory/core",
+        100,
+        &[],
+    )]);
     let root1 = memory_merkle_root(&dir1);
 
     // Dir2 has a different entry — root1 is now stale.
     let dir2 = dir_with(vec![
-        entry("e1", "original memory",  "memory/core", 100, &[]),
-        entry("e2", "additional memory","memory/core", 200, &[]),
+        entry("e1", "original memory", "memory/core", 100, &[]),
+        entry("e2", "additional memory", "memory/core", 200, &[]),
     ]);
     let audit = audit_memory_root(&dir2, &root1);
-    assert!(audit.is_err(), "stale root must fail audit after dir change");
+    assert!(
+        audit.is_err(),
+        "stale root must fail audit after dir change"
+    );
 }
 
 // ── 2. Memory → GIX envelope → CanonicalObjectStore ──────────────────────────
@@ -86,8 +97,20 @@ fn audit_memory_root_fails_when_dir_changes() {
 #[test]
 fn full_memory_lifecycle_in_canonical_store() {
     let dir = dir_with(vec![
-        entry("e1", "episodic memory content", "memory/episodic", 1_000, &["session"]),
-        entry("e2", "semantic memory content", "memory/semantic", 2_000, &["concept"]),
+        entry(
+            "e1",
+            "episodic memory content",
+            "memory/episodic",
+            1_000,
+            &["session"],
+        ),
+        entry(
+            "e2",
+            "semantic memory content",
+            "memory/semantic",
+            2_000,
+            &["concept"],
+        ),
     ]);
 
     let mut store = CanonicalObjectStore::new();
@@ -95,9 +118,8 @@ fn full_memory_lifecycle_in_canonical_store() {
     // Insert each memory entry via entry_to_minipae_locator → insert_memory.
     let mut inserted_ids = Vec::new();
     for e in dir.entries.values() {
-        let (env, locator) = entry_to_minipae_locator(
-            e, MemoryTier::Episodic, "npub1testkey", None,
-        );
+        let (env, locator) =
+            entry_to_minipae_locator(e, MemoryTier::Episodic, "npub1testkey", None);
         let id = hex::encode(env.canonical_id);
         store.insert_memory(env, locator);
         inserted_ids.push(id);
@@ -110,12 +132,16 @@ fn full_memory_lifecycle_in_canonical_store() {
 
     // Locator slugs must be deterministic: "mem/<canonical_id>".
     for id in &inserted_ids {
-        let loc = store.resolve_locator(id).expect("locator must be registered");
+        let loc = store
+            .resolve_locator(id)
+            .expect("locator must be registered");
         assert_eq!(loc.slug, format!("mem/{id}"));
         assert_eq!(loc.agent_pubkey, "npub1testkey");
     }
 
-    store.audit_consistency().expect("store must be consistent after bridge inserts");
+    store
+        .audit_consistency()
+        .expect("store must be consistent after bridge inserts");
 }
 
 // ── 3. Provenance chain: supersedes + derived_from ────────────────────────────
@@ -126,14 +152,18 @@ fn provenance_chain_fingerprint_is_stamped_on_envelope() {
 
     let new_entry = entry("v2", "revised knowledge", "memory/semantic", 200, &[]);
     let (env, prov) = entry_with_provenance(
-        &new_entry, MemoryTier::Semantic,
-        Some(old_id),        // supersedes v1
-        vec![old_id],        // derived_from v1
+        &new_entry,
+        MemoryTier::Semantic,
+        Some(old_id), // supersedes v1
+        vec![old_id], // derived_from v1
     );
 
     // The provenance fingerprint must appear on the envelope.
-    assert_eq!(env.provenance, Some(prov.fingerprint()),
-        "provenance fingerprint must be stamped onto the Gix1 envelope");
+    assert_eq!(
+        env.provenance,
+        Some(prov.fingerprint()),
+        "provenance fingerprint must be stamped onto the Gix1 envelope"
+    );
     assert_eq!(env.namespace, GixNamespace::TriuneMemory);
     assert!(env.verify_integrity(), "envelope must pass integrity check");
 
@@ -147,8 +177,11 @@ fn provenance_fingerprint_is_deterministic() {
     let e = entry("v1", "stable content", "memory/core", 100, &[]);
     let (_, prov1) = entry_with_provenance(&e, MemoryTier::Working, None, vec![]);
     let (_, prov2) = entry_with_provenance(&e, MemoryTier::Working, None, vec![]);
-    assert_eq!(prov1.fingerprint(), prov2.fingerprint(),
-        "same entry + same lineage must always yield the same provenance fingerprint");
+    assert_eq!(
+        prov1.fingerprint(),
+        prov2.fingerprint(),
+        "same entry + same lineage must always yield the same provenance fingerprint"
+    );
 }
 
 // ── 4. GixFold over bridge-inserted memory entries ────────────────────────────
@@ -176,17 +209,25 @@ fn gix_fold_over_memory_entries_adds_fold_source_edges() {
     let source_ids: Vec<&str> = sources.iter().map(|n| n.canonical_id.as_str()).collect();
     let id1 = hex::encode(s1);
     let id2 = hex::encode(s2);
-    assert!(source_ids.contains(&id1.as_str()), "fold_source edge to memory one");
-    assert!(source_ids.contains(&id2.as_str()), "fold_source edge to memory two");
+    assert!(
+        source_ids.contains(&id1.as_str()),
+        "fold_source edge to memory one"
+    );
+    assert!(
+        source_ids.contains(&id2.as_str()),
+        "fold_source edge to memory two"
+    );
 
-    store.audit_consistency().expect("store must be consistent after fold insert");
+    store
+        .audit_consistency()
+        .expect("store must be consistent after fold insert");
 }
 
 #[test]
 fn hierarchical_fold_walk_topology_over_bridge_entries() {
     // Child fold wraps two raw memories; parent fold wraps the child.
     let e1 = entry("leaf1", "leaf memory alpha", "memory/core", 100, &[]);
-    let e2 = entry("leaf2", "leaf memory beta",  "memory/core", 200, &[]);
+    let e2 = entry("leaf2", "leaf memory beta", "memory/core", 200, &[]);
 
     let mut store = CanonicalObjectStore::new();
     let (env1, loc1) = entry_to_minipae_locator(&e1, MemoryTier::Episodic, "agent-x", None);
@@ -196,42 +237,50 @@ fn hierarchical_fold_walk_topology_over_bridge_entries() {
     store.insert_memory(env1, loc1);
     store.insert_memory(env2, loc2);
 
-    let child_fold  = GixFold::new(vec![s1, s2], 2.0);
-    let child_id    = store.insert_fold(&child_fold);
+    let child_fold = GixFold::new(vec![s1, s2], 2.0);
+    let child_id = store.insert_fold(&child_fold);
     let parent_fold = GixFold::from_child_folds(&[&child_fold], 1.0);
-    let parent_id   = store.insert_fold(&parent_fold);
+    let parent_id = store.insert_fold(&parent_fold);
 
     // walk_fold_children from parent must reach the child fold.
     let descendants = store.walk_fold_children(&parent_id, 3);
-    let desc_ids: Vec<&str> = descendants.iter().map(|n| n.canonical_id.as_str()).collect();
-    assert!(desc_ids.contains(&child_id.as_str()),
-        "walk_fold_children must reach child fold via fold_child edge");
-    assert_eq!(parent_fold.member_count, 2, "parent fold must accumulate leaf count");
+    let desc_ids: Vec<&str> = descendants
+        .iter()
+        .map(|n| n.canonical_id.as_str())
+        .collect();
+    assert!(
+        desc_ids.contains(&child_id.as_str()),
+        "walk_fold_children must reach child fold via fold_child edge"
+    );
+    assert_eq!(
+        parent_fold.member_count, 2,
+        "parent fold must accumulate leaf count"
+    );
 }
 
 // ── 5. Visibility + StoreProjection ──────────────────────────────────────────
 
 #[test]
 fn public_projection_excludes_private_bridge_memories() {
-    let e_priv = entry("priv", "private thought", "memory/core",  100, &[]);
-    let e_pub  = entry("pub",  "public fact",     "memory/core",  200, &[]);
+    let e_priv = entry("priv", "private thought", "memory/core", 100, &[]);
+    let e_pub = entry("pub", "public fact", "memory/core", 200, &[]);
 
     let mut store = CanonicalObjectStore::new();
-    let (env_priv, loc_priv) = entry_to_minipae_locator(
-        &e_priv, MemoryTier::Working, "agent-q", None,
-    );
-    let (env_pub, loc_pub) = entry_to_minipae_locator(
-        &e_pub,  MemoryTier::Working, "agent-q", None,
-    );
+    let (env_priv, loc_priv) =
+        entry_to_minipae_locator(&e_priv, MemoryTier::Working, "agent-q", None);
+    let (env_pub, loc_pub) = entry_to_minipae_locator(&e_pub, MemoryTier::Working, "agent-q", None);
     let priv_id = hex::encode(env_priv.canonical_id);
-    let pub_id  = hex::encode(env_pub.canonical_id);
+    let pub_id = hex::encode(env_pub.canonical_id);
 
     store.insert_memory(env_priv, loc_priv);
-    store.insert_memory(env_pub,  loc_pub);
+    store.insert_memory(env_pub, loc_pub);
 
     // Both default to Private (GixKind::Memory → Private).
     let proj = store.project_public();
-    assert_eq!(proj.object_count, 0, "memory objects are Private by default");
+    assert_eq!(
+        proj.object_count, 0,
+        "memory objects are Private by default"
+    );
 
     // Promote one to Public.
     store.set_visibility(&pub_id, GixVisibility::Public);
@@ -255,13 +304,19 @@ fn agent_fingerprint_differs_per_agent_same_store() {
     assert_eq!(proj.object_count, 1);
 
     let fp_alice = proj.agent_fingerprint(b"alice");
-    let fp_bob   = proj.agent_fingerprint(b"bob");
-    assert_ne!(fp_alice.canonical_id_hex(), fp_bob.canonical_id_hex(),
-        "agents with identical public objects must still get different fingerprints");
+    let fp_bob = proj.agent_fingerprint(b"bob");
+    assert_ne!(
+        fp_alice.canonical_id_hex(),
+        fp_bob.canonical_id_hex(),
+        "agents with identical public objects must still get different fingerprints"
+    );
     // But the same agent must get the same fingerprint every time.
     let fp_alice2 = proj.agent_fingerprint(b"alice");
-    assert_eq!(fp_alice.canonical_id_hex(), fp_alice2.canonical_id_hex(),
-        "agent fingerprint must be deterministic");
+    assert_eq!(
+        fp_alice.canonical_id_hex(),
+        fp_alice2.canonical_id_hex(),
+        "agent fingerprint must be deterministic"
+    );
 }
 
 // ── 6. Save/load cycle with bridge-inserted objects ───────────────────────────
@@ -273,9 +328,21 @@ fn bridge_populated_store_survives_save_load_cycle() {
     let ip = dir.path().join("i.json");
     let sp = dir.path().join("s.json");
 
-    let e1 = entry("p1", "persistent memory one",   "memory/core", 1_000, &["session"]);
-    let e2 = entry("p2", "persistent memory two",   "memory/core", 2_000, &["session"]);
-    let e3 = entry("p3", "persistent memory three", "memory/other",3_000, &[]);
+    let e1 = entry(
+        "p1",
+        "persistent memory one",
+        "memory/core",
+        1_000,
+        &["session"],
+    );
+    let e2 = entry(
+        "p2",
+        "persistent memory two",
+        "memory/core",
+        2_000,
+        &["session"],
+    );
+    let e3 = entry("p3", "persistent memory three", "memory/other", 3_000, &[]);
 
     let mut store = CanonicalObjectStore::new();
     let mut ids = Vec::new();
@@ -287,16 +354,18 @@ fn bridge_populated_store_survives_save_load_cycle() {
     }
     // Wire a "recalls" edge between p1 and p2.
     store.add_edge(GlyphEdge {
-        from:     ids[0].clone(),
-        to:       ids[1].clone(),
+        from: ids[0].clone(),
+        to: ids[1].clone(),
         relation: "recalls".into(),
-        weight:   2,
+        weight: 2,
     });
 
     save_store_to_files(&mut store, &gp, &ip, &sp).expect("save must succeed");
 
     let loaded = load_store_from_files(&gp, &ip, &sp).expect("load must succeed");
-    loaded.audit_consistency().expect("loaded store must audit clean");
+    loaded
+        .audit_consistency()
+        .expect("loaded store must audit clean");
 
     // All objects must survive the cycle.
     for id in &ids {
@@ -311,21 +380,26 @@ fn bridge_populated_store_survives_save_load_cycle() {
 #[test]
 fn project_gix_follows_edges_reflect_temporal_order_in_path() {
     let dir = dir_with(vec![
-        entry("t1", "first event",  "session/alpha", 1_000, &[]),
+        entry("t1", "first event", "session/alpha", 1_000, &[]),
         entry("t2", "second event", "session/alpha", 2_000, &[]),
-        entry("t3", "third event",  "session/alpha", 3_000, &[]),
-        entry("t4", "other session","session/beta",  4_000, &[]),
+        entry("t3", "third event", "session/alpha", 3_000, &[]),
+        entry("t4", "other session", "session/beta", 4_000, &[]),
     ]);
 
     let graph = project_gix(&dir);
 
     // t1→t2 and t2→t3 "follows" edges must exist within session/alpha.
     // t4 is in a separate cluster — no cross-cluster follows.
-    let follows: Vec<_> = graph.edges().iter()
+    let follows: Vec<_> = graph
+        .edges()
+        .iter()
         .filter(|e| e.relation == "follows")
         .collect();
-    assert_eq!(follows.len(), 2,
-        "two follows edges within session/alpha cluster (t1→t2, t2→t3)");
+    assert_eq!(
+        follows.len(),
+        2,
+        "two follows edges within session/alpha cluster (t1→t2, t2→t3)"
+    );
 
     // All follows edges must have weight 1.
     for e in &follows {
@@ -354,8 +428,8 @@ fn merkle_proof_verifies_leaf_inclusion_in_root() {
     use sha2::{Digest, Sha256};
 
     let dir = dir_with(vec![
-        entry("a", "alpha",   "memory/core", 100, &[]),
-        entry("b", "bravo",   "memory/core", 200, &[]),
+        entry("a", "alpha", "memory/core", 100, &[]),
+        entry("b", "bravo", "memory/core", 200, &[]),
         entry("c", "charlie", "memory/core", 300, &[]),
     ]);
 
@@ -377,20 +451,23 @@ fn merkle_proof_verifies_leaf_inclusion_in_root() {
             h.update(id.as_bytes());
             h.finalize().into()
         };
-        assert_eq!(leaf_hash, hex::encode(expected_leaf),
-            "leaf hash mismatch for entry {id}");
+        assert_eq!(
+            leaf_hash,
+            hex::encode(expected_leaf),
+            "leaf hash mismatch for entry {id}"
+        );
 
         // proof_root must match the index's stored root (same canonical_id space).
-        assert_eq!(proof_root, index_root,
-            "proof root mismatch for entry {id} (siblings: {siblings:?})");
+        assert_eq!(
+            proof_root, index_root,
+            "proof root mismatch for entry {id} (siblings: {siblings:?})"
+        );
     }
 }
 
 #[test]
 fn merkle_proof_fails_for_unknown_entry() {
-    let dir = dir_with(vec![
-        entry("a", "some content", "memory/core", 100, &[]),
-    ]);
+    let dir = dir_with(vec![entry("a", "some content", "memory/core", 100, &[])]);
     let index = build_gix1_index(&dir);
     let result = merkle_proof(&index, "nonexistent-canonical-id");
     assert!(result.is_err(), "proof for unknown entry must return Err");
@@ -400,9 +477,9 @@ fn merkle_proof_fails_for_unknown_entry() {
 
 #[test]
 fn shared_group_projection_shows_correct_subset() {
-    let e_pub    = entry("pub",    "public fact",        "memory/core", 100, &[]);
-    let e_guild  = entry("guild",  "guild-only memory",  "memory/core", 200, &[]);
-    let e_priv   = entry("priv",   "private memory",     "memory/core", 300, &[]);
+    let e_pub = entry("pub", "public fact", "memory/core", 100, &[]);
+    let e_guild = entry("guild", "guild-only memory", "memory/core", 200, &[]);
+    let e_priv = entry("priv", "private memory", "memory/core", 300, &[]);
 
     let mut store = CanonicalObjectStore::new();
     let mut insert = |e: &OduEntry| -> String {
@@ -411,23 +488,35 @@ fn shared_group_projection_shows_correct_subset() {
         store.insert_memory(env, loc);
         id
     };
-    let pub_id   = insert(&e_pub);
+    let pub_id = insert(&e_pub);
     let guild_id = insert(&e_guild);
-    let priv_id  = insert(&e_priv);
+    let priv_id = insert(&e_priv);
 
-    store.set_visibility(&pub_id,   GixVisibility::Public);
+    store.set_visibility(&pub_id, GixVisibility::Public);
     store.set_visibility(&guild_id, GixVisibility::Shared("guild-omega".into()));
     // priv_id stays Private (default).
 
     // project_shared("guild-omega") must include Public + Shared(guild-omega).
     let proj = store.project_shared("guild-omega");
-    assert!(proj.canonical_ids.contains(&pub_id),   "public objects visible to guild");
-    assert!(proj.canonical_ids.contains(&guild_id), "shared-for-guild visible to guild");
-    assert!(!proj.canonical_ids.contains(&priv_id), "private objects not visible to guild");
+    assert!(
+        proj.canonical_ids.contains(&pub_id),
+        "public objects visible to guild"
+    );
+    assert!(
+        proj.canonical_ids.contains(&guild_id),
+        "shared-for-guild visible to guild"
+    );
+    assert!(
+        !proj.canonical_ids.contains(&priv_id),
+        "private objects not visible to guild"
+    );
 
     // project_shared("other-guild") must only include Public.
     let proj2 = store.project_shared("other-guild");
-    assert_eq!(proj2.object_count, 1, "other guild sees only the public object");
+    assert_eq!(
+        proj2.object_count, 1,
+        "other guild sees only the public object"
+    );
     assert!(proj2.canonical_ids.contains(&pub_id));
     assert!(!proj2.canonical_ids.contains(&guild_id));
 }
@@ -449,15 +538,12 @@ fn shared_group_projection_shows_correct_subset() {
 #[test]
 fn sovereign_memory_continuity_across_restart() {
     use gix_core::{
-        GixFold, GixKind, GixMinipaeLocator, GixNamespace, GixProvenance,
+        load_store_from_files, save_store_to_files, verify_hash_domain_isolation,
+        verify_locator_coherence, GixFold, GixKind, GixMinipaeLocator, GixNamespace, GixProvenance,
         GixVisibility, HashDomain, MemoryState,
-        save_store_to_files, load_store_from_files,
-        verify_hash_domain_isolation, verify_locator_coherence,
     };
-    use gix_types::{content_hash, RoutingHints, Gix1};
-    use omokoda_core::memory::gix_bridge::{
-        entry_with_provenance, verify_authority_contract,
-    };
+    use gix_types::{content_hash, Gix1, RoutingHints};
+    use omokoda_core::memory::gix_bridge::{entry_with_provenance, verify_authority_contract};
 
     let dir = tempfile::tempdir().unwrap();
     let gp = dir.path().join("sovereign.graph.json");
@@ -466,28 +552,70 @@ fn sovereign_memory_continuity_across_restart() {
 
     // ── PHASE: CREATE ─────────────────────────────────────────────────────────
     // Simulate 3 memory entries representing an agent's episodic experience.
-    let e1 = entry("e1", "I learned about GIX canonical identity",       "episodic/core", 1000, &["gix", "identity"]);
-    let e2 = entry("e2", "Provenance chain must be unbroken",            "episodic/core", 2000, &["gix", "provenance"]);
-    let e3 = entry("e3", "Fold consolidates episodic into semantic tier", "episodic/fold", 3000, &["gix", "fold", "rem"]);
+    let e1 = entry(
+        "e1",
+        "I learned about GIX canonical identity",
+        "episodic/core",
+        1000,
+        &["gix", "identity"],
+    );
+    let e2 = entry(
+        "e2",
+        "Provenance chain must be unbroken",
+        "episodic/core",
+        2000,
+        &["gix", "provenance"],
+    );
+    let e3 = entry(
+        "e3",
+        "Fold consolidates episodic into semantic tier",
+        "episodic/fold",
+        3000,
+        &["gix", "fold", "rem"],
+    );
 
     // ── PHASE: STAMP (provenance) ─────────────────────────────────────────────
     let (env1, prov1) = entry_with_provenance(&e1, MemoryTier::Episodic, None, vec![]);
-    let (env2, prov2) = entry_with_provenance(&e2, MemoryTier::Episodic, Some(env1.canonical_id), vec![]);
-    let (env3, prov3) = entry_with_provenance(&e3, MemoryTier::Semantic, Some(env2.canonical_id), vec![env1.canonical_id]);
+    let (env2, prov2) =
+        entry_with_provenance(&e2, MemoryTier::Episodic, Some(env1.canonical_id), vec![]);
+    let (env3, prov3) = entry_with_provenance(
+        &e3,
+        MemoryTier::Semantic,
+        Some(env2.canonical_id),
+        vec![env1.canonical_id],
+    );
 
     let id1 = hex::encode(env1.canonical_id);
     let id2 = hex::encode(env2.canonical_id);
     let id3 = hex::encode(env3.canonical_id);
 
     // Authority contract must pass for all three
-    assert!(verify_authority_contract(&env1, &prov1, None).is_ok(), "env1 contract");
-    assert!(verify_authority_contract(&env2, &prov2, None).is_ok(), "env2 contract");
-    assert!(verify_authority_contract(&env3, &prov3, None).is_ok(), "env3 contract");
+    assert!(
+        verify_authority_contract(&env1, &prov1, None).is_ok(),
+        "env1 contract"
+    );
+    assert!(
+        verify_authority_contract(&env2, &prov2, None).is_ok(),
+        "env2 contract"
+    );
+    assert!(
+        verify_authority_contract(&env3, &prov3, None).is_ok(),
+        "env3 contract"
+    );
 
     // Hash domain isolation must hold
-    assert!(verify_hash_domain_isolation(&env1, &prov1).is_ok(), "domain isolation env1");
-    assert!(verify_hash_domain_isolation(&env2, &prov2).is_ok(), "domain isolation env2");
-    assert!(verify_hash_domain_isolation(&env3, &prov3).is_ok(), "domain isolation env3");
+    assert!(
+        verify_hash_domain_isolation(&env1, &prov1).is_ok(),
+        "domain isolation env1"
+    );
+    assert!(
+        verify_hash_domain_isolation(&env2, &prov2).is_ok(),
+        "domain isolation env2"
+    );
+    assert!(
+        verify_hash_domain_isolation(&env3, &prov3).is_ok(),
+        "domain isolation env3"
+    );
 
     // ── PHASE: BUILD STORE ────────────────────────────────────────────────────
     let mut store = CanonicalObjectStore::new();
@@ -523,7 +651,9 @@ fn sovereign_memory_continuity_across_restart() {
     let fp_pre = proj_pre.agent_fingerprint(&agent_bytes).canonical_id;
 
     // Consistency audit must pass
-    store.audit_consistency().expect("store must audit clean before restart");
+    store
+        .audit_consistency()
+        .expect("store must audit clean before restart");
 
     // ── PHASE: PERSIST (save to disk) ─────────────────────────────────────────
     save_store_to_files(&mut store, &gp, &ip, &sp).expect("save must succeed");
@@ -531,17 +661,27 @@ fn sovereign_memory_continuity_across_restart() {
 
     // ── PHASE: RESTART (load from disk) ──────────────────────────────────────
     let mut loaded = load_store_from_files(&gp, &ip, &sp).expect("load must succeed");
-    loaded.audit_consistency().expect("loaded store must audit clean");
+    loaded
+        .audit_consistency()
+        .expect("loaded store must audit clean");
 
     // ── PHASE: RECOVER LOCATORS ───────────────────────────────────────────────
     let recovered = loaded.recover_locators("npub1sovereign", None);
     // Should recover at least the 3 Memory objects (fold is MemoryFold, may also recover)
-    assert!(recovered >= 3, "at least 3 memory locators recovered, got {recovered}");
+    assert!(
+        recovered >= 3,
+        "at least 3 memory locators recovered, got {recovered}"
+    );
 
     // Locators must reconstruct correctly
-    let loc1 = loaded.resolve_locator(&id1).expect("locator for e1 recovered");
+    let loc1 = loaded
+        .resolve_locator(&id1)
+        .expect("locator for e1 recovered");
     assert_eq!(loc1.slug, format!("mem/{id1}"));
-    assert!(verify_locator_coherence(loc1, &env1).is_ok(), "locator coherence e1");
+    assert!(
+        verify_locator_coherence(loc1, &env1).is_ok(),
+        "locator coherence e1"
+    );
 
     // ── PHASE: VERIFY canonical_ids survived ─────────────────────────────────
     assert!(loaded.contains(&id1), "e1 survives restart");
@@ -551,10 +691,17 @@ fn sovereign_memory_continuity_across_restart() {
 
     // ── PHASE: VERIFY fold topology reconstructs ─────────────────────────────
     // The fold node must have fold_source edges to its original sources.
-    let edges: Vec<_> = loaded.graph.edges().iter()
+    let edges: Vec<_> = loaded
+        .graph
+        .edges()
+        .iter()
         .filter(|e| e.from == fold_id && e.relation == "fold_source")
         .collect();
-    assert_eq!(edges.len(), 3, "fold must have 3 fold_source edges post-restart");
+    assert_eq!(
+        edges.len(),
+        3,
+        "fold must have 3 fold_source edges post-restart"
+    );
 
     // ── PHASE: VERIFY agent fingerprint stability ─────────────────────────────
     // Re-derive visibility (serde(skip) clears it on load) — re-apply
@@ -563,34 +710,47 @@ fn sovereign_memory_continuity_across_restart() {
     let merkle_root_post = proj_post.merkle_root.clone();
 
     // Merkle root of public objects must be identical (same objects, same IDs)
-    assert_eq!(merkle_root_pre, merkle_root_post,
-        "public Merkle root must be stable across restart");
+    assert_eq!(
+        merkle_root_pre, merkle_root_post,
+        "public Merkle root must be stable across restart"
+    );
 
     // Agent fingerprint must be identical
     let fp_post = proj_post.agent_fingerprint(&agent_bytes).canonical_id;
-    assert_eq!(fp_pre, fp_post,
-        "agent fingerprint must be stable across restart");
+    assert_eq!(
+        fp_pre, fp_post,
+        "agent fingerprint must be stable across restart"
+    );
 
     // ── PHASE: VERIFY provenance chain unbroken ───────────────────────────────
     // e2 declares supersedes = e1's canonical_id; resolve_conflict must detect it.
     let prov2_reconstructed = GixProvenance {
         content_hash: content_hash(&e2.content),
-        supersedes:   Some(env1.canonical_id),
+        supersedes: Some(env1.canonical_id),
         derived_from: vec![],
         fold_lineage: vec![],
-        visibility:   gix_core::GixVisibility::Private,
+        visibility: gix_core::GixVisibility::Private,
     };
-    let conflict = loaded.resolve_conflict(&id2, &id1, Some(&prov2_reconstructed), None)
+    let conflict = loaded
+        .resolve_conflict(&id2, &id1, Some(&prov2_reconstructed), None)
         .expect("conflict detection must work post-restart");
-    assert!(matches!(conflict.resolution, gix_core::ConflictResolution::SupersedesWins { .. }),
-        "supersedes chain must be detected: {:?}", conflict.resolution);
+    assert!(
+        matches!(
+            conflict.resolution,
+            gix_core::ConflictResolution::SupersedesWins { .. }
+        ),
+        "supersedes chain must be detected: {:?}",
+        conflict.resolution
+    );
 
     // ── PHASE: VERIFY hash domain isolation still holds ───────────────────────
     // After deserialization, canonical_ids must still differ from content_hashes.
     let e1_reloaded = loaded.index.resolve(&id1).expect("e1 in index");
     let content_hash_e1 = content_hash(&e1.content);
-    assert_ne!(e1_reloaded.canonical_id, content_hash_e1,
-        "canonical_id must differ from content_hash after deserialization");
+    assert_ne!(
+        e1_reloaded.canonical_id, content_hash_e1,
+        "canonical_id must differ from content_hash after deserialization"
+    );
 
     // ── PHASE: FINAL audit ────────────────────────────────────────────────────
     loaded.set_visibility(&id1, GixVisibility::Private);

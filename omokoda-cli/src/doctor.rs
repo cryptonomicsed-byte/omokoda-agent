@@ -115,12 +115,24 @@ pub fn run() {
 
     // ── Category: Identity ───────────────────────────────────────────────────
     println!("\n{}", "Identity".bold().cyan());
-    check_file(&mut r, &home.identity_json(), "~/.omokoda/identity/identity.json exists");
-    check_file(&mut r, &home.birth_json(), "~/.omokoda/identity/birth.json exists");
+    check_file(
+        &mut r,
+        &home.identity_json(),
+        "~/.omokoda/identity/identity.json exists",
+    );
+    check_file(
+        &mut r,
+        &home.birth_json(),
+        "~/.omokoda/identity/birth.json exists",
+    );
 
     // ── Category: Constitution ───────────────────────────────────────────────
     println!("\n{}", "Constitution".bold().cyan());
-    check_dir(&mut r, &home.constitution, "~/.omokoda/constitution/ exists");
+    check_dir(
+        &mut r,
+        &home.constitution,
+        "~/.omokoda/constitution/ exists",
+    );
 
     let constitution_json = home.constitution_json();
     let has_constitution_json = constitution_json.is_file();
@@ -131,13 +143,9 @@ pub fn run() {
             .unwrap_or(false)
     };
     if has_any_file {
-        r.pass(
-            "constitution.json exists OR constitution/ has at least 1 file",
-        );
+        r.pass("constitution.json exists OR constitution/ has at least 1 file");
     } else {
-        r.fail(
-            "constitution.json exists OR constitution/ has at least 1 file",
-        );
+        r.fail("constitution.json exists OR constitution/ has at least 1 file");
     }
 
     // ── Category: Memory ─────────────────────────────────────────────────────
@@ -179,8 +187,7 @@ pub fn run() {
     if r.failed > 0 {
         println!(
             "{}",
-            "Run `omokoda onboard` to fix missing directories."
-                .yellow()
+            "Run `omokoda onboard` to fix missing directories.".yellow()
         );
     } else {
         println!("{}", "Agent environment looks healthy.".green().bold());

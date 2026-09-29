@@ -15,7 +15,6 @@
 ///   Julia   — OSOVM/src/constants.jl (reads the same TOML via TOML.jl)
 ///   Python  — vantage/toc_constants.py (reads via tomllib/tomli)
 ///   JS/TS   — vantage/src/toc_constants.ts (reads via @iarna/toml)
-
 use serde::Deserialize;
 
 /// ASE (Àṣẹ) emission and fee constants.
@@ -128,8 +127,7 @@ impl TocConstants {
         let path = Self::resolve_path()?;
         let content = std::fs::read_to_string(&path)
             .map_err(|e| format!("TOC_CONSTANTS: cannot read {path}: {e}"))?;
-        toml::from_str(&content)
-            .map_err(|e| format!("TOC_CONSTANTS: parse error in {path}: {e}"))
+        toml::from_str(&content).map_err(|e| format!("TOC_CONSTANTS: parse error in {path}: {e}"))
     }
 
     fn resolve_path() -> Result<String, String> {
@@ -138,7 +136,9 @@ impl TocConstants {
         }
         // Derive from HOME
         let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
-        Ok(format!("{home}/sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml"))
+        Ok(format!(
+            "{home}/sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml"
+        ))
     }
 }
 
@@ -207,10 +207,19 @@ mod tests {
             Err(_) => return,
         };
         let p = &toc.ase.pools;
-        let sum = p.veilsim + p.rnd + p.governance + p.reserve
-            + p.compute + p.storage + p.witness + p.treasury;
+        let sum = p.veilsim
+            + p.rnd
+            + p.governance
+            + p.reserve
+            + p.compute
+            + p.storage
+            + p.witness
+            + p.treasury;
         let diff = (sum - 1.0_f64).abs();
-        assert!(diff < 1e-10, "ASE pool percentages sum to {sum}, expected 1.0");
+        assert!(
+            diff < 1e-10,
+            "ASE pool percentages sum to {sum}, expected 1.0"
+        );
     }
 
     #[test]
@@ -239,6 +248,9 @@ mod tests {
             Ok(t) => t,
             Err(_) => return,
         };
-        assert_eq!(toc.dopamine.opcode_mint, "0x54", "TOC_MINT must be 0x54 (confirmed in arch)");
+        assert_eq!(
+            toc.dopamine.opcode_mint, "0x54",
+            "TOC_MINT must be 0x54 (confirmed in arch)"
+        );
     }
 }

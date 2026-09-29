@@ -11,38 +11,38 @@ use super::telemetry::GpuTelemetry;
 /// NOT created by self-report. Created only after full chain is satisfied.
 #[derive(Debug, Clone)]
 pub struct VerifiedGPUWork {
-    pub work_id:              String,
-    pub contributor_id:       String,  // agent_id
-    pub device_id:            String,  // /devices/gpu/0001
-    pub gpu_model:            String,
+    pub work_id: String,
+    pub contributor_id: String, // agent_id
+    pub device_id: String,      // /devices/gpu/0001
+    pub gpu_model: String,
 
     // Lease provenance
-    pub lease_id:             String,
-    pub start_time:           u64,
-    pub end_time:             u64,
-    pub gpu_seconds:          f64,
+    pub lease_id: String,
+    pub start_time: u64,
+    pub end_time: u64,
+    pub gpu_seconds: f64,
 
     // Workload identity
-    pub workload_hash:        String,
-    pub workload_type:        WorkloadKind,
-    pub utilization:          f32,     // avg over the lease
+    pub workload_hash: String,
+    pub workload_type: WorkloadKind,
+    pub utilization: f32, // avg over the lease
 
     // Commitments — verified before Dopamine is issued
-    pub output_commitment:    String,  // SHA-256 of workload output
-    pub telemetry_commitment: String,  // from GpuTelemetry.commitment_hash
+    pub output_commitment: String,    // SHA-256 of workload output
+    pub telemetry_commitment: String, // from GpuTelemetry.commitment_hash
 
     // Proof chain
-    pub witness_receipts:     Vec<String>,   // receipt_ids from independent witnesses
+    pub witness_receipts: Vec<String>, // receipt_ids from independent witnesses
     pub hardware_attestation: HardwareAttestation,
-    pub osovm_proof:          Option<String>, // filled after OSOVM verification
+    pub osovm_proof: Option<String>, // filled after OSOVM verification
 
     // Economic output
-    pub compute_score:        Option<f64>,
-    pub dopamine_allocation:  Option<u64>,   // micro-Dopamine units
+    pub compute_score: Option<f64>,
+    pub dopamine_allocation: Option<u64>, // micro-Dopamine units
 
     // Zàngbétò anchor
-    pub zangbeto_receipt_id:  Option<String>,
-    pub created_at:           u64,
+    pub zangbeto_receipt_id: Option<String>,
+    pub created_at: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -59,13 +59,13 @@ pub enum WorkloadKind {
 impl std::fmt::Display for WorkloadKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Training   => write!(f, "training"),
-            Self::Inference  => write!(f, "inference"),
+            Self::Training => write!(f, "training"),
+            Self::Inference => write!(f, "inference"),
             Self::Simulation => write!(f, "simulation"),
-            Self::Rendering  => write!(f, "rendering"),
-            Self::ZkProof    => write!(f, "zk_proof"),
-            Self::Encoding   => write!(f, "encoding"),
-            Self::Custom(s)  => write!(f, "{s}"),
+            Self::Rendering => write!(f, "rendering"),
+            Self::ZkProof => write!(f, "zk_proof"),
+            Self::Encoding => write!(f, "encoding"),
+            Self::Custom(s) => write!(f, "{s}"),
         }
     }
 }
@@ -86,26 +86,26 @@ impl VerifiedGPUWork {
         output_commitment: impl Into<String>,
     ) -> Self {
         Self {
-            work_id:              uuid_v4(),
-            contributor_id:       contributor_id.into(),
-            device_id:            device_id.into(),
-            gpu_model:            gpu_model.into(),
-            lease_id:             lease_id.into(),
+            work_id: uuid_v4(),
+            contributor_id: contributor_id.into(),
+            device_id: device_id.into(),
+            gpu_model: gpu_model.into(),
+            lease_id: lease_id.into(),
             start_time,
             end_time,
             gpu_seconds,
-            workload_hash:        workload_hash.into(),
+            workload_hash: workload_hash.into(),
             workload_type,
-            utilization:          telemetry.avg_utilization,
-            output_commitment:    output_commitment.into(),
+            utilization: telemetry.avg_utilization,
+            output_commitment: output_commitment.into(),
             telemetry_commitment: telemetry.commitment_hash.clone(),
-            witness_receipts:     vec![],
+            witness_receipts: vec![],
             hardware_attestation: attestation,
-            osovm_proof:          None,
-            compute_score:        None,
-            dopamine_allocation:  None,
-            zangbeto_receipt_id:  None,
-            created_at:           now_secs(),
+            osovm_proof: None,
+            compute_score: None,
+            dopamine_allocation: None,
+            zangbeto_receipt_id: None,
+            created_at: now_secs(),
         }
     }
 
@@ -118,7 +118,7 @@ impl VerifiedGPUWork {
     }
 
     pub fn set_dopamine(&mut self, score: f64, allocation: u64, zangbeto_id: impl Into<String>) {
-        self.compute_score       = Some(score);
+        self.compute_score = Some(score);
         self.dopamine_allocation = Some(allocation);
         self.zangbeto_receipt_id = Some(zangbeto_id.into());
     }
@@ -138,7 +138,11 @@ fn uuid_v4() -> String {
     use std::time::SystemTime;
     let mut h = DefaultHasher::new();
     SystemTime::now().hash(&mut h);
-    format!("{:016x}{:016x}", h.finish(), h.finish().wrapping_mul(0xdead_beef))
+    format!(
+        "{:016x}{:016x}",
+        h.finish(),
+        h.finish().wrapping_mul(0xdead_beef)
+    )
 }
 
 fn now_secs() -> u64 {
@@ -163,47 +167,47 @@ fn now_secs() -> u64 {
 /// `dimension_within_tolerance` is true — i.e. reality matched the prediction.
 #[derive(Debug, Clone)]
 pub struct VerifiedPrintJob {
-    pub work_id:            String,
-    pub contributor_id:     String,  // agent_id
-    pub device_id:          String,  // VCP device ID of the printer
+    pub work_id: String,
+    pub contributor_id: String, // agent_id
+    pub device_id: String,      // VCP device ID of the printer
 
     // Model provenance
-    pub model_hash:         String,  // SHA-256 of STL/3MF source
-    pub slicer_params_hash: String,  // hash of slicer config (layer height, infill, …)
-    pub gcode_hash:         String,  // hash of the emitted G-code
+    pub model_hash: String,         // SHA-256 of STL/3MF source
+    pub slicer_params_hash: String, // hash of slicer config (layer height, infill, …)
+    pub gcode_hash: String,         // hash of the emitted G-code
 
     // Material
-    pub material_type:      String,  // "PLA" | "PETG" | "ABS" | "TPU" | …
-    pub material_batch:     Option<String>,
+    pub material_type: String, // "PLA" | "PETG" | "ABS" | "TPU" | …
+    pub material_batch: Option<String>,
 
     // Sim predictions (set before printing)
-    pub predicted_print_secs:   u64,
-    pub predicted_filament_g:   f32,
-    pub predicted_warp_risk:    f32,  // 0.0..1.0 from thermal sim
-    pub sim_prediction_hash:    String,  // hash of all predicted fields
+    pub predicted_print_secs: u64,
+    pub predicted_filament_g: f32,
+    pub predicted_warp_risk: f32,    // 0.0..1.0 from thermal sim
+    pub sim_prediction_hash: String, // hash of all predicted fields
 
     // Actual outcome (set after printing)
-    pub actual_print_secs:  Option<u64>,
-    pub actual_filament_g:  Option<f32>,
+    pub actual_print_secs: Option<u64>,
+    pub actual_filament_g: Option<f32>,
 
     // Physical measurement (dim check via calipers or scan)
-    pub nominal_dimensions: Option<[f32; 3]>,  // [x, y, z] mm
+    pub nominal_dimensions: Option<[f32; 3]>, // [x, y, z] mm
     pub measured_dimensions: Option<[f32; 3]>,
-    pub measurement_hash:   Option<String>,  // SHA-256 of caliper/scan data
+    pub measurement_hash: Option<String>, // SHA-256 of caliper/scan data
     /// True when all measured dims are within 2% of nominal (the sim-to-real bonus condition).
     pub dimension_within_tolerance: bool,
 
     // Outcome
-    pub outcome:            PrintOutcome,
+    pub outcome: PrintOutcome,
 
     // Proof chain
-    pub vcp_grant_id:       String,  // CapabilityGrant that authorized the print
-    pub witness_receipts:   Vec<String>,
-    pub osovm_proof:        Option<String>,
+    pub vcp_grant_id: String, // CapabilityGrant that authorized the print
+    pub witness_receipts: Vec<String>,
+    pub osovm_proof: Option<String>,
     pub zangbeto_receipt_id: Option<String>,
 
     // Economic output
-    pub compute_score:      Option<f64>,
+    pub compute_score: Option<f64>,
     pub dopamine_allocation: Option<u64>,
 
     pub created_at: u64,
@@ -288,8 +292,10 @@ impl VerifiedPrintJob {
         // Check tolerance if dimensions are available
         if let (Some(nom), Some(meas)) = (self.nominal_dimensions, self.measured_dimensions) {
             self.dimension_within_tolerance = nom.iter().zip(meas.iter()).all(|(n, m)| {
-                if *n == 0.0 { return true; }
-                ((m - n).abs() / n) <= 0.02  // 2% tolerance
+                if *n == 0.0 {
+                    return true;
+                }
+                ((m - n).abs() / n) <= 0.02 // 2% tolerance
             });
         }
     }
@@ -306,12 +312,7 @@ impl VerifiedPrintJob {
         self.osovm_proof = Some(proof.into());
     }
 
-    pub fn set_dopamine(
-        &mut self,
-        score: f64,
-        allocation: u64,
-        zangbeto_id: impl Into<String>,
-    ) {
+    pub fn set_dopamine(&mut self, score: f64, allocation: u64, zangbeto_id: impl Into<String>) {
         self.compute_score = Some(score);
         self.dopamine_allocation = Some(allocation);
         self.zangbeto_receipt_id = Some(zangbeto_id.into());
@@ -328,10 +329,16 @@ impl VerifiedPrintJob {
 
     /// Effective compute score — earns 5x sim-to-real bonus if dims in tolerance.
     pub fn compute_score_effective(&self) -> f64 {
-        if !self.is_fully_verified() { return 0.0; }
+        if !self.is_fully_verified() {
+            return 0.0;
+        }
         let base = self.actual_print_secs.unwrap_or(0) as f64
             * self.actual_filament_g.unwrap_or(0.0) as f64;
-        let mult = if self.dimension_within_tolerance { 5.0 } else { 2.0 };
+        let mult = if self.dimension_within_tolerance {
+            5.0
+        } else {
+            2.0
+        };
         base * mult
     }
 
@@ -369,9 +376,17 @@ mod print_tests {
 
     fn stub_job() -> VerifiedPrintJob {
         let mut j = VerifiedPrintJob::new(
-            "agent-1", "printer-001",
-            "stl-hash", "slicer-hash", "gcode-hash",
-            "PLA", 3600, 18.5, 0.05, "pred-hash", "grant-1",
+            "agent-1",
+            "printer-001",
+            "stl-hash",
+            "slicer-hash",
+            "gcode-hash",
+            "PLA",
+            3600,
+            18.5,
+            0.05,
+            "pred-hash",
+            "grant-1",
         );
         j.nominal_dimensions = Some([50.0, 50.0, 10.0]);
         j
@@ -386,7 +401,12 @@ mod print_tests {
     #[test]
     fn verified_after_full_chain() {
         let mut j = stub_job();
-        j.complete_success(3580, 18.2, Some([50.1, 49.9, 10.0]), Some("meas-hash".into()));
+        j.complete_success(
+            3580,
+            18.2,
+            Some([50.1, 49.9, 10.0]),
+            Some("meas-hash".into()),
+        );
         j.add_witness("w-1");
         j.set_osovm_proof("proof-1");
         j.set_dopamine(1000.0, 500, "z-1");
@@ -397,7 +417,12 @@ mod print_tests {
     #[test]
     fn sim_to_real_multiplier_when_in_tolerance() {
         let mut j = stub_job();
-        j.complete_success(3600, 18.5, Some([50.0, 50.0, 10.0]), Some("meas-hash".into()));
+        j.complete_success(
+            3600,
+            18.5,
+            Some([50.0, 50.0, 10.0]),
+            Some("meas-hash".into()),
+        );
         j.add_witness("w-1");
         j.set_osovm_proof("proof-1");
         j.set_dopamine(0.0, 0, "z-1");
@@ -411,7 +436,12 @@ mod print_tests {
     fn print_multiplier_when_out_of_tolerance() {
         let mut j = stub_job();
         // 10% out of tolerance
-        j.complete_success(3600, 18.5, Some([55.0, 50.0, 10.0]), Some("meas-hash".into()));
+        j.complete_success(
+            3600,
+            18.5,
+            Some([55.0, 50.0, 10.0]),
+            Some("meas-hash".into()),
+        );
         j.add_witness("w-1");
         j.set_osovm_proof("proof-1");
         j.set_dopamine(0.0, 0, "z-1");
@@ -423,7 +453,12 @@ mod print_tests {
     #[test]
     fn to_work_claim_has_correct_domain() {
         let mut j = stub_job();
-        j.complete_success(3600, 18.5, Some([50.0, 50.0, 10.0]), Some("meas-hash".into()));
+        j.complete_success(
+            3600,
+            18.5,
+            Some([50.0, 50.0, 10.0]),
+            Some("meas-hash".into()),
+        );
         j.add_witness("w-1");
         j.set_osovm_proof("proof-1");
         j.set_dopamine(0.0, 0, "z-1");

@@ -14,7 +14,9 @@
 use std::sync::Arc;
 
 use super::{
-    capability::{CapabilityGrant, CapabilityKind, CapabilityPolicy, CapabilityStore, OsCapability},
+    capability::{
+        CapabilityGrant, CapabilityKind, CapabilityPolicy, CapabilityStore, OsCapability,
+    },
     compute::ComputeManager,
     device::DeviceManager,
     fs::SovereignFS,
@@ -28,33 +30,33 @@ use super::{
 
 #[derive(Clone)]
 pub struct OsKernel {
-    pub processes:    Arc<ProcessTable>,
-    pub ipc:          Arc<SovereignIPC>,
+    pub processes: Arc<ProcessTable>,
+    pub ipc: Arc<SovereignIPC>,
     pub capabilities: Arc<CapabilityStore>,
-    pub fs:           Arc<SovereignFS>,
-    pub scheduler:    Arc<ResourceScheduler>,
-    pub devices:      Arc<DeviceManager>,
-    pub compute:      Arc<ComputeManager>,
-    pub security:     Arc<PolicyEnforcer>,
+    pub fs: Arc<SovereignFS>,
+    pub scheduler: Arc<ResourceScheduler>,
+    pub devices: Arc<DeviceManager>,
+    pub compute: Arc<ComputeManager>,
+    pub security: Arc<PolicyEnforcer>,
 }
 
 impl OsKernel {
     /// Boot a new kernel with sensible defaults.
     pub fn new() -> Self {
         let budget = ResourceBudget::new(
-            64_000,          // 64 000 cpu-millis per window
-            4 * 1024 * 1024 * 1024,  // 4 GiB
-            4,               // 4 GPU slots
+            64_000,                 // 64 000 cpu-millis per window
+            4 * 1024 * 1024 * 1024, // 4 GiB
+            4,                      // 4 GPU slots
         );
         Self {
-            processes:    ProcessTable::new(),
-            ipc:          SovereignIPC::new(),
+            processes: ProcessTable::new(),
+            ipc: SovereignIPC::new(),
             capabilities: CapabilityStore::new(CapabilityPolicy::default()),
-            fs:           Arc::new(SovereignFS::new()),
-            scheduler:    ResourceScheduler::new(budget),
-            devices:      Arc::new(DeviceManager::new()),
-            compute:      Arc::new(ComputeManager::default()),
-            security:     Arc::new(PolicyEnforcer::new(SecurityPolicy::default())),
+            fs: Arc::new(SovereignFS::new()),
+            scheduler: ResourceScheduler::new(budget),
+            devices: Arc::new(DeviceManager::new()),
+            compute: Arc::new(ComputeManager::default()),
+            security: Arc::new(PolicyEnforcer::new(SecurityPolicy::default())),
         }
     }
 
@@ -147,60 +149,68 @@ impl OsKernel {
         let procs = self.processes.list();
         let budget = self.scheduler.budget_snapshot();
         KernelStatus {
-            process_count:    procs.len(),
-            running_count:    procs.iter().filter(|p| matches!(p.state, ProcessState::Running)).count(),
-            waiting_count:    procs.iter().filter(|p| matches!(p.state, ProcessState::WaitingForWork)).count(),
-            queued_jobs:      self.scheduler.queued_count(),
-            running_jobs:     self.scheduler.running_count(),
-            device_count:     self.devices.tree.list_all().len(),
-            cpu_used_millis:  budget.used_cpu_millis,
+            process_count: procs.len(),
+            running_count: procs
+                .iter()
+                .filter(|p| matches!(p.state, ProcessState::Running))
+                .count(),
+            waiting_count: procs
+                .iter()
+                .filter(|p| matches!(p.state, ProcessState::WaitingForWork))
+                .count(),
+            queued_jobs: self.scheduler.queued_count(),
+            running_jobs: self.scheduler.running_count(),
+            device_count: self.devices.tree.list_all().len(),
+            cpu_used_millis: budget.used_cpu_millis,
             cpu_total_millis: budget.total_cpu_millis,
-            mem_used_bytes:   budget.used_mem_bytes,
-            mem_total_bytes:  budget.total_mem_bytes,
-            gpu_used_slots:   budget.used_gpu_slots,
-            gpu_total_slots:  budget.total_gpu_slots,
-            processes:        procs.into_iter().map(ProcessSummary::from).collect(),
+            mem_used_bytes: budget.used_mem_bytes,
+            mem_total_bytes: budget.total_mem_bytes,
+            gpu_used_slots: budget.used_gpu_slots,
+            gpu_total_slots: budget.total_gpu_slots,
+            processes: procs.into_iter().map(ProcessSummary::from).collect(),
         }
     }
 }
 
 impl Default for OsKernel {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 // ── Status types (JSON-serialisable) ─────────────────────────────────────────
 
 #[derive(Debug, serde::Serialize)]
 pub struct KernelStatus {
-    pub process_count:    usize,
-    pub running_count:    usize,
-    pub waiting_count:    usize,
-    pub queued_jobs:      usize,
-    pub running_jobs:     usize,
-    pub device_count:     usize,
-    pub cpu_used_millis:  u64,
+    pub process_count: usize,
+    pub running_count: usize,
+    pub waiting_count: usize,
+    pub queued_jobs: usize,
+    pub running_jobs: usize,
+    pub device_count: usize,
+    pub cpu_used_millis: u64,
     pub cpu_total_millis: u64,
-    pub mem_used_bytes:   u64,
-    pub mem_total_bytes:  u64,
-    pub gpu_used_slots:   u32,
-    pub gpu_total_slots:  u32,
-    pub processes:        Vec<ProcessSummary>,
+    pub mem_used_bytes: u64,
+    pub mem_total_bytes: u64,
+    pub gpu_used_slots: u32,
+    pub gpu_total_slots: u32,
+    pub processes: Vec<ProcessSummary>,
 }
 
 #[derive(Debug, serde::Serialize)]
 pub struct ProcessSummary {
-    pub pid:        u64,
-    pub agent_id:   String,
-    pub state:      String,
+    pub pid: u64,
+    pub agent_id: String,
+    pub state: String,
     pub started_at: u64,
 }
 
 impl From<super::process::AgentProcess> for ProcessSummary {
     fn from(p: super::process::AgentProcess) -> Self {
         Self {
-            pid:        p.pid,
-            agent_id:   p.agent_id,
-            state:      format!("{:?}", p.state),
+            pid: p.pid,
+            agent_id: p.agent_id,
+            state: format!("{:?}", p.state),
             started_at: p.started_at,
         }
     }
@@ -232,7 +242,10 @@ mod tests {
 
         // FS subtree was created
         let listing = kernel.fs.list("/agents/agent-alpha", "agent-alpha");
-        assert!(!listing.is_empty(), "agent FS subtree must be non-empty after birth");
+        assert!(
+            !listing.is_empty(),
+            "agent FS subtree must be non-empty after birth"
+        );
     }
 
     #[test]
@@ -241,10 +254,16 @@ mod tests {
         let pid = kernel.on_birth("agent-beta", "boot-1");
 
         kernel.on_turn_start(pid);
-        assert!(matches!(kernel.processes.get(pid).unwrap().state, ProcessState::Running));
+        assert!(matches!(
+            kernel.processes.get(pid).unwrap().state,
+            ProcessState::Running
+        ));
 
         kernel.on_turn_end(pid);
-        assert!(matches!(kernel.processes.get(pid).unwrap().state, ProcessState::WaitingForWork));
+        assert!(matches!(
+            kernel.processes.get(pid).unwrap().state,
+            ProcessState::WaitingForWork
+        ));
     }
 
     #[test]
@@ -275,11 +294,19 @@ mod tests {
         let kernel = OsKernel::new();
         let pid = kernel.on_birth("agent-cap", "boot-1");
 
-        assert!(kernel.capabilities.check(pid, &CapabilityKind::MemoryReadOwn, "*"));
-        assert!(kernel.capabilities.check(pid, &CapabilityKind::MemoryWriteOwn, "*"));
-        assert!(kernel.capabilities.check(pid, &CapabilityKind::SkillExecute, "*"));
+        assert!(kernel
+            .capabilities
+            .check(pid, &CapabilityKind::MemoryReadOwn, "*"));
+        assert!(kernel
+            .capabilities
+            .check(pid, &CapabilityKind::MemoryWriteOwn, "*"));
+        assert!(kernel
+            .capabilities
+            .check(pid, &CapabilityKind::SkillExecute, "*"));
         // Non-default capability must not be auto-granted
-        assert!(!kernel.capabilities.check(pid, &CapabilityKind::GpuAccess, "*"));
+        assert!(!kernel
+            .capabilities
+            .check(pid, &CapabilityKind::GpuAccess, "*"));
     }
 
     #[test]

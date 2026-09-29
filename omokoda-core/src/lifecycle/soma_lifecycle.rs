@@ -35,7 +35,11 @@ impl SomaLifecycle {
             emotion.energy,
             emotion.tension,
         );
-        Self { emotion, session_start, message_count: 0 }
+        Self {
+            emotion,
+            session_start,
+            message_count: 0,
+        }
     }
 
     /// Pulse: called per message. Updates emotion from prompt content.

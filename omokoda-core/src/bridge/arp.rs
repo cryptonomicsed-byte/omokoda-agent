@@ -11,10 +11,7 @@
 //! GIX spec). The `gix1_for_receipt` hand-roll has been replaced with
 //! canonical `gix_types::Gix1::new`.
 
-use arp_types::{
-    ActionReceipt, ActionSpec, ReceiptKind,
-    Principal, PrincipalKind,
-};
+use arp_types::{ActionReceipt, ActionSpec, Principal, PrincipalKind, ReceiptKind};
 use gix_types::{Gix1, GixKind, GixNamespace, RoutingHints};
 use serde_json::{json, Value};
 use uuid::Uuid;
@@ -152,15 +149,14 @@ async fn post_receipt(receipt: Value) -> bool {
     if !key.is_empty() {
         req = req.header("X-Agent-Key", &key);
     }
-    req.send().await.map(|r| r.status().is_success()).unwrap_or(false)
+    req.send()
+        .await
+        .map(|r| r.status().is_success())
+        .unwrap_or(false)
 }
 
 /// Birth receipt — emitted once at agent creation.
-pub async fn receipt_birth(
-    agent_id: &str,
-    genesis_receipt_id: &str,
-    agent_name: &str,
-) -> bool {
+pub async fn receipt_birth(agent_id: &str, genesis_receipt_id: &str, agent_name: &str) -> bool {
     let receipt = make_receipt_json(
         agent_id,
         "birth",
@@ -168,7 +164,8 @@ pub async fn receipt_birth(
         "success",
         json!({ "agent_name": agent_name, "genesis_receipt_id": genesis_receipt_id }),
         None,
-    ).await;
+    )
+    .await;
     post_receipt(receipt).await
 }
 
@@ -186,7 +183,8 @@ pub async fn receipt_think(
         "success",
         json!({ "prompt_summary": prompt_summary }),
         previous_hash,
-    ).await;
+    )
+    .await;
     post_receipt(receipt).await
 }
 
@@ -205,7 +203,8 @@ pub async fn receipt_act(
         outcome,
         json!({ "tool_name": tool_name }),
         previous_hash,
-    ).await;
+    )
+    .await;
     post_receipt(receipt).await
 }
 
@@ -229,6 +228,7 @@ pub async fn receipt_lifecycle_transition(
             "node_pubkey": node_pubkey,
         }),
         previous_hash,
-    ).await;
+    )
+    .await;
     post_receipt(receipt).await
 }

@@ -479,10 +479,7 @@ impl Session {
         Ok(())
     }
 
-    pub fn unseal_private(
-        &self,
-        password_key: &[u8; 32],
-    ) -> Result<PrivateSessionData, String> {
+    pub fn unseal_private(&self, password_key: &[u8; 32]) -> Result<PrivateSessionData, String> {
         let data = self
             .encrypted_private
             .as_ref()
@@ -539,8 +536,12 @@ impl Session {
         vault: &IdentityVaultData,
         password_key: &[u8; 32],
     ) -> Result<(), String> {
-        self.encrypted_identity_vault =
-            Some(Self::seal_blob(vault, password_key, &self.agent_id, self.birth_timestamp)?);
+        self.encrypted_identity_vault = Some(Self::seal_blob(
+            vault,
+            password_key,
+            &self.agent_id,
+            self.birth_timestamp,
+        )?);
         Ok(())
     }
 
@@ -562,16 +563,17 @@ impl Session {
         vault: &MemoryVaultData,
         password_key: &[u8; 32],
     ) -> Result<(), String> {
-        self.encrypted_memory_vault =
-            Some(Self::seal_blob(vault, password_key, &self.agent_id, self.birth_timestamp)?);
+        self.encrypted_memory_vault = Some(Self::seal_blob(
+            vault,
+            password_key,
+            &self.agent_id,
+            self.birth_timestamp,
+        )?);
         Ok(())
     }
 
     /// Unseal the memory vault.
-    pub fn unseal_memory_vault(
-        &self,
-        password_key: &[u8; 32],
-    ) -> Result<MemoryVaultData, String> {
+    pub fn unseal_memory_vault(&self, password_key: &[u8; 32]) -> Result<MemoryVaultData, String> {
         let blob = self
             .encrypted_memory_vault
             .as_ref()
@@ -587,8 +589,7 @@ impl Session {
     ) -> Result<EncryptedSession, String> {
         let salt = generate_salt(agent_id, birth_ts);
         let mut key = derive_session_key(&salt, password_key, 1);
-        let mut json = serde_json::to_string(data)
-            .map_err(|e| format!("serialize failed: {e}"))?;
+        let mut json = serde_json::to_string(data).map_err(|e| format!("serialize failed: {e}"))?;
         let cipher = ChaCha20Poly1305::new(&key.into());
         key.zeroize();
         let mut nonce_bytes = [0u8; 12];
@@ -619,15 +620,18 @@ impl Session {
         let mut plaintext = cipher
             .decrypt(nonce, blob.private_ciphertext.as_slice())
             .map_err(|e| format!("decrypt failed: {e}"))?;
-        let data = serde_json::from_slice(&plaintext)
-            .map_err(|e| format!("deserialize failed: {e}"))?;
+        let data =
+            serde_json::from_slice(&plaintext).map_err(|e| format!("deserialize failed: {e}"))?;
         plaintext.zeroize();
         Ok(data)
     }
 
     pub fn migrate(self) -> Result<Self, String> {
         match self.version {
-            1 | SESSION_VERSION => Ok(Self { version: SESSION_VERSION, ..self }),
+            1 | SESSION_VERSION => Ok(Self {
+                version: SESSION_VERSION,
+                ..self
+            }),
             other => Err(format!(
                 "unsupported session version {other}; expected {SESSION_VERSION}"
             )),
@@ -748,11 +752,7 @@ pub fn generate_salt(agent_id: &AgentId, birth_timestamp: u64) -> [u8; 16] {
 /// agent -- agent_id + birth_timestamp already provides that with no
 /// circularity. The passphrase-derived `password_key` remains the ownership
 /// secret and must be zeroized by callers.
-fn derive_session_key(
-    salt: &[u8; 16],
-    password_key: &[u8; 32],
-    key_version: u32,
-) -> [u8; 32] {
+fn derive_session_key(salt: &[u8; 16], password_key: &[u8; 32], key_version: u32) -> [u8; 32] {
     let params = Params::new(
         ARGON2_MEMORY_KB,
         ARGON2_ITERATIONS,

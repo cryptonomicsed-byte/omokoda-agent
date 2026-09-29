@@ -35,7 +35,7 @@ const ALLOWED_SUBCOMMANDS: &[&str] = &[
     "skills",
     "version",
     "--version",
-    "import",  // needed for agent edit loop: import → diagnose → patch cycle
+    "import", // needed for agent edit loop: import → diagnose → patch cycle
     "doc",
     "size",
     "mem",
@@ -137,8 +137,8 @@ pub fn build_repair_plan(
         .map_err(|e| format!("zero check failed: {e}"))?;
 
     let check_json = String::from_utf8_lossy(&check_out.stdout);
-    let result: ZeroCheckResult =
-        serde_json::from_str(&check_json).map_err(|e| format!("failed to parse zero check output: {e}"))?;
+    let result: ZeroCheckResult = serde_json::from_str(&check_json)
+        .map_err(|e| format!("failed to parse zero check output: {e}"))?;
 
     if result.ok {
         return Ok(vec![]);

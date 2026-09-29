@@ -50,10 +50,7 @@ pub fn generate_bootstrap_md(
         .map(|(i, (name, bars))| {
             format!(
                 "| {:>2} | {:<11} | {} | {:.3} |\n",
-                i,
-                name,
-                bars,
-                ori.vessel_weights[i]
+                i, name, bars, ori.vessel_weights[i]
             )
         })
         .collect();

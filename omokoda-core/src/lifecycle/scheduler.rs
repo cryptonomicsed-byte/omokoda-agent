@@ -22,23 +22,23 @@ use crate::interpreter::Steward;
 /// Interval configuration (seconds). Set any to 0 to disable that tier.
 #[derive(Debug, Clone)]
 pub struct SchedulerConfig {
-    pub security_secs:  u64,   // default 30
-    pub presence_secs:  u64,   // default 60
-    pub learning_secs:  u64,   // default 1800  (30min)
-    pub strategic_secs: u64,   // default 3600  (1hr)
-    pub memory_secs:    u64,   // default 21600 (6hr)
-    pub economic_secs:  u64,   // default 86400 (24hr)
+    pub security_secs: u64,  // default 30
+    pub presence_secs: u64,  // default 60
+    pub learning_secs: u64,  // default 1800  (30min)
+    pub strategic_secs: u64, // default 3600  (1hr)
+    pub memory_secs: u64,    // default 21600 (6hr)
+    pub economic_secs: u64,  // default 86400 (24hr)
 }
 
 impl Default for SchedulerConfig {
     fn default() -> Self {
         Self {
-            security_secs:  30,
-            presence_secs:  60,
-            learning_secs:  1800,
+            security_secs: 30,
+            presence_secs: 60,
+            learning_secs: 1800,
             strategic_secs: 3600,
-            memory_secs:    21600,
-            economic_secs:  86400,
+            memory_secs: 21600,
+            economic_secs: 86400,
         }
     }
 }
@@ -53,12 +53,12 @@ impl SchedulerConfig {
                 .unwrap_or(default)
         }
         Self {
-            security_secs:  env_u64("SCHEDULER_SECURITY_SECS",  30),
-            presence_secs:  env_u64("SCHEDULER_PRESENCE_SECS",  60),
-            learning_secs:  env_u64("SCHEDULER_LEARNING_SECS",  1800),
+            security_secs: env_u64("SCHEDULER_SECURITY_SECS", 30),
+            presence_secs: env_u64("SCHEDULER_PRESENCE_SECS", 60),
+            learning_secs: env_u64("SCHEDULER_LEARNING_SECS", 1800),
             strategic_secs: env_u64("SCHEDULER_STRATEGIC_SECS", 3600),
-            memory_secs:    env_u64("SCHEDULER_MEMORY_SECS",    21600),
-            economic_secs:  env_u64("SCHEDULER_ECONOMIC_SECS",  86400),
+            memory_secs: env_u64("SCHEDULER_MEMORY_SECS", 21600),
+            economic_secs: env_u64("SCHEDULER_ECONOMIC_SECS", 86400),
         }
     }
 }
@@ -84,12 +84,12 @@ pub fn spawn_scheduler(steward: Arc<Mutex<Steward>>, config: SchedulerConfig) {
         spawn_economic_tick(steward.clone(), config.economic_secs);
     }
     info!(
-        security_secs  = config.security_secs,
-        presence_secs  = config.presence_secs,
-        learning_secs  = config.learning_secs,
+        security_secs = config.security_secs,
+        presence_secs = config.presence_secs,
+        learning_secs = config.learning_secs,
         strategic_secs = config.strategic_secs,
-        memory_secs    = config.memory_secs,
-        economic_secs  = config.economic_secs,
+        memory_secs = config.memory_secs,
+        economic_secs = config.economic_secs,
         "AgentScheduler started"
     );
 }
@@ -122,12 +122,16 @@ fn spawn_presence_tick(interval_secs: u64) {
             // this 60s tick fills the gaps so the agent never appears stale to Vantage.
             if let Some(client) = crate::vantage::WorkspaceClient::from_env() {
                 match client.heartbeat().await {
-                    Ok(_)  => debug!("[scheduler:presence] last_seen_at refreshed"),
-                    Err(e) => warn!(error = %e, "[scheduler:presence] heartbeat failed (non-fatal)"),
+                    Ok(_) => debug!("[scheduler:presence] last_seen_at refreshed"),
+                    Err(e) => {
+                        warn!(error = %e, "[scheduler:presence] heartbeat failed (non-fatal)")
+                    }
                 }
                 match client.mesh_heartbeat().await {
-                    Ok(_)  => debug!("[scheduler:presence] mesh last_seen_at refreshed"),
-                    Err(e) => warn!(error = %e, "[scheduler:presence] mesh heartbeat failed (non-fatal)"),
+                    Ok(_) => debug!("[scheduler:presence] mesh last_seen_at refreshed"),
+                    Err(e) => {
+                        warn!(error = %e, "[scheduler:presence] mesh heartbeat failed (non-fatal)")
+                    }
                 }
             }
         }
@@ -223,17 +227,20 @@ mod tests {
     #[test]
     fn default_config_has_canonical_intervals() {
         let cfg = SchedulerConfig::default();
-        assert_eq!(cfg.security_secs,  30);
-        assert_eq!(cfg.presence_secs,  60);
-        assert_eq!(cfg.learning_secs,  1800);
+        assert_eq!(cfg.security_secs, 30);
+        assert_eq!(cfg.presence_secs, 60);
+        assert_eq!(cfg.learning_secs, 1800);
         assert_eq!(cfg.strategic_secs, 3600);
-        assert_eq!(cfg.memory_secs,    21600);
-        assert_eq!(cfg.economic_secs,  86400);
+        assert_eq!(cfg.memory_secs, 21600);
+        assert_eq!(cfg.economic_secs, 86400);
     }
 
     #[test]
     fn zero_disables_tier() {
-        let cfg = SchedulerConfig { security_secs: 0, ..Default::default() };
+        let cfg = SchedulerConfig {
+            security_secs: 0,
+            ..Default::default()
+        };
         assert_eq!(cfg.security_secs, 0);
     }
 }

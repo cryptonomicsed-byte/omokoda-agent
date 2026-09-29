@@ -7,14 +7,16 @@ pub mod verified_work;
 pub mod wallet;
 
 pub use accounting::{ComputeScore, DopamineAllocation};
-pub use wallet::{AgentComputeWallet, ComputeLedgerEntry, StakeLock,
-    AGENT_DOPAMINE_ENDOWMENT, AGENT_SYNAPSE_ENDOWMENT, LOW_WATER_MARK,
-    DOPAMINE_DAILY_DECAY, SYNAPSE_CONVERSION_RATIO, FORK_STAKE_FRACTION};
 pub use attestation::HardwareAttestation;
 pub use gpu::{GpuCapability, GpuDevice};
 pub use lease::{GpuLease, LeaseState};
 pub use telemetry::{GpuTelemetry, TelemetryPoint};
 pub use verified_work::VerifiedGPUWork;
+pub use wallet::{
+    AgentComputeWallet, ComputeLedgerEntry, StakeLock, AGENT_DOPAMINE_ENDOWMENT,
+    AGENT_SYNAPSE_ENDOWMENT, DOPAMINE_DAILY_DECAY, FORK_STAKE_FRACTION, LOW_WATER_MARK,
+    SYNAPSE_CONVERSION_RATIO,
+};
 
 use std::collections::HashMap;
 use std::sync::{Arc, RwLock};
@@ -22,14 +24,14 @@ use std::sync::{Arc, RwLock};
 /// Top-level facade: owns the GPU device registry and lease table.
 pub struct ComputeManager {
     pub devices: RwLock<HashMap<String, GpuDevice>>,
-    pub leases:  RwLock<HashMap<String, GpuLease>>,
+    pub leases: RwLock<HashMap<String, GpuLease>>,
 }
 
 impl ComputeManager {
     pub fn new() -> Arc<Self> {
         Arc::new(Self {
             devices: RwLock::new(HashMap::new()),
-            leases:  RwLock::new(HashMap::new()),
+            leases: RwLock::new(HashMap::new()),
         })
     }
 
@@ -50,7 +52,9 @@ impl ComputeManager {
     }
 
     pub fn available_gpus(&self) -> Vec<GpuDevice> {
-        self.devices.read().unwrap()
+        self.devices
+            .read()
+            .unwrap()
             .values()
             .filter(|d| d.available)
             .cloned()
@@ -62,7 +66,7 @@ impl Default for ComputeManager {
     fn default() -> Self {
         Self {
             devices: RwLock::new(HashMap::new()),
-            leases:  RwLock::new(HashMap::new()),
+            leases: RwLock::new(HashMap::new()),
         }
     }
 }

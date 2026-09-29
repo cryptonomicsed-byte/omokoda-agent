@@ -42,7 +42,9 @@ pub fn can_operate(area_resources: &[PhysicalResource]) -> bool {
 /// IS the given resource AVAILABLE (not offline, not saturated)?
 pub fn is_available(resource: &PhysicalResource) -> bool {
     // If we've never seen it → unavailable.
-    let Some(seen_at) = resource.last_seen_at else { return false };
+    let Some(seen_at) = resource.last_seen_at else {
+        return false;
+    };
     // Stale > 5 min → unavailable.
     let now = std::time::SystemTime::now()
         .duration_since(std::time::UNIX_EPOCH)
@@ -82,11 +84,9 @@ fn is_truthy(v: &Option<serde_json::Value>) -> bool {
 }
 
 fn is_falsy(v: &serde_json::Value) -> bool {
-    matches!(v,
-        serde_json::Value::Bool(false)
-        | serde_json::Value::Null
-    ) || matches!(v, serde_json::Value::String(s) if matches!(s.as_str(), "false" | "offline" | "0" | ""))
-     || matches!(v, serde_json::Value::Number(n) if n.as_f64() == Some(0.0))
+    matches!(v, serde_json::Value::Bool(false) | serde_json::Value::Null)
+        || matches!(v, serde_json::Value::String(s) if matches!(s.as_str(), "false" | "offline" | "0" | ""))
+        || matches!(v, serde_json::Value::Number(n) if n.as_f64() == Some(0.0))
 }
 
 fn is_alarm_value(v: &Option<serde_json::Value>) -> bool {

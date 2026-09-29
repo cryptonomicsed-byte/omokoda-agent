@@ -73,7 +73,12 @@ fn transfer_with_authorization_typehash() -> [u8; 32] {
 /// contract. `name`/`version` come from the token contract (e.g. "USD
 /// Coin"/"2" for USDC); `chain_id` and `verifying_contract` identify the
 /// specific deployment.
-fn domain_separator(name: &str, version: &str, chain_id: u64, verifying_contract: &[u8; 20]) -> [u8; 32] {
+fn domain_separator(
+    name: &str,
+    version: &str,
+    chain_id: u64,
+    verifying_contract: &[u8; 20],
+) -> [u8; 32] {
     let domain_typehash = keccak256(
         b"EIP712Domain(string name,string version,uint256 chainId,address verifyingContract)",
     );
@@ -241,8 +246,8 @@ mod tests {
             nonce: [0x33; 32],
         };
         let token_contract = [0x42; 20]; // placeholder contract address
-        let sig = sign_x402_authorization(&seed, &auth, "USD Coin", "2", 8453, &token_contract)
-            .unwrap();
+        let sig =
+            sign_x402_authorization(&seed, &auth, "USD Coin", "2", 8453, &token_contract).unwrap();
 
         // Reconstruct the exact digest that was signed and verify the
         // signature against this agent's own derived public key -- proves
@@ -275,8 +280,8 @@ mod tests {
             nonce: [0x44; 32],
         };
         let token_contract = [0x42; 20];
-        let sig = sign_x402_authorization(&seed, &auth, "USD Coin", "2", 8453, &token_contract)
-            .unwrap();
+        let sig =
+            sign_x402_authorization(&seed, &auth, "USD Coin", "2", 8453, &token_contract).unwrap();
         let header = build_x_payment_header(&sig, &auth, "base");
         let decoded = base64::engine::general_purpose::STANDARD
             .decode(&header)

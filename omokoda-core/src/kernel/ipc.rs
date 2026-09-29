@@ -6,14 +6,32 @@ use super::process::Pid;
 
 #[derive(Debug, Clone)]
 pub enum IpcMessage {
-    Signal { kind: SignalKind },
-    JobAssigned { job_id: String, payload: serde_json::Value },
-    JobCancelled { job_id: String },
-    CapabilityGranted { kind: String, resource: String },
-    CapabilityRevoked { kind: String },
-    DeviceEvent { device_id: String, event: String },
+    Signal {
+        kind: SignalKind,
+    },
+    JobAssigned {
+        job_id: String,
+        payload: serde_json::Value,
+    },
+    JobCancelled {
+        job_id: String,
+    },
+    CapabilityGranted {
+        kind: String,
+        resource: String,
+    },
+    CapabilityRevoked {
+        kind: String,
+    },
+    DeviceEvent {
+        device_id: String,
+        event: String,
+    },
     HeartbeatRequest,
-    Custom { tag: String, payload: serde_json::Value },
+    Custom {
+        tag: String,
+        payload: serde_json::Value,
+    },
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -25,15 +43,19 @@ pub enum SignalKind {
 }
 
 pub struct MessageChannel {
-    pub pid:    Pid,
-    sender:     mpsc::Sender<IpcMessage>,
-    receiver:   Arc<Mutex<mpsc::Receiver<IpcMessage>>>,
+    pub pid: Pid,
+    sender: mpsc::Sender<IpcMessage>,
+    receiver: Arc<Mutex<mpsc::Receiver<IpcMessage>>>,
 }
 
 impl MessageChannel {
     fn new(pid: Pid, capacity: usize) -> Self {
         let (tx, rx) = mpsc::channel(capacity);
-        Self { pid, sender: tx, receiver: Arc::new(Mutex::new(rx)) }
+        Self {
+            pid,
+            sender: tx,
+            receiver: Arc::new(Mutex::new(rx)),
+        }
     }
 
     pub fn sender(&self) -> mpsc::Sender<IpcMessage> {
@@ -51,7 +73,9 @@ pub struct SovereignIPC {
 
 impl SovereignIPC {
     pub fn new() -> Arc<Self> {
-        Arc::new(Self { channels: Mutex::new(HashMap::new()) })
+        Arc::new(Self {
+            channels: Mutex::new(HashMap::new()),
+        })
     }
 
     pub fn register(&self, pid: Pid, capacity: usize) -> MessageChannel {
@@ -92,6 +116,8 @@ impl SovereignIPC {
 
 impl Default for SovereignIPC {
     fn default() -> Self {
-        Self { channels: Mutex::new(HashMap::new()) }
+        Self {
+            channels: Mutex::new(HashMap::new()),
+        }
     }
 }

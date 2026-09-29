@@ -122,8 +122,12 @@ pub struct WalrusAnchor {
 pub enum MemoryWriteStatus {
     #[default]
     Pending,
-    Written { glyph_id: String },
-    Failed { reason: String },
+    Written {
+        glyph_id: String,
+    },
+    Failed {
+        reason: String,
+    },
     Unavailable,
 }
 

@@ -37,7 +37,9 @@ pub struct DipBridge {
 impl DipBridge {
     /// Create a bridge pointing at a specific DIP router URL.
     pub fn new(dip_router_url: &str) -> Self {
-        Self { dip_router_url: dip_router_url.trim_end_matches('/').to_string() }
+        Self {
+            dip_router_url: dip_router_url.trim_end_matches('/').to_string(),
+        }
     }
 
     /// Build an identity DipEnvelope (does not send — call `send_via_router`).
@@ -48,8 +50,8 @@ impl DipBridge {
             &from,
             "*",
             DipMessage::IdentityClaim {
-                did:      format!("did:omokoda:{agent_id}"),
-                proof:    String::new(),
+                did: format!("did:omokoda:{agent_id}"),
+                proof: String::new(),
                 networks: vec![dip_types::NetworkBinding {
                     network: network.network.clone(),
                     address: network.address.clone(),
@@ -67,16 +69,16 @@ impl DipBridge {
         network: &NetworkRepr,
     ) -> DipEnvelope {
         let from = format!("agent:{agent_id}");
-        let to   = network.address.clone();
+        let to = network.address.clone();
         DipEnvelope::new(
             DipMessageKind::AgentDelegate,
             &from,
             &to,
             DipMessage::AgentDelegate {
-                task:                   action_kind.to_string(),
-                params:                 payload,
-                capabilities_required:  vec![],
-                deadline_secs:          None,
+                task: action_kind.to_string(),
+                params: payload,
+                capabilities_required: vec![],
+                deadline_secs: None,
             },
         )
     }
@@ -110,13 +112,7 @@ fn dip_base() -> String {
     format!("http://127.0.0.1:{port}")
 }
 
-fn build_envelope(
-    kind: &str,
-    from: &str,
-    to: &str,
-    payload_kind: &str,
-    payload: Value,
-) -> Value {
+fn build_envelope(kind: &str, from: &str, to: &str, payload_kind: &str, payload: Value) -> Value {
     json!({
         "envelope_id":  uuid_v4(),
         "kind":         kind,
@@ -165,11 +161,7 @@ async fn post_outbound(envelope: Value) -> bool {
 /// `networks` is a slice of `{network, address, public_key, metadata}` objects
 /// matching DIP's NetworkRepr shape (caller constructs these from IdentityVault).
 /// Returns true if DIP accepted the announcement; false otherwise (fail-open).
-pub async fn announce_identity(
-    agent_id: &str,
-    agent_did: &str,
-    networks: &[Value],
-) -> bool {
+pub async fn announce_identity(agent_id: &str, agent_did: &str, networks: &[Value]) -> bool {
     let from = format!("agent:{agent_id}");
     let envelope = build_envelope(
         "identity",

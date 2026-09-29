@@ -8,43 +8,43 @@ use crate::execution::permission_enforcer::{enforce_mode, validate_path_boundary
 #[cfg(feature = "wasm")]
 use crate::sandbox::WasmSandbox;
 
-pub mod execution_log;
 pub mod config_tool;
+pub mod execution_log;
 pub mod file_ops;
 pub mod if_script_tool;
+pub mod ifa_vm_tool;
+pub mod larql_tool;
+pub mod mail_tool;
+pub mod mailbox_provisioner;
+pub mod manifesto_tool;
 pub mod mesh_tools;
 pub mod nostr_identity_tool;
+pub mod omohome_tool;
 pub mod onchain_tools;
+pub mod osovm_tool;
+pub mod provider_tools;
 pub mod python_bridge;
 pub mod repl;
 pub mod retry;
 pub mod skillforge;
 pub mod skillforge_bus;
-pub mod ytforge;
 pub mod skills;
 pub mod sovereign;
+pub mod sovereign_node;
 pub mod streaming;
 pub mod structured_output;
 pub mod todo;
 pub mod tool_definitions;
 pub mod tor_tool;
-pub mod osovm_tool;
-pub mod sovereign_node;
 pub mod twin_binding_tool;
-pub mod validation;
-pub mod walrus_tool;
-pub mod wallet_tools;
-pub mod zero_tool;
-pub mod ucx_tool;
-pub mod provider_tools;
-pub mod ucx_receipt;
 pub mod ucx_policy;
-pub mod omohome_tool;
-pub mod mail_tool;
-pub mod mailbox_provisioner;
-pub mod ifa_vm_tool;
-pub mod larql_tool;
-pub mod manifesto_tool;
+pub mod ucx_receipt;
+pub mod ucx_tool;
+pub mod validation;
+pub mod wallet_tools;
+pub mod walrus_tool;
+pub mod ytforge;
+pub mod zero_tool;
 
 #[derive(Debug, Clone)]
 pub struct ExecutionContext {
@@ -545,13 +545,12 @@ impl ToolRegistry {
                                         .get("description")
                                         .and_then(|d| d.as_str())
                                         .map(str::to_string);
-                                    let enum_values = v.get("enum").and_then(|e| e.as_array()).map(
-                                        |arr| {
+                                    let enum_values =
+                                        v.get("enum").and_then(|e| e.as_array()).map(|arr| {
                                             arr.iter()
                                                 .filter_map(|x| x.as_str().map(str::to_string))
                                                 .collect()
-                                        },
-                                    );
+                                        });
                                     (
                                         k.clone(),
                                         crate::tools::tool_definitions::ToolProperty {

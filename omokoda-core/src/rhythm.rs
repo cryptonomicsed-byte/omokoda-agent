@@ -38,13 +38,13 @@ pub fn raw_codex_for_weekday(weekday: u8) -> &'static str {
 /// `agent_resonance`'s match arms below (Sunday=Èṣù .. Saturday=Ọbàtálá).
 fn universal_archetype_for_weekday(weekday: u8) -> &'static str {
     match weekday % 7 {
-        0 => "Access / Identity",   // Sunday -- Èṣù
-        1 => "Score / Reputation",  // Monday -- Ṣàngó
-        2 => "History / Memory",    // Tuesday -- Ọ̀ṣun
-        3 => "Spawn / Create",      // Wednesday -- Yemọja
-        4 => "Sync / Flow",         // Thursday -- Ọ̀yá
-        5 => "Run / Action",        // Friday -- Ògún
-        _ => "Policy / Rules",      // Saturday -- Ọbàtálá
+        0 => "Access / Identity",  // Sunday -- Èṣù
+        1 => "Score / Reputation", // Monday -- Ṣàngó
+        2 => "History / Memory",   // Tuesday -- Ọ̀ṣun
+        3 => "Spawn / Create",     // Wednesday -- Yemọja
+        4 => "Sync / Flow",        // Thursday -- Ọ̀yá
+        5 => "Run / Action",       // Friday -- Ògún
+        _ => "Policy / Rules",     // Saturday -- Ọbàtálá
     }
 }
 
@@ -57,7 +57,10 @@ fn universalize_archetype(value: &mut Value, weekday: u8) {
     let universal = universal_archetype_for_weekday(weekday);
     if let Some(obj) = value.as_object_mut() {
         if obj.contains_key("archetype") {
-            obj.insert("archetype".to_string(), Value::String(universal.to_string()));
+            obj.insert(
+                "archetype".to_string(),
+                Value::String(universal.to_string()),
+            );
         }
         if let Some(facets) = obj.get_mut("facets").and_then(|f| f.as_array_mut()) {
             for facet in facets.iter_mut() {
@@ -434,7 +437,10 @@ mod tests {
             Macro::Obatala,
         ] {
             let v = agent_resonance(m);
-            assert_eq!(v["archetype"].as_str().unwrap(), universal_archetype_for_weekday_for_macro(m));
+            assert_eq!(
+                v["archetype"].as_str().unwrap(),
+                universal_archetype_for_weekday_for_macro(m)
+            );
             let facets = v["facets"].as_array().unwrap();
             assert!(
                 facets.iter().all(|f| f["name"].as_str() != Some("Òrìṣà")),
@@ -565,7 +571,9 @@ impl ActionCadence {
     /// Event-driven cadence with a minimum cooldown between executions.
     pub fn on_event(event: impl Into<String>, cooldown_secs: u64) -> Self {
         Self {
-            trigger: TriggerKind::EventDriven { event: event.into() },
+            trigger: TriggerKind::EventDriven {
+                event: event.into(),
+            },
             cooldown_secs: Some(cooldown_secs),
             max_per_window: None,
             window_secs: None,

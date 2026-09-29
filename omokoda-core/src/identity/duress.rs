@@ -38,10 +38,15 @@ impl DuressHandler {
     /// `response` is the desired action when triggered.
     pub fn from_stored_hash(hash_hex: &str, response: DuressResponse) -> Option<Self> {
         let bytes = hex::decode(hash_hex).ok()?;
-        if bytes.len() != 32 { return None; }
+        if bytes.len() != 32 {
+            return None;
+        }
         let mut phrase_hash = [0u8; 32];
         phrase_hash.copy_from_slice(&bytes);
-        Some(Self { panic_phrase_hash: phrase_hash, response })
+        Some(Self {
+            panic_phrase_hash: phrase_hash,
+            response,
+        })
     }
 
     /// Check if input matches the panic phrase (hash comparison).

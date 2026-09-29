@@ -1094,8 +1094,15 @@ impl OgunClient for HttpOgunClient {
                 .text()
                 .await
                 .map_err(|e| format!("ogun response read error: {e}")),
-            Ok(resp) => Err(format!("ogun execute_tool '{}' failed: HTTP {}", tool_name, resp.status())),
-            Err(e) => Err(format!("ogun execute_tool '{}' network error: {e}", tool_name)),
+            Ok(resp) => Err(format!(
+                "ogun execute_tool '{}' failed: HTTP {}",
+                tool_name,
+                resp.status()
+            )),
+            Err(e) => Err(format!(
+                "ogun execute_tool '{}' network error: {e}",
+                tool_name
+            )),
         }
     }
 }

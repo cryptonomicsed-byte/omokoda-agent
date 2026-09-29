@@ -6,7 +6,6 @@
 /// are absent.
 ///
 /// Phase 9.3 — Stalwart mailbox integration.
-
 use crate::tools::{ExecutionContext, Tool};
 use async_trait::async_trait;
 use regex::Regex;
@@ -202,7 +201,9 @@ impl Tool for MailWaitForCodeTool {
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
         let v: Value = serde_json::from_str(params).map_err(|e| e.to_string())?;
-        let subject_contains = v["subject_contains"].as_str().ok_or("missing subject_contains")?;
+        let subject_contains = v["subject_contains"]
+            .as_str()
+            .ok_or("missing subject_contains")?;
         let timeout_secs = v["timeout_secs"].as_u64().unwrap_or(120);
 
         let (jmap_url, email, password) = resolve_mail_creds()?;
@@ -236,8 +237,7 @@ impl MailWaitForCodeTool {
         let code_re =
             Regex::new(r"\b(\d{6})\b").map_err(|e| format!("regex compile failed: {}", e))?;
 
-        let deadline = std::time::Instant::now()
-            + std::time::Duration::from_secs(timeout_secs);
+        let deadline = std::time::Instant::now() + std::time::Duration::from_secs(timeout_secs);
         let poll_interval = std::time::Duration::from_secs(10);
 
         loop {
@@ -246,7 +246,10 @@ impl MailWaitForCodeTool {
                 Ok(messages) => {
                     for msg in &messages {
                         let subject = msg["subject"].as_str().unwrap_or("");
-                        if !subject.to_lowercase().contains(&subject_contains.to_lowercase()) {
+                        if !subject
+                            .to_lowercase()
+                            .contains(&subject_contains.to_lowercase())
+                        {
                             continue;
                         }
                         // Try to get body text

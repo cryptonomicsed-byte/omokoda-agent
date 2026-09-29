@@ -9,7 +9,7 @@ use serde::{Deserialize, Serialize};
 
 pub const SYNAPSE_MAX_PER_AGENT: f64 = 86_000_000.0;
 pub const DOPAMINE_TOTAL_POOL: f64 = 86_000_000_000.0;
-pub const SYNAPSE_DAILY_DECAY_RATE: f64 = 0.01;  // 1%/day — matches OSOVM constants.jl
+pub const SYNAPSE_DAILY_DECAY_RATE: f64 = 0.01; // 1%/day — matches OSOVM constants.jl
 pub const SYNAPSE_INITIAL: f64 = 10_000.0;
 pub const EXTENDED_INACTIVITY_DAYS: u64 = 7;
 pub const DECAY_NORMAL_PER_DAY: f64 = 0.008;
@@ -178,7 +178,9 @@ pub fn authorize_toc_mint(
     pool: &DopaminePool,
 ) -> Result<u64, String> {
     if !work.is_fully_verified() {
-        return Err("work is not fully verified (osovm_proof / witnesses / zangbeto required)".into());
+        return Err(
+            "work is not fully verified (osovm_proof / witnesses / zangbeto required)".into(),
+        );
     }
     let gpu_hours = work.gpu_seconds / 3600.0;
     let earned = (gpu_hours * SYNAPSE_PER_GPU_HOUR) as u64;

@@ -12,7 +12,13 @@ use std::path::PathBuf;
 // Seed file definitions
 // ---------------------------------------------------------------------------
 
-const SEED_FILES: [&str; 5] = ["AGENTS.md", "ORI_PROJECTION.md", "USER.md", "RULES.md", "MEMORY.md"];
+const SEED_FILES: [&str; 5] = [
+    "AGENTS.md",
+    "ORI_PROJECTION.md",
+    "USER.md",
+    "RULES.md",
+    "MEMORY.md",
+];
 
 fn agents_md(agent_display_name: &str, agent_name: &str) -> String {
     format!(
@@ -180,7 +186,10 @@ mod tests {
         seed_workspace(&home, "hermes", "Hermes").expect("seed");
 
         let content = fs::read_to_string(&agents_path).unwrap();
-        assert_eq!(content, "custom content", "seed must not overwrite existing file");
+        assert_eq!(
+            content, "custom content",
+            "seed must not overwrite existing file"
+        );
     }
 
     #[test]
@@ -224,7 +233,10 @@ mod tests {
         let (_dir, home) = tmp_home();
         seed_workspace(&home, "x", "Phoenix").expect("seed");
         let content = fs::read_to_string(home.workspace.join("ORI_PROJECTION.md")).unwrap();
-        assert!(content.contains("Phoenix"), "display name missing from ORI_PROJECTION.md");
+        assert!(
+            content.contains("Phoenix"),
+            "display name missing from ORI_PROJECTION.md"
+        );
     }
 
     #[test]
@@ -232,7 +244,10 @@ mod tests {
         let (_dir, home) = tmp_home();
         seed_workspace(&home, "x", "Phoenix").expect("seed");
         let content = fs::read_to_string(home.workspace.join("ORI_PROJECTION.md")).unwrap();
-        assert!(content.contains("AUTO-GENERATED"), "must be marked AUTO-GENERATED");
+        assert!(
+            content.contains("AUTO-GENERATED"),
+            "must be marked AUTO-GENERATED"
+        );
         assert!(content.contains("do not edit"), "must warn do not edit");
     }
 
@@ -241,6 +256,15 @@ mod tests {
         let (_dir, home) = tmp_home();
         let status = workspace_seed_status(&home);
         let names: Vec<&str> = status.iter().map(|(n, _)| n.as_str()).collect();
-        assert_eq!(names, vec!["AGENTS.md", "ORI_PROJECTION.md", "USER.md", "RULES.md", "MEMORY.md"]);
+        assert_eq!(
+            names,
+            vec![
+                "AGENTS.md",
+                "ORI_PROJECTION.md",
+                "USER.md",
+                "RULES.md",
+                "MEMORY.md"
+            ]
+        );
     }
 }

@@ -55,7 +55,10 @@ mod tests {
         let seed = [11u8; 32];
         let a = derive_git_sign_keys(&seed).unwrap();
         let b = derive_git_sign_keys(&seed).unwrap();
-        assert_eq!(a.secret_key().to_secret_bytes(), b.secret_key().to_secret_bytes());
+        assert_eq!(
+            a.secret_key().to_secret_bytes(),
+            b.secret_key().to_secret_bytes()
+        );
     }
 
     #[test]
@@ -80,7 +83,10 @@ mod tests {
     fn pubkey_hex_matches_the_keypair() {
         let seed = [7u8; 32];
         let keys = derive_git_sign_keys(&seed).unwrap();
-        assert_eq!(git_sign_pubkey_hex(&seed).unwrap(), keys.public_key().to_hex());
+        assert_eq!(
+            git_sign_pubkey_hex(&seed).unwrap(),
+            keys.public_key().to_hex()
+        );
     }
 
     #[test]
@@ -88,6 +94,9 @@ mod tests {
         let seed = [9u8; 32];
         let sk_hex = git_sign_privkey_hex(&seed).unwrap();
         let reparsed = Keys::parse(&sk_hex).unwrap();
-        assert_eq!(reparsed.public_key(), derive_git_sign_keys(&seed).unwrap().public_key());
+        assert_eq!(
+            reparsed.public_key(),
+            derive_git_sign_keys(&seed).unwrap().public_key()
+        );
     }
 }

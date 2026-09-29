@@ -57,51 +57,51 @@ impl CapabilityToken {
 #[derive(Debug, Clone)]
 pub struct IdentityVault {
     /// Raw entropy seed (Tier 0 — never transmitted, never backed up).
-    pub odu_seed_bytes:         [u8; 32],
+    pub odu_seed_bytes: [u8; 32],
     /// Mnemonic (Tier 0 — same constraints).
-    pub mnemonic:               String,
+    pub mnemonic: String,
     /// Vantage operational API key.
-    pub vantage_api_key:        Option<String>,
+    pub vantage_api_key: Option<String>,
     // ── Chain keys (Tier 1 — regenerable from mnemonic) ─────────────────────
-    pub wallet_private_key_hex: Option<String>,  // Sui
-    pub eth_private_key_hex:    Option<String>,
-    pub eth_address:            Option<String>,
-    pub btc_private_key_hex:    Option<String>,
-    pub btc_address:            Option<String>,
-    pub sol_private_key_hex:    Option<String>,
-    pub sol_address:            Option<String>,
+    pub wallet_private_key_hex: Option<String>, // Sui
+    pub eth_private_key_hex: Option<String>,
+    pub eth_address: Option<String>,
+    pub btc_private_key_hex: Option<String>,
+    pub btc_address: Option<String>,
+    pub sol_private_key_hex: Option<String>,
+    pub sol_address: Option<String>,
     pub cosmos_private_key_hex: Option<String>,
-    pub cosmos_address:         Option<String>,
-    pub aptos_private_key_hex:  Option<String>,
-    pub aptos_address:          Option<String>,
-    pub nostr_private_key_hex:  Option<String>,
-    pub nostr_address:          Option<String>,
+    pub cosmos_address: Option<String>,
+    pub aptos_private_key_hex: Option<String>,
+    pub aptos_address: Option<String>,
+    pub nostr_private_key_hex: Option<String>,
+    pub nostr_address: Option<String>,
     pub minipae_private_key_hex: Option<String>,
-    pub minipae_npub:           Option<String>,
+    pub minipae_npub: Option<String>,
 }
 
 impl IdentityVault {
     /// Convenience constructor from the sealed session blob.
     pub fn from_session(psd: &crate::session::PrivateSessionData) -> Self {
         Self {
-            odu_seed_bytes:         *psd.odu_seed.as_bytes(),
-            mnemonic:               psd.odu_identity.mnemonic.clone(),
-            vantage_api_key:        psd.vantage_api_key.clone(),
+            odu_seed_bytes: *psd.odu_seed.as_bytes(),
+            mnemonic: psd.odu_identity.mnemonic.clone(),
+            vantage_api_key: psd.vantage_api_key.clone(),
             wallet_private_key_hex: psd.wallet_private_key_hex.clone(),
-            eth_private_key_hex:    psd.eth_private_key_hex.clone(),
-            eth_address:            psd.eth_address.clone(),
-            btc_private_key_hex:    psd.btc_private_key_hex.clone(),
-            btc_address:            psd.btc_address.clone(),
-            sol_private_key_hex:    psd.sol_private_key_hex.clone(),
-            sol_address:            psd.sol_address.clone(),
+            eth_private_key_hex: psd.eth_private_key_hex.clone(),
+            eth_address: psd.eth_address.clone(),
+            btc_private_key_hex: psd.btc_private_key_hex.clone(),
+            btc_address: psd.btc_address.clone(),
+            sol_private_key_hex: psd.sol_private_key_hex.clone(),
+            sol_address: psd.sol_address.clone(),
             cosmos_private_key_hex: psd.cosmos_private_key_hex.clone(),
-            cosmos_address:         psd.cosmos_address.clone(),
-            aptos_private_key_hex:  psd.aptos_private_key_hex.clone(),
-            aptos_address:          psd.aptos_address.clone(),
-            nostr_private_key_hex:  psd.nostr_private_key_hex.clone(),
-            nostr_address:          psd.nostr_address.clone(),
+            cosmos_address: psd.cosmos_address.clone(),
+            aptos_private_key_hex: psd.aptos_private_key_hex.clone(),
+            aptos_address: psd.aptos_address.clone(),
+            nostr_private_key_hex: psd.nostr_private_key_hex.clone(),
+            nostr_address: psd.nostr_address.clone(),
             minipae_private_key_hex: psd.minipae_private_key_hex.clone(),
-            minipae_npub:           psd.minipae_npub.clone(),
+            minipae_npub: psd.minipae_npub.clone(),
         }
     }
 }

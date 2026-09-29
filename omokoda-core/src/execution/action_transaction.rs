@@ -8,9 +8,9 @@
 // All outcomes (success, partial, blocked, failed, refused, expired, cancelled)
 // produce a receipt and a structured memory event.
 
-use std::time::{SystemTime, UNIX_EPOCH};
-use serde::{Deserialize, Serialize};
 use crate::gates::ActionIntent;
+use serde::{Deserialize, Serialize};
+use std::time::{SystemTime, UNIX_EPOCH};
 
 fn unix_now() -> u64 {
     SystemTime::now()
@@ -60,7 +60,10 @@ pub enum ActionState {
     /// Action has been scheduled for a future cadence tick.
     Scheduled { next_tick: u64 },
     /// Terminal state — action is complete (Success/Partial/Failed/etc).
-    Closed { outcome: ActionOutcome, closed_at: u64 },
+    Closed {
+        outcome: ActionOutcome,
+        closed_at: u64,
+    },
 }
 
 /// A single step within an action execution, with evidence.
@@ -184,7 +187,10 @@ impl ActionTransaction {
     /// Enter preflight (permission + budget + consent checks).
     pub fn begin_preflight(&mut self) -> Result<(), String> {
         if !matches!(self.state, ActionState::Resolved { .. }) {
-            return Err(format!("cannot enter preflight from state {:?}", self.state));
+            return Err(format!(
+                "cannot enter preflight from state {:?}",
+                self.state
+            ));
         }
         self.state = ActionState::Preflight;
         Ok(())
@@ -216,7 +222,12 @@ impl ActionTransaction {
     }
 
     /// Record a completed step with evidence.
-    pub fn record_step(&mut self, description: String, tool: Option<String>, evidence: Vec<String>) {
+    pub fn record_step(
+        &mut self,
+        description: String,
+        tool: Option<String>,
+        evidence: Vec<String>,
+    ) {
         self.steps.push(ActionStep {
             description,
             tool,
@@ -265,7 +276,9 @@ impl ActionTransaction {
                 .filter(|(_, p)| !*p)
                 .map(|(n, _)| n.clone())
                 .collect();
-            ActionOutcome::Partial { assertions_failed: failed }
+            ActionOutcome::Partial {
+                assertions_failed: failed,
+            }
         };
         let closed = self.close_with_receipt(receipt_id.clone(), outcome.clone(), traces_to);
         closed
@@ -336,7 +349,11 @@ impl ActionTransaction {
     }
 }
 
-fn build_memory_event(ai: &ActionIntent, outcome: &ActionOutcome, steps: &[ActionStep]) -> MemoryEvent {
+fn build_memory_event(
+    ai: &ActionIntent,
+    outcome: &ActionOutcome,
+    steps: &[ActionStep],
+) -> MemoryEvent {
     let evidence: Vec<String> = steps
         .iter()
         .flat_map(|s| s.evidence.iter().cloned())
@@ -346,13 +363,21 @@ fn build_memory_event(ai: &ActionIntent, outcome: &ActionOutcome, steps: &[Actio
         ActionOutcome::Success => ("success".to_string(), None, None),
         ActionOutcome::Partial { assertions_failed } => (
             "partial".to_string(),
-            Some(format!("assertions failed: {}", assertions_failed.join(", "))),
-            Some("verify assertions did not all pass — check preconditions before next attempt".to_string()),
+            Some(format!(
+                "assertions failed: {}",
+                assertions_failed.join(", ")
+            )),
+            Some(
+                "verify assertions did not all pass — check preconditions before next attempt"
+                    .to_string(),
+            ),
         ),
         ActionOutcome::Blocked { gate, reason } => (
             "blocked".to_string(),
             Some(format!("{gate} gate: {reason}")),
-            Some(format!("action was blocked by {gate} — review intent alignment")),
+            Some(format!(
+                "action was blocked by {gate} — review intent alignment"
+            )),
         ),
         ActionOutcome::Failed { error } => (
             "failed".to_string(),
@@ -421,11 +446,8 @@ mod tests {
 
     #[test]
     fn happy_path_state_machine() {
-        let mut tx = ActionTransaction::new(
-            "tx-001".to_string(),
-            "agent-abc".to_string(),
-            test_intent(),
-        );
+        let mut tx =
+            ActionTransaction::new("tx-001".to_string(), "agent-abc".to_string(), test_intent());
         assert!(matches!(tx.state, ActionState::Proposed));
 
         tx.resolve(7, "execution:write_config".to_string()).unwrap();
@@ -457,7 +479,8 @@ mod tests {
 
     #[test]
     fn blocked_produces_receipt() {
-        let mut tx = ActionTransaction::new("tx-002".to_string(), "agent-abc".to_string(), test_intent());
+        let mut tx =
+            ActionTransaction::new("tx-002".to_string(), "agent-abc".to_string(), test_intent());
         tx.resolve(7, "execution:write_config".to_string()).unwrap();
         tx.begin_preflight().unwrap();
 
@@ -469,7 +492,8 @@ mod tests {
 
     #[test]
     fn partial_outcome_on_failed_assertions() {
-        let mut tx = ActionTransaction::new("tx-003".to_string(), "agent-abc".to_string(), test_intent());
+        let mut tx =
+            ActionTransaction::new("tx-003".to_string(), "agent-abc".to_string(), test_intent());
         tx.resolve(7, "execution:write_config".to_string()).unwrap();
         tx.begin_preflight().unwrap();
         tx.authorize(0.75).unwrap();
@@ -485,14 +509,16 @@ mod tests {
 
     #[test]
     fn cancel_before_authorized_produces_receipt() {
-        let mut tx = ActionTransaction::new("tx-004".to_string(), "agent-abc".to_string(), test_intent());
+        let mut tx =
+            ActionTransaction::new("tx-004".to_string(), "agent-abc".to_string(), test_intent());
         let receipt = tx.cancel("operator".to_string());
         assert!(matches!(receipt.outcome, ActionOutcome::Cancelled { .. }));
     }
 
     #[test]
     fn invalid_state_transition_returns_error() {
-        let mut tx = ActionTransaction::new("tx-005".to_string(), "agent-abc".to_string(), test_intent());
+        let mut tx =
+            ActionTransaction::new("tx-005".to_string(), "agent-abc".to_string(), test_intent());
         // Cannot authorize from Proposed (must go through Preflight first)
         let result = tx.authorize(0.9);
         assert!(result.is_err());

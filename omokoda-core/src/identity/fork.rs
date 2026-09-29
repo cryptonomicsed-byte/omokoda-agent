@@ -28,8 +28,8 @@ pub struct ForkResult {
 /// Collision-resistant: different indices → different outputs (HMAC PRF).
 pub fn derive_fork_entropy(parent_k_root: &[u8], fork_index: u32) -> [u8; 32] {
     let hmac_key = fork_index_hmac_key(fork_index);
-    let mut mac = Hmac::<Sha256>::new_from_slice(parent_k_root)
-        .expect("HMAC accepts any key length");
+    let mut mac =
+        Hmac::<Sha256>::new_from_slice(parent_k_root).expect("HMAC accepts any key length");
     mac.update(&hmac_key);
     mac.finalize().into_bytes().into()
 }

@@ -211,7 +211,14 @@ mod tests {
     fn free_text_is_not_a_reference() {
         // This is what the field used to hold on the Vantage side. Emitting
         // it now produces a message that carries no link at all.
-        for junk in ["", "the thing bob asked for", "tro", "tro:", ":123", "TRO:1"] {
+        for junk in [
+            "",
+            "the thing bob asked for",
+            "tro",
+            "tro:",
+            ":123",
+            "TRO:1",
+        ] {
             assert!(junk.parse::<WorkRef>().is_err(), "{junk:?} parsed");
         }
     }
@@ -243,7 +250,10 @@ mod tests {
         // Deriving this from the variant name would work today and break
         // the day the variant is renamed.
         assert_eq!(WorkKind::JobTask.as_str(), "jobtask");
-        assert_eq!("jobtask:9".parse::<WorkRef>().unwrap().kind, WorkKind::JobTask);
+        assert_eq!(
+            "jobtask:9".parse::<WorkRef>().unwrap().kind,
+            WorkKind::JobTask
+        );
     }
 
     #[test]
@@ -286,6 +296,9 @@ mod tests {
 
     #[test]
     fn leading_and_trailing_space_is_tolerated_on_parse() {
-        assert_eq!("  task:7  ".parse::<WorkRef>().unwrap().to_string(), "task:7");
+        assert_eq!(
+            "  task:7  ".parse::<WorkRef>().unwrap().to_string(),
+            "task:7"
+        );
     }
 }

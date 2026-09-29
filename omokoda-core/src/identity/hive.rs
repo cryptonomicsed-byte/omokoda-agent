@@ -8,8 +8,8 @@
 use serde::{Deserialize, Serialize};
 
 use crate::memory::private_schema::{
-    EncounterBody, EncounterKind, EncounterOutcome, EntityCacheBody, EntityTier,
-    IdentifierKind, ObservedIdentifier,
+    EncounterBody, EncounterKind, EncounterOutcome, EntityCacheBody, EntityTier, IdentifierKind,
+    ObservedIdentifier,
 };
 
 // ── Wire types (match hive_mind.py Pydantic models) ──────────────────────────
@@ -79,74 +79,74 @@ pub struct EntityDetail {
 
 pub fn identifier_kind_to_str(k: &IdentifierKind) -> &'static str {
     match k {
-        IdentifierKind::WalletEth    => "wallet_eth",
-        IdentifierKind::WalletBtc    => "wallet_btc",
-        IdentifierKind::WalletSol    => "wallet_sol",
-        IdentifierKind::WalletSui    => "wallet_sui",
+        IdentifierKind::WalletEth => "wallet_eth",
+        IdentifierKind::WalletBtc => "wallet_btc",
+        IdentifierKind::WalletSol => "wallet_sol",
+        IdentifierKind::WalletSui => "wallet_sui",
         IdentifierKind::WalletCosmos => "wallet_cosmos",
-        IdentifierKind::WalletNostr  => "wallet_nostr",
-        IdentifierKind::Email        => "email",
-        IdentifierKind::GitHub       => "github",
-        IdentifierKind::Discord      => "discord",
-        IdentifierKind::Telegram     => "telegram",
-        IdentifierKind::Did          => "did",
-        IdentifierKind::Nostr        => "nostr",
-        IdentifierKind::Custom(_)    => "custom",
+        IdentifierKind::WalletNostr => "wallet_nostr",
+        IdentifierKind::Email => "email",
+        IdentifierKind::GitHub => "github",
+        IdentifierKind::Discord => "discord",
+        IdentifierKind::Telegram => "telegram",
+        IdentifierKind::Did => "did",
+        IdentifierKind::Nostr => "nostr",
+        IdentifierKind::Custom(_) => "custom",
     }
 }
 
 pub fn encounter_kind_to_str(k: &EncounterKind) -> &'static str {
     match k {
-        EncounterKind::Conversation  => "conversation",
-        EncounterKind::Trade         => "trade",
-        EncounterKind::Request       => "request",
-        EncounterKind::Governance    => "governance",
+        EncounterKind::Conversation => "conversation",
+        EncounterKind::Trade => "trade",
+        EncounterKind::Request => "request",
+        EncounterKind::Governance => "governance",
         EncounterKind::Collaboration => "collaboration",
-        EncounterKind::Dispute       => "dispute",
-        EncounterKind::Observation   => "observation",
-        EncounterKind::Other(_)      => "other",
+        EncounterKind::Dispute => "dispute",
+        EncounterKind::Observation => "observation",
+        EncounterKind::Other(_) => "other",
     }
 }
 
 pub fn outcome_to_str(o: &EncounterOutcome) -> &'static str {
     match o {
         EncounterOutcome::Positive => "positive",
-        EncounterOutcome::Neutral  => "neutral",
+        EncounterOutcome::Neutral => "neutral",
         EncounterOutcome::Negative => "negative",
-        EncounterOutcome::Hostile  => "hostile",
-        EncounterOutcome::Unknown  => "unknown",
+        EncounterOutcome::Hostile => "hostile",
+        EncounterOutcome::Unknown => "unknown",
     }
 }
 
 pub fn tier_to_str(t: &EntityTier) -> &'static str {
     match t {
-        EntityTier::Founder   => "founder",
-        EntityTier::Council   => "council",
-        EntityTier::Friend    => "friend",
-        EntityTier::Trader    => "trader",
-        EntityTier::Investor  => "investor",
+        EntityTier::Founder => "founder",
+        EntityTier::Council => "council",
+        EntityTier::Friend => "friend",
+        EntityTier::Trader => "trader",
+        EntityTier::Investor => "investor",
         EntityTier::Developer => "developer",
-        EntityTier::User      => "user",
-        EntityTier::Observer  => "observer",
-        EntityTier::Unknown   => "unknown",
-        EntityTier::Suspicious=> "suspicious",
-        EntityTier::Enemy     => "enemy",
+        EntityTier::User => "user",
+        EntityTier::Observer => "observer",
+        EntityTier::Unknown => "unknown",
+        EntityTier::Suspicious => "suspicious",
+        EntityTier::Enemy => "enemy",
     }
 }
 
 pub fn tier_from_str(s: &str) -> EntityTier {
     match s {
-        "founder"    => EntityTier::Founder,
-        "council"    => EntityTier::Council,
-        "friend"     => EntityTier::Friend,
-        "trader"     => EntityTier::Trader,
-        "investor"   => EntityTier::Investor,
-        "developer"  => EntityTier::Developer,
-        "user"       => EntityTier::User,
-        "observer"   => EntityTier::Observer,
+        "founder" => EntityTier::Founder,
+        "council" => EntityTier::Council,
+        "friend" => EntityTier::Friend,
+        "trader" => EntityTier::Trader,
+        "investor" => EntityTier::Investor,
+        "developer" => EntityTier::Developer,
+        "user" => EntityTier::User,
+        "observer" => EntityTier::Observer,
         "suspicious" => EntityTier::Suspicious,
-        "enemy"      => EntityTier::Enemy,
-        _            => EntityTier::Unknown,
+        "enemy" => EntityTier::Enemy,
+        _ => EntityTier::Unknown,
     }
 }
 
@@ -170,7 +170,7 @@ impl HiveMindClient {
 
     pub fn from_env() -> Option<Self> {
         let base = std::env::var("VANTAGE_URL").ok()?;
-        let key  = std::env::var("VANTAGE_API_KEY").ok()?;
+        let key = std::env::var("VANTAGE_API_KEY").ok()?;
         Some(Self::new(base, key))
     }
 
@@ -180,18 +180,20 @@ impl HiveMindClient {
 
     /// Look up an entity by a single identifier (e.g. wallet address or email).
     /// Returns None if the hive has never seen this identifier.
-    pub async fn resolve(
-        &self,
-        kind: &IdentifierKind,
-        value: &str,
-    ) -> Option<ResolveResponse> {
+    pub async fn resolve(&self, kind: &IdentifierKind, value: &str) -> Option<ResolveResponse> {
         let url = format!("{}/api/hive/resolve", self.base_url);
         let (k, v) = (auth_key_str(), self.api_key.clone());
-        let resp = self.client.get(&url)
+        let resp = self
+            .client
+            .get(&url)
             .header(k, v)
             .query(&[("kind", identifier_kind_to_str(kind)), ("value", value)])
-            .send().await.ok()?;
-        if resp.status() == 404 { return None; }
+            .send()
+            .await
+            .ok()?;
+        if resp.status() == 404 {
+            return None;
+        }
         resp.json::<ResolveResponse>().await.ok()
     }
 
@@ -200,27 +202,32 @@ impl HiveMindClient {
         let url = format!("{}/api/hive/entities/{}", self.base_url, entity_id);
         let (k, v) = (auth_key_str(), self.api_key.clone());
         let resp = self.client.get(&url).header(k, v).send().await.ok()?;
-        if resp.status() == 404 { return None; }
+        if resp.status() == 404 {
+            return None;
+        }
         resp.json::<EntityDetail>().await.ok()
     }
 
     /// Register a new entity the agent just discovered.
     /// Returns the assigned entity_id.
-    pub async fn create_entity(
-        &self,
-        req: CreateEntityRequest,
-    ) -> Result<String, String> {
+    pub async fn create_entity(&self, req: CreateEntityRequest) -> Result<String, String> {
         let url = format!("{}/api/hive/entities", self.base_url);
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .header(auth_key_str(), &self.api_key)
             .json(&req)
-            .send().await.map_err(|e| e.to_string())?;
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
         let status = resp.status();
         let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
         if !status.is_success() {
             return Err(format!("create_entity {}: {}", status, body));
         }
-        body["entity_id"].as_str().map(str::to_string)
+        body["entity_id"]
+            .as_str()
+            .map(str::to_string)
             .ok_or_else(|| "missing entity_id in response".to_string())
     }
 
@@ -228,7 +235,9 @@ impl HiveMindClient {
     /// The private EncounterBody (with honest notes) must be saved separately
     /// to the agent's own MemoryVault — this only sends the public_summary.
     pub async fn log_encounter(&self, enc: &EncounterBody) -> Result<String, String> {
-        let entity_id = enc.entity_id.clone()
+        let entity_id = enc
+            .entity_id
+            .clone()
             .ok_or_else(|| "encounter must have entity_id resolved before logging".to_string())?;
 
         let req = LogEncounterRequest {
@@ -242,26 +251,36 @@ impl HiveMindClient {
         };
 
         let url = format!("{}/api/hive/encounters", self.base_url);
-        let resp = self.client.post(&url)
+        let resp = self
+            .client
+            .post(&url)
             .header(auth_key_str(), &self.api_key)
             .json(&req)
-            .send().await.map_err(|e| e.to_string())?;
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
         let status = resp.status();
         let body: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
         if !status.is_success() {
             return Err(format!("log_encounter {}: {}", status, body));
         }
-        body["encounter_id"].as_str().map(str::to_string)
+        body["encounter_id"]
+            .as_str()
+            .map(str::to_string)
             .ok_or_else(|| "missing encounter_id".to_string())
     }
 
     /// Cast or update this agent's tier vote for an entity.
     pub async fn vote_tier(&self, entity_id: &str, tier: &EntityTier) -> Result<(), String> {
         let url = format!("{}/api/hive/entities/{}/tier", self.base_url, entity_id);
-        let resp = self.client.put(&url)
+        let resp = self
+            .client
+            .put(&url)
             .header(auth_key_str(), &self.api_key)
             .query(&[("tier", tier_to_str(tier))])
-            .send().await.map_err(|e| e.to_string())?;
+            .send()
+            .await
+            .map_err(|e| e.to_string())?;
         if !resp.status().is_success() {
             return Err(format!("vote_tier {}", resp.status()));
         }

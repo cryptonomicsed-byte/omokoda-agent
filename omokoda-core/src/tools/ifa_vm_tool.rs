@@ -188,7 +188,9 @@ impl Tool for IfaVmTool {
                         })),
                     }
                 }
-                other => Err(format!("unknown action: {other}; use cast|cast_dual|cast_full|execute|lookup")),
+                other => Err(format!(
+                    "unknown action: {other}; use cast|cast_dual|cast_full|execute|lookup"
+                )),
             }
         })
         .await
@@ -244,7 +246,9 @@ mod tests {
     #[tokio::test]
     async fn execute_requires_tier2() {
         let tool = IfaVmTool;
-        let result = tool.execute(r#"{"action":"execute","program":["CAST"]}"#, &ctx(1)).await;
+        let result = tool
+            .execute(r#"{"action":"execute","program":["CAST"]}"#, &ctx(1))
+            .await;
         assert!(result.is_err());
         assert!(result.unwrap_err().contains("tier 2"));
     }
@@ -252,7 +256,9 @@ mod tests {
     #[tokio::test]
     async fn lookup_finds_known_odu() {
         let tool = IfaVmTool;
-        let result = tool.execute(r#"{"action":"lookup","name":"Ogbe"}"#, &ctx(0)).await;
+        let result = tool
+            .execute(r#"{"action":"lookup","name":"Ogbe"}"#, &ctx(0))
+            .await;
         assert!(result.is_ok());
         let (out, _) = result.unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();

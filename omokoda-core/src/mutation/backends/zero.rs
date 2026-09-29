@@ -13,10 +13,10 @@
 
 use std::process::Command;
 
-use crate::mutation::{MutationDomain, MutationPlan};
 use crate::mutation::router::{
     ApplyResult, BackendContext, InspectResult, MutationBackend, ValidationResult,
 };
+use crate::mutation::{MutationDomain, MutationPlan};
 use crate::tools::zero_tool::resolve_zero_binary;
 
 pub struct ZeroBackend;
@@ -34,10 +34,13 @@ impl ZeroBackend {
 
         if let Ok(v) = serde_json::from_str::<serde_json::Value>(source) {
             if let Some(arr) = v.get("args").and_then(|a| a.as_array()) {
-                return Ok(arr.iter().map(|x| match x {
-                    serde_json::Value::String(s) => s.clone(),
-                    other => other.to_string(),
-                }).collect());
+                return Ok(arr
+                    .iter()
+                    .map(|x| match x {
+                        serde_json::Value::String(s) => s.clone(),
+                        other => other.to_string(),
+                    })
+                    .collect());
             }
         }
         // Plain verb fallback: treat operation as the sole argument.
@@ -71,7 +74,11 @@ impl ZeroBackend {
                 args.first().map(String::as_str).unwrap_or(""),
                 output.status,
                 stderr,
-                if stdout.is_empty() { String::new() } else { format!("\nstdout: {stdout}") }
+                if stdout.is_empty() {
+                    String::new()
+                } else {
+                    format!("\nstdout: {stdout}")
+                }
             ))
         }
     }
@@ -102,7 +109,11 @@ impl MutationBackend for ZeroBackend {
         })
     }
 
-    fn validate(&self, plan: &MutationPlan, ctx: &BackendContext) -> Result<ValidationResult, String> {
+    fn validate(
+        &self,
+        plan: &MutationPlan,
+        ctx: &BackendContext,
+    ) -> Result<ValidationResult, String> {
         // Resolve the binary first — a missing binary is a validation failure, not a panic.
         if resolve_zero_binary().is_none() {
             return Ok(ValidationResult {
@@ -117,9 +128,29 @@ impl MutationBackend for ZeroBackend {
         // Allowlist enforcement (mirrors zero_tool.rs).
         const WRITE_SUBCOMMANDS: &[&str] = &["patch", "run"];
         const CHECK_SUBCOMMANDS: &[&str] = &["check", "test"];
-        const READ_SUBCOMMANDS:  &[&str] = &["query", "view", "inspect", "explain", "skills", "version", "--version"];
+        const READ_SUBCOMMANDS: &[&str] = &[
+            "query",
+            "view",
+            "inspect",
+            "explain",
+            "skills",
+            "version",
+            "--version",
+        ];
 
-        let all_allowed: &[&str] = &["query","view","inspect","check","test","patch","explain","run","skills","version","--version"];
+        let all_allowed: &[&str] = &[
+            "query",
+            "view",
+            "inspect",
+            "check",
+            "test",
+            "patch",
+            "explain",
+            "run",
+            "skills",
+            "version",
+            "--version",
+        ];
         if !all_allowed.contains(&sub) {
             return Ok(ValidationResult {
                 passed: false,
@@ -131,14 +162,26 @@ impl MutationBackend for ZeroBackend {
         if WRITE_SUBCOMMANDS.contains(&sub) {
             let check_args: Vec<String> = vec!["check".to_string()];
             match Self::run_subcommand(&check_args, ctx.workspace_root) {
-                Ok(_) => Ok(ValidationResult { passed: true, reason: "zero check passed".to_string() }),
-                Err(e) => Ok(ValidationResult { passed: false, reason: format!("zero check failed: {e}") }),
+                Ok(_) => Ok(ValidationResult {
+                    passed: true,
+                    reason: "zero check passed".to_string(),
+                }),
+                Err(e) => Ok(ValidationResult {
+                    passed: false,
+                    reason: format!("zero check failed: {e}"),
+                }),
             }
         } else if CHECK_SUBCOMMANDS.contains(&sub) || READ_SUBCOMMANDS.contains(&sub) {
             // Read / check operations are always valid.
-            Ok(ValidationResult { passed: true, reason: format!("zero {sub} is read-only") })
+            Ok(ValidationResult {
+                passed: true,
+                reason: format!("zero {sub} is read-only"),
+            })
         } else {
-            Ok(ValidationResult { passed: true, reason: "zero subcommand allowed".to_string() })
+            Ok(ValidationResult {
+                passed: true,
+                reason: "zero subcommand allowed".to_string(),
+            })
         }
     }
 
@@ -170,8 +213,8 @@ impl MutationBackend for ZeroBackend {
 mod tests {
     use super::*;
     use crate::ifscript_gate::ActionCategory;
-    use crate::mutation::{MutationDomain, MutationPlan};
     use crate::mutation::router::BackendContext;
+    use crate::mutation::{MutationDomain, MutationPlan};
 
     fn program_plan(op: &str) -> MutationPlan {
         let mut p = MutationPlan::from_tool_call("agent", op, ActionCategory::Execution, 5, 0);
@@ -230,7 +273,11 @@ mod tests {
         let ctx = BackendContext::empty();
         // With /bin/echo as the binary, apply() just echoes the args back.
         let r = ZeroBackend.apply(&plan, &ctx).unwrap();
-        assert!(r.output.contains("query"), "expected echo output; got: {}", r.output);
+        assert!(
+            r.output.contains("query"),
+            "expected echo output; got: {}",
+            r.output
+        );
         std::env::remove_var("ZERO_BIN");
     }
 

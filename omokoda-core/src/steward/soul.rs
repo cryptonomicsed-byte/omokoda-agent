@@ -308,9 +308,13 @@ mod tests {
         let emotion = fresh();
         let params = IrisEngine::params("hello", &emotion);
         let soma = empty_soma();
-        let reading = SensorReading { battery_pct: 42, temp_c: 38.5, hour: 14 };
-        let builder = SoulBuilder::new("A", "id", &params, &emotion, &soma)
-            .with_device_context(reading);
+        let reading = SensorReading {
+            battery_pct: 42,
+            temp_c: 38.5,
+            hour: 14,
+        };
+        let builder =
+            SoulBuilder::new("A", "id", &params, &emotion, &soma).with_device_context(reading);
         let prompt = builder.build();
         assert!(prompt.contains("42%"));
         assert!(prompt.contains("14:00"));
@@ -334,8 +338,7 @@ mod tests {
         let params = IrisEngine::params("hello", &emotion);
         let soma = empty_soma();
         let mems: Vec<String> = (0..8).map(|i| format!("memory {}", i)).collect();
-        let builder = SoulBuilder::new("A", "id", &params, &emotion, &soma)
-            .with_memories(mems);
+        let builder = SoulBuilder::new("A", "id", &params, &emotion, &soma).with_memories(mems);
         let prompt = builder.build();
         assert!(prompt.contains("Memory"));
         assert!(prompt.contains("memory 4"));

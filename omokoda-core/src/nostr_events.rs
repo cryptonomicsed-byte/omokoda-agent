@@ -5,7 +5,6 @@
 /// relay unreachability never blocks agent operations.
 ///
 /// Phase 8.1 — NIP-OSO-01/05 agent presence layer.
-
 use serde_json::{json, Value};
 
 // ── Odù name table (256 entries, index 0–255) ────────────────────────────────
@@ -14,85 +13,277 @@ use serde_json::{json, Value};
 // time — callers need only serde_json and tracing.
 static ODU_NAMES: &[&str] = &[
     // Major 0 (Ogbe) — 0..15
-    "Ogbe-Meji", "Ogbe-Oyeku", "Ogbe-Iwori", "Ogbe-Odi",
-    "Ogbe-Irosun", "Ogbe-Owonrin", "Ogbe-Obara", "Ogbe-Okonron",
-    "Ogbe-Ogunda", "Ogbe-Osa", "Ogbe-Ika", "Ogbe-Oturupon",
-    "Ogbe-Otura", "Ogbe-Irete", "Ogbe-Ose", "Ogbe-Ofu",
+    "Ogbe-Meji",
+    "Ogbe-Oyeku",
+    "Ogbe-Iwori",
+    "Ogbe-Odi",
+    "Ogbe-Irosun",
+    "Ogbe-Owonrin",
+    "Ogbe-Obara",
+    "Ogbe-Okonron",
+    "Ogbe-Ogunda",
+    "Ogbe-Osa",
+    "Ogbe-Ika",
+    "Ogbe-Oturupon",
+    "Ogbe-Otura",
+    "Ogbe-Irete",
+    "Ogbe-Ose",
+    "Ogbe-Ofu",
     // Major 1 (Oyeku) — 16..31
-    "Oyeku-Ogbe", "Oyeku-Meji", "Oyeku-Iwori", "Oyeku-Odi",
-    "Oyeku-Irosun", "Oyeku-Owonrin", "Oyeku-Obara", "Oyeku-Okonron",
-    "Oyeku-Ogunda", "Oyeku-Osa", "Oyeku-Ika", "Oyeku-Oturupon",
-    "Oyeku-Otura", "Oyeku-Irete", "Oyeku-Ose", "Oyeku-Ofu",
+    "Oyeku-Ogbe",
+    "Oyeku-Meji",
+    "Oyeku-Iwori",
+    "Oyeku-Odi",
+    "Oyeku-Irosun",
+    "Oyeku-Owonrin",
+    "Oyeku-Obara",
+    "Oyeku-Okonron",
+    "Oyeku-Ogunda",
+    "Oyeku-Osa",
+    "Oyeku-Ika",
+    "Oyeku-Oturupon",
+    "Oyeku-Otura",
+    "Oyeku-Irete",
+    "Oyeku-Ose",
+    "Oyeku-Ofu",
     // Major 2 (Iwori) — 32..47
-    "Iwori-Ogbe", "Iwori-Oyeku", "Iwori-Meji", "Iwori-Odi",
-    "Iwori-Irosun", "Iwori-Owonrin", "Iwori-Obara", "Iwori-Okonron",
-    "Iwori-Ogunda", "Iwori-Osa", "Iwori-Ika", "Iwori-Oturupon",
-    "Iwori-Otura", "Iwori-Irete", "Iwori-Ose", "Iwori-Ofu",
+    "Iwori-Ogbe",
+    "Iwori-Oyeku",
+    "Iwori-Meji",
+    "Iwori-Odi",
+    "Iwori-Irosun",
+    "Iwori-Owonrin",
+    "Iwori-Obara",
+    "Iwori-Okonron",
+    "Iwori-Ogunda",
+    "Iwori-Osa",
+    "Iwori-Ika",
+    "Iwori-Oturupon",
+    "Iwori-Otura",
+    "Iwori-Irete",
+    "Iwori-Ose",
+    "Iwori-Ofu",
     // Major 3 (Odi) — 48..63
-    "Odi-Ogbe", "Odi-Oyeku", "Odi-Iwori", "Odi-Meji",
-    "Odi-Irosun", "Odi-Owonrin", "Odi-Obara", "Odi-Okonron",
-    "Odi-Ogunda", "Odi-Osa", "Odi-Ika", "Odi-Oturupon",
-    "Odi-Otura", "Odi-Irete", "Odi-Ose", "Odi-Ofu",
+    "Odi-Ogbe",
+    "Odi-Oyeku",
+    "Odi-Iwori",
+    "Odi-Meji",
+    "Odi-Irosun",
+    "Odi-Owonrin",
+    "Odi-Obara",
+    "Odi-Okonron",
+    "Odi-Ogunda",
+    "Odi-Osa",
+    "Odi-Ika",
+    "Odi-Oturupon",
+    "Odi-Otura",
+    "Odi-Irete",
+    "Odi-Ose",
+    "Odi-Ofu",
     // Major 4 (Irosun) — 64..79
-    "Irosun-Ogbe", "Irosun-Oyeku", "Irosun-Iwori", "Irosun-Odi",
-    "Irosun-Meji", "Irosun-Owonrin", "Irosun-Obara", "Irosun-Okonron",
-    "Irosun-Ogunda", "Irosun-Osa", "Irosun-Ika", "Irosun-Oturupon",
-    "Irosun-Otura", "Irosun-Irete", "Irosun-Ose", "Irosun-Ofu",
+    "Irosun-Ogbe",
+    "Irosun-Oyeku",
+    "Irosun-Iwori",
+    "Irosun-Odi",
+    "Irosun-Meji",
+    "Irosun-Owonrin",
+    "Irosun-Obara",
+    "Irosun-Okonron",
+    "Irosun-Ogunda",
+    "Irosun-Osa",
+    "Irosun-Ika",
+    "Irosun-Oturupon",
+    "Irosun-Otura",
+    "Irosun-Irete",
+    "Irosun-Ose",
+    "Irosun-Ofu",
     // Major 5 (Owonrin) — 80..95
-    "Owonrin-Ogbe", "Owonrin-Oyeku", "Owonrin-Iwori", "Owonrin-Odi",
-    "Owonrin-Irosun", "Owonrin-Meji", "Owonrin-Obara", "Owonrin-Okonron",
-    "Owonrin-Ogunda", "Owonrin-Osa", "Owonrin-Ika", "Owonrin-Oturupon",
-    "Owonrin-Otura", "Owonrin-Irete", "Owonrin-Ose", "Owonrin-Ofu",
+    "Owonrin-Ogbe",
+    "Owonrin-Oyeku",
+    "Owonrin-Iwori",
+    "Owonrin-Odi",
+    "Owonrin-Irosun",
+    "Owonrin-Meji",
+    "Owonrin-Obara",
+    "Owonrin-Okonron",
+    "Owonrin-Ogunda",
+    "Owonrin-Osa",
+    "Owonrin-Ika",
+    "Owonrin-Oturupon",
+    "Owonrin-Otura",
+    "Owonrin-Irete",
+    "Owonrin-Ose",
+    "Owonrin-Ofu",
     // Major 6 (Obara) — 96..111
-    "Obara-Ogbe", "Obara-Oyeku", "Obara-Iwori", "Obara-Odi",
-    "Obara-Irosun", "Obara-Owonrin", "Obara-Meji", "Obara-Okonron",
-    "Obara-Ogunda", "Obara-Osa", "Obara-Ika", "Obara-Oturupon",
-    "Obara-Otura", "Obara-Irete", "Obara-Ose", "Obara-Ofu",
+    "Obara-Ogbe",
+    "Obara-Oyeku",
+    "Obara-Iwori",
+    "Obara-Odi",
+    "Obara-Irosun",
+    "Obara-Owonrin",
+    "Obara-Meji",
+    "Obara-Okonron",
+    "Obara-Ogunda",
+    "Obara-Osa",
+    "Obara-Ika",
+    "Obara-Oturupon",
+    "Obara-Otura",
+    "Obara-Irete",
+    "Obara-Ose",
+    "Obara-Ofu",
     // Major 7 (Okonron) — 112..127
-    "Okonron-Ogbe", "Okonron-Oyeku", "Okonron-Iwori", "Okonron-Odi",
-    "Okonron-Irosun", "Okonron-Owonrin", "Okonron-Obara", "Okonron-Meji",
-    "Okonron-Ogunda", "Okonron-Osa", "Okonron-Ika", "Okonron-Oturupon",
-    "Okonron-Otura", "Okonron-Irete", "Okonron-Ose", "Okonron-Ofu",
+    "Okonron-Ogbe",
+    "Okonron-Oyeku",
+    "Okonron-Iwori",
+    "Okonron-Odi",
+    "Okonron-Irosun",
+    "Okonron-Owonrin",
+    "Okonron-Obara",
+    "Okonron-Meji",
+    "Okonron-Ogunda",
+    "Okonron-Osa",
+    "Okonron-Ika",
+    "Okonron-Oturupon",
+    "Okonron-Otura",
+    "Okonron-Irete",
+    "Okonron-Ose",
+    "Okonron-Ofu",
     // Major 8 (Ogunda) — 128..143
-    "Ogunda-Ogbe", "Ogunda-Oyeku", "Ogunda-Iwori", "Ogunda-Odi",
-    "Ogunda-Irosun", "Ogunda-Owonrin", "Ogunda-Obara", "Ogunda-Okonron",
-    "Ogunda-Meji", "Ogunda-Osa", "Ogunda-Ika", "Ogunda-Oturupon",
-    "Ogunda-Otura", "Ogunda-Irete", "Ogunda-Ose", "Ogunda-Ofu",
+    "Ogunda-Ogbe",
+    "Ogunda-Oyeku",
+    "Ogunda-Iwori",
+    "Ogunda-Odi",
+    "Ogunda-Irosun",
+    "Ogunda-Owonrin",
+    "Ogunda-Obara",
+    "Ogunda-Okonron",
+    "Ogunda-Meji",
+    "Ogunda-Osa",
+    "Ogunda-Ika",
+    "Ogunda-Oturupon",
+    "Ogunda-Otura",
+    "Ogunda-Irete",
+    "Ogunda-Ose",
+    "Ogunda-Ofu",
     // Major 9 (Osa) — 144..159
-    "Osa-Ogbe", "Osa-Oyeku", "Osa-Iwori", "Osa-Odi",
-    "Osa-Irosun", "Osa-Owonrin", "Osa-Obara", "Osa-Okonron",
-    "Osa-Ogunda", "Osa-Meji", "Osa-Ika", "Osa-Oturupon",
-    "Osa-Otura", "Osa-Irete", "Osa-Ose", "Osa-Ofu",
+    "Osa-Ogbe",
+    "Osa-Oyeku",
+    "Osa-Iwori",
+    "Osa-Odi",
+    "Osa-Irosun",
+    "Osa-Owonrin",
+    "Osa-Obara",
+    "Osa-Okonron",
+    "Osa-Ogunda",
+    "Osa-Meji",
+    "Osa-Ika",
+    "Osa-Oturupon",
+    "Osa-Otura",
+    "Osa-Irete",
+    "Osa-Ose",
+    "Osa-Ofu",
     // Major 10 (Ika) — 160..175
-    "Ika-Ogbe", "Ika-Oyeku", "Ika-Iwori", "Ika-Odi",
-    "Ika-Irosun", "Ika-Owonrin", "Ika-Obara", "Ika-Okonron",
-    "Ika-Ogunda", "Ika-Osa", "Ika-Meji", "Ika-Oturupon",
-    "Ika-Otura", "Ika-Irete", "Ika-Ose", "Ika-Ofu",
+    "Ika-Ogbe",
+    "Ika-Oyeku",
+    "Ika-Iwori",
+    "Ika-Odi",
+    "Ika-Irosun",
+    "Ika-Owonrin",
+    "Ika-Obara",
+    "Ika-Okonron",
+    "Ika-Ogunda",
+    "Ika-Osa",
+    "Ika-Meji",
+    "Ika-Oturupon",
+    "Ika-Otura",
+    "Ika-Irete",
+    "Ika-Ose",
+    "Ika-Ofu",
     // Major 11 (Oturupon) — 176..191
-    "Oturupon-Ogbe", "Oturupon-Oyeku", "Oturupon-Iwori", "Oturupon-Odi",
-    "Oturupon-Irosun", "Oturupon-Owonrin", "Oturupon-Obara", "Oturupon-Okonron",
-    "Oturupon-Ogunda", "Oturupon-Osa", "Oturupon-Ika", "Oturupon-Meji",
-    "Oturupon-Otura", "Oturupon-Irete", "Oturupon-Ose", "Oturupon-Ofu",
+    "Oturupon-Ogbe",
+    "Oturupon-Oyeku",
+    "Oturupon-Iwori",
+    "Oturupon-Odi",
+    "Oturupon-Irosun",
+    "Oturupon-Owonrin",
+    "Oturupon-Obara",
+    "Oturupon-Okonron",
+    "Oturupon-Ogunda",
+    "Oturupon-Osa",
+    "Oturupon-Ika",
+    "Oturupon-Meji",
+    "Oturupon-Otura",
+    "Oturupon-Irete",
+    "Oturupon-Ose",
+    "Oturupon-Ofu",
     // Major 12 (Otura) — 192..207
-    "Otura-Ogbe", "Otura-Oyeku", "Otura-Iwori", "Otura-Odi",
-    "Otura-Irosun", "Otura-Owonrin", "Otura-Obara", "Otura-Okonron",
-    "Otura-Ogunda", "Otura-Osa", "Otura-Ika", "Otura-Oturupon",
-    "Otura-Meji", "Otura-Irete", "Otura-Ose", "Otura-Ofu",
+    "Otura-Ogbe",
+    "Otura-Oyeku",
+    "Otura-Iwori",
+    "Otura-Odi",
+    "Otura-Irosun",
+    "Otura-Owonrin",
+    "Otura-Obara",
+    "Otura-Okonron",
+    "Otura-Ogunda",
+    "Otura-Osa",
+    "Otura-Ika",
+    "Otura-Oturupon",
+    "Otura-Meji",
+    "Otura-Irete",
+    "Otura-Ose",
+    "Otura-Ofu",
     // Major 13 (Irete) — 208..223
-    "Irete-Ogbe", "Irete-Oyeku", "Irete-Iwori", "Irete-Odi",
-    "Irete-Irosun", "Irete-Owonrin", "Irete-Obara", "Irete-Okonron",
-    "Irete-Ogunda", "Irete-Osa", "Irete-Ika", "Irete-Oturupon",
-    "Irete-Otura", "Irete-Meji", "Irete-Ose", "Irete-Ofu",
+    "Irete-Ogbe",
+    "Irete-Oyeku",
+    "Irete-Iwori",
+    "Irete-Odi",
+    "Irete-Irosun",
+    "Irete-Owonrin",
+    "Irete-Obara",
+    "Irete-Okonron",
+    "Irete-Ogunda",
+    "Irete-Osa",
+    "Irete-Ika",
+    "Irete-Oturupon",
+    "Irete-Otura",
+    "Irete-Meji",
+    "Irete-Ose",
+    "Irete-Ofu",
     // Major 14 (Ose) — 224..239
-    "Ose-Ogbe", "Ose-Oyeku", "Ose-Iwori", "Ose-Odi",
-    "Ose-Irosun", "Ose-Owonrin", "Ose-Obara", "Ose-Okonron",
-    "Ose-Ogunda", "Ose-Osa", "Ose-Ika", "Ose-Oturupon",
-    "Ose-Otura", "Ose-Irete", "Ose-Meji", "Ose-Ofu",
+    "Ose-Ogbe",
+    "Ose-Oyeku",
+    "Ose-Iwori",
+    "Ose-Odi",
+    "Ose-Irosun",
+    "Ose-Owonrin",
+    "Ose-Obara",
+    "Ose-Okonron",
+    "Ose-Ogunda",
+    "Ose-Osa",
+    "Ose-Ika",
+    "Ose-Oturupon",
+    "Ose-Otura",
+    "Ose-Irete",
+    "Ose-Meji",
+    "Ose-Ofu",
     // Major 15 (Ofu/Ofun) — 240..255
-    "Ofu-Ogbe", "Ofu-Oyeku", "Ofu-Iwori", "Ofu-Odi",
-    "Ofu-Irosun", "Ofu-Owonrin", "Ofu-Obara", "Ofu-Okonron",
-    "Ofu-Ogunda", "Ofu-Osa", "Ofu-Ika", "Ofu-Oturupon",
-    "Ofu-Otura", "Ofu-Irete", "Ofu-Ose", "Ofu-Meji",
+    "Ofu-Ogbe",
+    "Ofu-Oyeku",
+    "Ofu-Iwori",
+    "Ofu-Odi",
+    "Ofu-Irosun",
+    "Ofu-Owonrin",
+    "Ofu-Obara",
+    "Ofu-Okonron",
+    "Ofu-Ogunda",
+    "Ofu-Osa",
+    "Ofu-Ika",
+    "Ofu-Oturupon",
+    "Ofu-Otura",
+    "Ofu-Irete",
+    "Ofu-Ose",
+    "Ofu-Meji",
 ];
 
 /// Return the canonical Odù name for an index (0–255).
@@ -131,8 +322,7 @@ pub fn build_profile_event(
         "website": format!("https://{}/agents/{}/public", vantage_host, npub),
         "nip05": format!("{}@{}", &npub[..8.min(npub.len())], vantage_host),
     });
-    let content_str =
-        serde_json::to_string(&content_obj).unwrap_or_else(|_| "{}".to_string());
+    let content_str = serde_json::to_string(&content_obj).unwrap_or_else(|_| "{}".to_string());
 
     json!({
         "kind": 0,
@@ -175,12 +365,7 @@ pub fn build_heartbeat_event(
 ///
 /// Used for human-readable milestone posts: first act, tier-up, fork, etc.
 /// Tags include `t` (topic) for relay-side categorisation.
-pub fn build_lifecycle_note(
-    npub: &str,
-    agent_id: &str,
-    transition: &str,
-    detail: &str,
-) -> Value {
+pub fn build_lifecycle_note(npub: &str, agent_id: &str, transition: &str, detail: &str) -> Value {
     json!({
         "kind": 1,
         "pubkey": npub,
@@ -345,14 +530,7 @@ pub async fn publish_birth_profile(
         vantage_host
     };
 
-    let event = build_profile_event(
-        npub,
-        bipon39_phrase,
-        odu_index,
-        tier,
-        &vantage_host,
-        None,
-    );
+    let event = build_profile_event(npub, bipon39_phrase, odu_index, tier, &vantage_host, None);
 
     if let Err(e) = publish_event(event, nsec_hex, &relay_list).await {
         tracing::warn!("nostr birth profile publish failed (fail-open): {}", e);
@@ -456,10 +634,10 @@ pub fn build_agent_identity_event(
     .to_string();
 
     let mut tags = vec![
-        json!(["d",        agent_id]),
-        json!(["bipon39",  bipon39_hint]),
-        json!(["odu",      odu_index.to_string()]),
-        json!(["tier",     tier.to_string()]),
+        json!(["d", agent_id]),
+        json!(["bipon39", bipon39_hint]),
+        json!(["odu", odu_index.to_string()]),
+        json!(["tier", tier.to_string()]),
         json!(["protocol", "oso", "1.0"]),
     ];
     if let Some(anchor) = l1_anchor {
@@ -479,10 +657,7 @@ pub fn build_capability_ad_event(
     capabilities: &[String],
     tier: u8,
 ) -> Value {
-    let mut tags = vec![
-        json!(["d",    agent_id]),
-        json!(["tier", tier.to_string()]),
-    ];
+    let mut tags = vec![json!(["d", agent_id]), json!(["tier", tier.to_string()])];
     for cap in capabilities {
         tags.push(json!(["cap", cap]));
     }
@@ -503,9 +678,9 @@ pub fn build_work_event(
     role: &str,
 ) -> Value {
     let mut tags = vec![
-        json!(["d",    task_id]),
+        json!(["d", task_id]),
         json!(["role", role]),
-        json!(["t",    "work"]),
+        json!(["t", "work"]),
     ];
     for cap in required_capabilities {
         tags.push(json!(["required_cap", cap]));
@@ -526,9 +701,9 @@ pub fn build_receipt_reference_event(
     amount_ase: Option<u64>,
 ) -> Value {
     let mut tags = vec![
-        json!(["d",           receipt_id]),
+        json!(["d", receipt_id]),
         json!(["action_kind", action_kind]),
-        json!(["protocol",    "oso", "1.0"]),
+        json!(["protocol", "oso", "1.0"]),
     ];
     if let Some(digest) = l1_tx_digest {
         tags.push(json!(["l1_tx", digest]));
@@ -558,10 +733,10 @@ pub fn build_device_attestation_event(
     firmware_hash: Option<&str>,
 ) -> Value {
     let mut tags = vec![
-        json!(["d",           device_id]),
+        json!(["d", device_id]),
         json!(["device_type", device_type]),
-        json!(["vcp_pubkey",  vcp_pubkey]),
-        json!(["protocol",    "oso", "1.0"]),
+        json!(["vcp_pubkey", vcp_pubkey]),
+        json!(["protocol", "oso", "1.0"]),
     ];
     if let Some(hash) = firmware_hash {
         tags.push(json!(["firmware_hash", hash]));
@@ -589,10 +764,10 @@ pub fn build_l1_state_commitment_event(
     l1_tx_digest: Option<&str>,
 ) -> Value {
     let mut tags = vec![
-        json!(["d",                  agent_id]),
+        json!(["d", agent_id]),
         json!(["freenet_state_hash", freenet_state_hash]),
-        json!(["state_version",      state_version.to_string()]),
-        json!(["protocol",           "oso", "1.0"]),
+        json!(["state_version", state_version.to_string()]),
+        json!(["protocol", "oso", "1.0"]),
     ];
     if let Some(digest) = l1_tx_digest {
         tags.push(json!(["l1_tx", digest]));
@@ -650,8 +825,14 @@ mod tests {
     #[test]
     fn agent_identity_event_kind_30100() {
         let ev = build_agent_identity_event(
-            "pub1", "agent-1", "TestAgent", "A sovereign agent",
-            "omi-eja", 7, 2, Some("0xabc"),
+            "pub1",
+            "agent-1",
+            "TestAgent",
+            "A sovereign agent",
+            "omi-eja",
+            7,
+            2,
+            Some("0xabc"),
         );
         assert_eq!(ev["kind"], 30100);
         let tags = ev["tags"].as_array().unwrap();
@@ -673,8 +854,12 @@ mod tests {
     #[test]
     fn work_event_kind_30102() {
         let ev = build_work_event(
-            "pub1", "task-42", "Write tests", "Full test coverage",
-            &["rust".to_string()], "poster",
+            "pub1",
+            "task-42",
+            "Write tests",
+            "Full test coverage",
+            &["rust".to_string()],
+            "poster",
         );
         assert_eq!(ev["kind"], 30102);
         let tags = ev["tags"].as_array().unwrap();
@@ -684,7 +869,11 @@ mod tests {
     #[test]
     fn receipt_reference_event_kind_30103() {
         let ev = build_receipt_reference_event(
-            "pub1", "rcpt-99", "compute", Some("0xtxdigest"), Some(1000),
+            "pub1",
+            "rcpt-99",
+            "compute",
+            Some("0xtxdigest"),
+            Some(1000),
         );
         assert_eq!(ev["kind"], 30103);
         let tags = ev["tags"].as_array().unwrap();
@@ -694,22 +883,23 @@ mod tests {
 
     #[test]
     fn device_attestation_event_kind_30105() {
-        let ev = build_device_attestation_event(
-            "pub1", "dev-m5", "m5stickc", "vcppubkey123", None,
-        );
+        let ev = build_device_attestation_event("pub1", "dev-m5", "m5stickc", "vcppubkey123", None);
         assert_eq!(ev["kind"], 30105);
         let tags = ev["tags"].as_array().unwrap();
-        assert!(tags.iter().any(|t| t[0] == "device_type" && t[1] == "m5stickc"));
+        assert!(tags
+            .iter()
+            .any(|t| t[0] == "device_type" && t[1] == "m5stickc"));
     }
 
     #[test]
     fn l1_state_commitment_event_kind_30106() {
-        let ev = build_l1_state_commitment_event(
-            "pub1", "agent-1", "deadbeef1234", 42, Some("0xtx"),
-        );
+        let ev =
+            build_l1_state_commitment_event("pub1", "agent-1", "deadbeef1234", 42, Some("0xtx"));
         assert_eq!(ev["kind"], 30106);
         let tags = ev["tags"].as_array().unwrap();
-        assert!(tags.iter().any(|t| t[0] == "freenet_state_hash" && t[1] == "deadbeef1234"));
+        assert!(tags
+            .iter()
+            .any(|t| t[0] == "freenet_state_hash" && t[1] == "deadbeef1234"));
         assert!(tags.iter().any(|t| t[0] == "state_version" && t[1] == "42"));
     }
 }

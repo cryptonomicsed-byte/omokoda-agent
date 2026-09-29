@@ -72,8 +72,8 @@ pub fn derive_nip06_identity(mnemonic: &str, account: u32) -> Result<Nip06Identi
         0, // address_index
     ];
 
-    let (derived_key, _derived_chain) = derive_path(&seed, &path)
-        .map_err(|e| format!("NIP-06 path derivation failed: {e}"))?;
+    let (derived_key, _derived_chain) =
+        derive_path(&seed, &path).map_err(|e| format!("NIP-06 path derivation failed: {e}"))?;
 
     let secret_key = SecretKey::from_slice(&derived_key)
         .map_err(|e| format!("invalid secp256k1 secret key: {e}"))?;
@@ -138,8 +138,16 @@ mod tests {
     fn npub_and_nsec_have_correct_bech32_prefixes() {
         let mnemonic = bipon39::entropy_to_mnemonic(&[3u8; 32]).unwrap().join(" ");
         let identity = derive_nip06_identity(&mnemonic, 0).unwrap();
-        assert!(identity.npub.starts_with("npub1"), "npub: {}", identity.npub);
-        assert!(identity.nsec.starts_with("nsec1"), "nsec: {}", identity.nsec);
+        assert!(
+            identity.npub.starts_with("npub1"),
+            "npub: {}",
+            identity.npub
+        );
+        assert!(
+            identity.nsec.starts_with("nsec1"),
+            "nsec: {}",
+            identity.nsec
+        );
     }
 
     #[test]

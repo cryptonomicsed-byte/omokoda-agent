@@ -76,11 +76,7 @@ fn print_show(ori: &Ori) {
         "Previous Hash:".dimmed(),
         ori.previous_ori_hash
     );
-    println!(
-        "  {:<22} {}",
-        "State Hash:".dimmed(),
-        ori.state_hash
-    );
+    println!("  {:<22} {}", "State Hash:".dimmed(), ori.state_hash);
     println!();
     println!("{}", "Vessel Weights:".bold());
     print_vessel_table(ori);
@@ -104,7 +100,9 @@ fn print_verify(ori: &Ori) {
     if computed == *stored {
         println!(
             "{}",
-            "VALID — Ori state has not been tampered with.".green().bold()
+            "VALID — Ori state has not been tampered with."
+                .green()
+                .bold()
         );
     } else {
         println!(
@@ -121,11 +119,6 @@ fn print_verify(ori: &Ori) {
 fn print_vessel_table(ori: &Ori) {
     for (i, (name, bullets)) in ori.vessel_display().iter().enumerate() {
         let weight = ori.vessel_weights[i];
-        println!(
-            "  {:<14} {}  {:.2}",
-            name.cyan(),
-            bullets,
-            weight
-        );
+        println!("  {:<14} {}  {:.2}", name.cyan(), bullets, weight);
     }
 }

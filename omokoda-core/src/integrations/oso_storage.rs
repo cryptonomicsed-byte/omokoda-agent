@@ -73,7 +73,9 @@ impl LocalFsProvider {
 }
 
 impl StorageProvider for LocalFsProvider {
-    fn backend(&self) -> StorageBackend { StorageBackend::LocalFs }
+    fn backend(&self) -> StorageBackend {
+        StorageBackend::LocalFs
+    }
 
     fn put(&self, data: &[u8]) -> Result<StorageCommitment, StorageError> {
         let hash = *blake3::hash(data).as_bytes();
@@ -96,7 +98,11 @@ impl StorageProvider for LocalFsProvider {
         std::fs::read(&path).map_err(|_| StorageError::NotFound(commitment.provider_ref.clone()))
     }
 
-    fn pin(&self, _commitment: &StorageCommitment, _duration: Duration) -> Result<(), StorageError> {
+    fn pin(
+        &self,
+        _commitment: &StorageCommitment,
+        _duration: Duration,
+    ) -> Result<(), StorageError> {
         Ok(()) // local FS is always pinned
     }
 
@@ -115,28 +121,44 @@ pub struct WalrusProvider {
 
 impl WalrusProvider {
     pub fn new(endpoint: impl Into<String>) -> Self {
-        Self { endpoint: endpoint.into() }
+        Self {
+            endpoint: endpoint.into(),
+        }
     }
 }
 
 impl StorageProvider for WalrusProvider {
-    fn backend(&self) -> StorageBackend { StorageBackend::Walrus }
+    fn backend(&self) -> StorageBackend {
+        StorageBackend::Walrus
+    }
 
     fn put(&self, _data: &[u8]) -> Result<StorageCommitment, StorageError> {
         // Phase 16.1 stub: real impl POSTs to Walrus publisher + records blob_id.
-        Err(StorageError::Unavailable("Walrus PUT not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Walrus PUT not yet implemented".into(),
+        ))
     }
 
     fn get(&self, _commitment: &StorageCommitment) -> Result<Vec<u8>, StorageError> {
-        Err(StorageError::Unavailable("Walrus GET not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Walrus GET not yet implemented".into(),
+        ))
     }
 
-    fn pin(&self, _commitment: &StorageCommitment, _duration: Duration) -> Result<(), StorageError> {
-        Err(StorageError::Unavailable("Walrus PIN not yet implemented".into()))
+    fn pin(
+        &self,
+        _commitment: &StorageCommitment,
+        _duration: Duration,
+    ) -> Result<(), StorageError> {
+        Err(StorageError::Unavailable(
+            "Walrus PIN not yet implemented".into(),
+        ))
     }
 
     fn verify(&self, _commitment: &StorageCommitment) -> Result<bool, StorageError> {
-        Err(StorageError::Unavailable("Walrus VERIFY not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Walrus VERIFY not yet implemented".into(),
+        ))
     }
 }
 
@@ -147,22 +169,34 @@ pub struct ArweaveProvider {
 }
 
 impl StorageProvider for ArweaveProvider {
-    fn backend(&self) -> StorageBackend { StorageBackend::Arweave }
+    fn backend(&self) -> StorageBackend {
+        StorageBackend::Arweave
+    }
 
     fn put(&self, _data: &[u8]) -> Result<StorageCommitment, StorageError> {
-        Err(StorageError::Unavailable("Arweave PUT not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Arweave PUT not yet implemented".into(),
+        ))
     }
 
     fn get(&self, _commitment: &StorageCommitment) -> Result<Vec<u8>, StorageError> {
-        Err(StorageError::Unavailable("Arweave GET not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Arweave GET not yet implemented".into(),
+        ))
     }
 
-    fn pin(&self, _commitment: &StorageCommitment, _duration: Duration) -> Result<(), StorageError> {
+    fn pin(
+        &self,
+        _commitment: &StorageCommitment,
+        _duration: Duration,
+    ) -> Result<(), StorageError> {
         Ok(()) // Arweave is permanent by design
     }
 
     fn verify(&self, _commitment: &StorageCommitment) -> Result<bool, StorageError> {
-        Err(StorageError::Unavailable("Arweave VERIFY not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Arweave VERIFY not yet implemented".into(),
+        ))
     }
 }
 
@@ -173,22 +207,36 @@ pub struct FreenetProvider {
 }
 
 impl StorageProvider for FreenetProvider {
-    fn backend(&self) -> StorageBackend { StorageBackend::Freenet }
+    fn backend(&self) -> StorageBackend {
+        StorageBackend::Freenet
+    }
 
     fn put(&self, _data: &[u8]) -> Result<StorageCommitment, StorageError> {
-        Err(StorageError::Unavailable("Freenet PUT not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Freenet PUT not yet implemented".into(),
+        ))
     }
 
     fn get(&self, _commitment: &StorageCommitment) -> Result<Vec<u8>, StorageError> {
-        Err(StorageError::Unavailable("Freenet GET not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Freenet GET not yet implemented".into(),
+        ))
     }
 
-    fn pin(&self, _commitment: &StorageCommitment, _duration: Duration) -> Result<(), StorageError> {
-        Err(StorageError::Unavailable("Freenet PIN not yet implemented".into()))
+    fn pin(
+        &self,
+        _commitment: &StorageCommitment,
+        _duration: Duration,
+    ) -> Result<(), StorageError> {
+        Err(StorageError::Unavailable(
+            "Freenet PIN not yet implemented".into(),
+        ))
     }
 
     fn verify(&self, _commitment: &StorageCommitment) -> Result<bool, StorageError> {
-        Err(StorageError::Unavailable("Freenet VERIFY not yet implemented".into()))
+        Err(StorageError::Unavailable(
+            "Freenet VERIFY not yet implemented".into(),
+        ))
     }
 }
 

@@ -40,7 +40,10 @@ impl AgentCatalog {
     }
 
     pub fn find_by_division(&self, division: &str) -> Vec<&AgentRole> {
-        self.roles.iter().filter(|r| r.division == division).collect()
+        self.roles
+            .iter()
+            .filter(|r| r.division == division)
+            .collect()
     }
 }
 

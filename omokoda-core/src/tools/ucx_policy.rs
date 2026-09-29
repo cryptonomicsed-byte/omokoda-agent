@@ -16,10 +16,10 @@ const DEFAULT_COST_CAP_CENTS: u64 = 500; // $5.00
 const DEFAULT_MAX_GPU_HOURS: f64 = 8.0;
 
 pub struct UcxPolicyConfig {
-    pub cost_cap_cents:  u64,
-    pub max_gpu_hours:   f64,
-    pub allow_external:  bool,
-    pub deny_providers:  Vec<String>,
+    pub cost_cap_cents: u64,
+    pub max_gpu_hours: f64,
+    pub allow_external: bool,
+    pub deny_providers: Vec<String>,
 }
 
 impl UcxPolicyConfig {
@@ -42,7 +42,11 @@ impl UcxPolicyConfig {
         }
     }
 
-    pub fn check_job(&self, provider_id: Option<&str>, estimated_cents: Option<u64>) -> Result<(), String> {
+    pub fn check_job(
+        &self,
+        provider_id: Option<&str>,
+        estimated_cents: Option<u64>,
+    ) -> Result<(), String> {
         if let Some(cents) = estimated_cents {
             if cents > self.cost_cap_cents {
                 return Err(format!(
@@ -66,10 +70,18 @@ pub struct UcxCheckPolicyTool;
 
 #[async_trait]
 impl Tool for UcxCheckPolicyTool {
-    fn name(&self) -> &str { "ucx_check_policy" }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
-    fn timeout_secs(&self) -> u64 { 5 }
+    fn name(&self) -> &str {
+        "ucx_check_policy"
+    }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
+    fn timeout_secs(&self) -> u64 {
+        5
+    }
 
     fn description(&self) -> &str {
         "Return this agent's UCX compute policy: cost cap, max GPU hours, \

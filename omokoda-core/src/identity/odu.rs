@@ -115,7 +115,10 @@ mod tests {
         let entropy = b"test-entropy-bytes-for-odu-derivation";
         let index_a = OduIdentity::primary_index_for_entropy(entropy);
         let index_b = OduIdentity::primary_index_for_entropy(entropy);
-        assert_eq!(index_a, index_b, "same entropy must always produce the same primary_index");
+        assert_eq!(
+            index_a, index_b,
+            "same entropy must always produce the same primary_index"
+        );
     }
 
     #[test]
@@ -125,7 +128,10 @@ mod tests {
         let mnemonic = Bipon39::entropy_to_mnemonic(entropy);
         let indices = Bipon39::mnemonic_to_indices(&mnemonic).unwrap_or_default();
         let primary_index = Bipon39::get_odu_index(&indices);
-        let identity = OduIdentity { primary_index, mnemonic };
+        let identity = OduIdentity {
+            primary_index,
+            mnemonic,
+        };
         assert!(
             identity.birth_entropy_matches(entropy),
             "OduIdentity derived from entropy must pass birth_entropy_matches for that same entropy"

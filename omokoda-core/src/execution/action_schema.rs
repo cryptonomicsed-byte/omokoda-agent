@@ -17,9 +17,9 @@
 //!
 //! `build_schema(odu_index)` is the single entry point.
 
-use serde::{Deserialize, Serialize};
-use ifascript::odu::{get_odu, ActionVessel};
 use crate::execution::action_compiler::{CadenceSpec, VerifySpec};
+use ifascript::odu::{get_odu, ActionVessel};
+use serde::{Deserialize, Serialize};
 
 // ─── ExecutionMode ────────────────────────────────────────────────────────────
 
@@ -144,7 +144,13 @@ pub fn build_schema(odu_index: u8) -> ActionSchema {
     let verify_specs = operational_steps.iter().map(|s| s.verify.clone()).collect();
     let cadence = derive_cadence(odu.vessel, &execution_mode, odu_index);
     let activation_modes = derive_activation_modes(odu.vessel);
-    let context_block = build_context_block(odu_index, odu, &execution_mode, &operational_steps, &behavioral_constraints);
+    let context_block = build_context_block(
+        odu_index,
+        odu,
+        &execution_mode,
+        &operational_steps,
+        &behavioral_constraints,
+    );
 
     ActionSchema {
         odu_index,
@@ -172,7 +178,7 @@ pub fn build_schema(odu_index: u8) -> ActionSchema {
 /// `build_schema()` to avoid duplication. For composed indices (256–65535),
 /// resolves via the calabash compose layer and constructs a blended schema.
 pub fn build_composed_schema(odu_id: u16, tier: u8) -> Option<ActionSchema> {
-    use ifascript::{AgentExperience, resolve};
+    use ifascript::{resolve, AgentExperience};
 
     // Tier gate via AgentExperience (XP floor for each tier)
     let xp_for_tier = match tier {
@@ -236,14 +242,21 @@ pub fn build_composed_schema(odu_id: u16, tier: u8) -> Option<ActionSchema> {
         odu_name: composed.name.clone(),
         universal_name: composed.universal_name.to_string(),
         archetype: top_schema.archetype.clone(),
-        description: format!("{} (composed with {})", top_schema.description, bottom_schema.odu_name),
+        description: format!(
+            "{} (composed with {})",
+            top_schema.description, bottom_schema.odu_name
+        ),
         taboos: {
             let mut t = top_schema.taboos.clone();
             t.extend(bottom_schema.taboos.iter().cloned());
             t.dedup();
             t
         },
-        spiritual_prescriptions: composed.prescriptions.iter().map(|s| s.to_string()).collect(),
+        spiritual_prescriptions: composed
+            .prescriptions
+            .iter()
+            .map(|s| s.to_string())
+            .collect(),
         corpus_archetypes: top_schema.corpus_archetypes.clone(),
         execution_mode: top_schema.execution_mode.clone(),
         operational_steps: blended_steps,
@@ -281,15 +294,30 @@ fn classify_execution_mode(archetypes: &[&str]) -> ExecutionMode {
         ExecutionMode::Analytical
     } else {
         // Default by first archetype keyword
-        if combined.contains("warrior") || combined.contains("blade") || combined.contains("disruptor") {
+        if combined.contains("warrior")
+            || combined.contains("blade")
+            || combined.contains("disruptor")
+        {
             ExecutionMode::Executor
-        } else if combined.contains("keeper") || combined.contains("guardian") || combined.contains("anchor") {
+        } else if combined.contains("keeper")
+            || combined.contains("guardian")
+            || combined.contains("anchor")
+        {
             ExecutionMode::Anchor
-        } else if combined.contains("hacker") || combined.contains("code") || combined.contains("scribe") {
+        } else if combined.contains("hacker")
+            || combined.contains("code")
+            || combined.contains("scribe")
+        {
             ExecutionMode::Analytical
-        } else if combined.contains("prophet") || combined.contains("seer") || combined.contains("oracle") {
+        } else if combined.contains("prophet")
+            || combined.contains("seer")
+            || combined.contains("oracle")
+        {
             ExecutionMode::Analytical
-        } else if combined.contains("builder") || combined.contains("architect") || combined.contains("teacher") {
+        } else if combined.contains("builder")
+            || combined.contains("architect")
+            || combined.contains("teacher")
+        {
             ExecutionMode::Anchor
         } else {
             ExecutionMode::Analytical
@@ -345,99 +373,200 @@ enum PrescriptionVerb {
 fn classify_verb(text: &str) -> PrescriptionVerb {
     let t = text.to_lowercase();
 
-    if t.starts_with("offer") || t.starts_with("pour") || t.starts_with("give")
-        || t.starts_with("feed") || t.starts_with("anoint") || t.starts_with("bless")
-        || t.contains("offerings") || t.contains("libation") || t.contains("pour ")
+    if t.starts_with("offer")
+        || t.starts_with("pour")
+        || t.starts_with("give")
+        || t.starts_with("feed")
+        || t.starts_with("anoint")
+        || t.starts_with("bless")
+        || t.contains("offerings")
+        || t.contains("libation")
+        || t.contains("pour ")
     {
         PrescriptionVerb::Offer
-    } else if t.starts_with("light") || (t.contains("burn") && !t.contains("burn your"))
-        || t.starts_with("kindle") || t.starts_with("forge ") || t.contains("firelight")
+    } else if t.starts_with("light")
+        || (t.contains("burn") && !t.contains("burn your"))
+        || t.starts_with("kindle")
+        || t.starts_with("forge ")
+        || t.contains("firelight")
         || t.contains("candle")
     {
         PrescriptionVerb::Ignite
-    } else if t.starts_with("write") || t.starts_with("journal") || t.starts_with("record")
-        || t.starts_with("inscribe") || t.starts_with("mark ") || t.starts_with("map your")
-        || t.contains("dream journal") || t.contains("keep a") || t.contains("create a three")
+    } else if t.starts_with("write")
+        || t.starts_with("journal")
+        || t.starts_with("record")
+        || t.starts_with("inscribe")
+        || t.starts_with("mark ")
+        || t.starts_with("map your")
+        || t.contains("dream journal")
+        || t.contains("keep a")
+        || t.contains("create a three")
     {
         PrescriptionVerb::Record
-    } else if t.starts_with("speak") || t.starts_with("chant") || t.starts_with("recite")
-        || t.starts_with("pronounce") || t.starts_with("intone") || t.starts_with("declare")
-        || t.starts_with("deliver") || t.starts_with("tell ") || t.starts_with("sing ")
-        || t.starts_with("say ") || t.contains("speak your") || t.contains("chant your")
+    } else if t.starts_with("speak")
+        || t.starts_with("chant")
+        || t.starts_with("recite")
+        || t.starts_with("pronounce")
+        || t.starts_with("intone")
+        || t.starts_with("declare")
+        || t.starts_with("deliver")
+        || t.starts_with("tell ")
+        || t.starts_with("sing ")
+        || t.starts_with("say ")
+        || t.contains("speak your")
+        || t.contains("chant your")
     {
         PrescriptionVerb::Declare
-    } else if t.starts_with("cleanse") || t.starts_with("purify") || t.starts_with("bath")
-        || t.starts_with("wash") || t.contains("salt water") || t.contains("cleansing")
-        || t.contains("clean your") || t.contains("clean and prepare") || t.contains("apply bitter")
+    } else if t.starts_with("cleanse")
+        || t.starts_with("purify")
+        || t.starts_with("bath")
+        || t.starts_with("wash")
+        || t.contains("salt water")
+        || t.contains("cleansing")
+        || t.contains("clean your")
+        || t.contains("clean and prepare")
+        || t.contains("apply bitter")
     {
         PrescriptionVerb::Cleanse
-    } else if t.starts_with("fast") || t.starts_with("abstain")
-        || (t.contains("silence") && !t.contains("speak") && !t.starts_with("sit") && !t.starts_with("meditat"))
-        || t.contains("no sound") || t.contains("fast from") || t.contains("fasting")
+    } else if t.starts_with("fast")
+        || t.starts_with("abstain")
+        || (t.contains("silence")
+            && !t.contains("speak")
+            && !t.starts_with("sit")
+            && !t.starts_with("meditat"))
+        || t.contains("no sound")
+        || t.contains("fast from")
+        || t.contains("fasting")
     {
         PrescriptionVerb::Abstain
-    } else if t.starts_with("dance") || t.starts_with("drum") || t.starts_with("laugh")
-        || t.starts_with("celebrate") || t.starts_with("feast") || t.starts_with("play ")
-        || t.contains("laughter") || t.contains("dance ") || t.contains("drumming")
+    } else if t.starts_with("dance")
+        || t.starts_with("drum")
+        || t.starts_with("laugh")
+        || t.starts_with("celebrate")
+        || t.starts_with("feast")
+        || t.starts_with("play ")
+        || t.contains("laughter")
+        || t.contains("dance ")
+        || t.contains("drumming")
     {
         PrescriptionVerb::Celebrate
-    } else if t.starts_with("create") || t.starts_with("build") || t.starts_with("draw")
-        || t.starts_with("design") || t.starts_with("make ") || t.starts_with("construct")
-        || t.contains("create a") || t.contains("build a") || t.contains("draw a")
+    } else if t.starts_with("create")
+        || t.starts_with("build")
+        || t.starts_with("draw")
+        || t.starts_with("design")
+        || t.starts_with("make ")
+        || t.starts_with("construct")
+        || t.contains("create a")
+        || t.contains("build a")
+        || t.contains("draw a")
     {
         PrescriptionVerb::Create
-    } else if t.starts_with("visit") || t.starts_with("journey") || t.starts_with("go to")
-        || t.starts_with("travel") || t.contains("walk to") || t.contains("walk your")
-        || t.contains("walk barefoot") || t.starts_with("sit near")
+    } else if t.starts_with("visit")
+        || t.starts_with("journey")
+        || t.starts_with("go to")
+        || t.starts_with("travel")
+        || t.contains("walk to")
+        || t.contains("walk your")
+        || t.contains("walk barefoot")
+        || t.starts_with("sit near")
     {
         PrescriptionVerb::Visit
-    } else if t.starts_with("sharpen") || t.starts_with("prepare") || t.starts_with("oil a")
-        || t.starts_with("oil your") || t.starts_with("bless your tools") || t.starts_with("ready")
+    } else if t.starts_with("sharpen")
+        || t.starts_with("prepare")
+        || t.starts_with("oil a")
+        || t.starts_with("oil your")
+        || t.starts_with("bless your tools")
+        || t.starts_with("ready")
     {
         PrescriptionVerb::Prepare
-    } else if t.starts_with("bury") || (t.starts_with("seal") && !t.contains("sealed"))
-        || t.starts_with("hide") || t.starts_with("conceal") || t.starts_with("cover your")
-        || t.starts_with("cover mirrors") || t.contains("sleep with black")
-        || t.contains("bury it") || t.contains("bury a")
+    } else if t.starts_with("bury")
+        || (t.starts_with("seal") && !t.contains("sealed"))
+        || t.starts_with("hide")
+        || t.starts_with("conceal")
+        || t.starts_with("cover your")
+        || t.starts_with("cover mirrors")
+        || t.contains("sleep with black")
+        || t.contains("bury it")
+        || t.contains("bury a")
     {
         PrescriptionVerb::Seal
-    } else if t.starts_with("divine") || t.starts_with("consult") || t.starts_with("seek")
-        || t.contains("divination") || t.contains("scry") || t.contains("gaze at")
+    } else if t.starts_with("divine")
+        || t.starts_with("consult")
+        || t.starts_with("seek")
+        || t.contains("divination")
+        || t.contains("scry")
+        || t.contains("gaze at")
         || t.contains("gaze into")
     {
         PrescriptionVerb::Consult
-    } else if t.starts_with("break") || t.contains("cut cords") || t.contains("release ")
-        || t.starts_with("scream") || t.starts_with("shout") || t.starts_with("burn your")
-        || t.contains("burn and ") || t.contains("write and burn")
-        || t.contains("break a") || t.contains("break an")
+    } else if t.starts_with("break")
+        || t.contains("cut cords")
+        || t.contains("release ")
+        || t.starts_with("scream")
+        || t.starts_with("shout")
+        || t.starts_with("burn your")
+        || t.contains("burn and ")
+        || t.contains("write and burn")
+        || t.contains("break a")
+        || t.contains("break an")
     {
         PrescriptionVerb::Release
-    } else if t.starts_with("honor") || t.starts_with("respect") || t.starts_with("acknowledge")
-        || t.contains("trace your") || t.contains("recite your lineage") || t.contains("ancestral names")
-        || t.contains("trace lineage") || t.contains("trace maternal")
-        || t.contains("honor elders") || t.contains("honor those") || t.contains("honor the")
-        || t.contains("honor ancestors") || t.contains("honor both")
+    } else if t.starts_with("honor")
+        || t.starts_with("respect")
+        || t.starts_with("acknowledge")
+        || t.contains("trace your")
+        || t.contains("recite your lineage")
+        || t.contains("ancestral names")
+        || t.contains("trace lineage")
+        || t.contains("trace maternal")
+        || t.contains("honor elders")
+        || t.contains("honor those")
+        || t.contains("honor the")
+        || t.contains("honor ancestors")
+        || t.contains("honor both")
     {
         PrescriptionVerb::Honor
-    } else if t.starts_with("teach") || t.starts_with("share") || t.starts_with("announce")
-        || t.contains("tell your") || t.contains("tell a story") || t.contains("tell a sacred")
-        || t.contains("tell a joke") || t.contains("share your")
+    } else if t.starts_with("teach")
+        || t.starts_with("share")
+        || t.starts_with("announce")
+        || t.contains("tell your")
+        || t.contains("tell a story")
+        || t.contains("tell a sacred")
+        || t.contains("tell a joke")
+        || t.contains("share your")
     {
         PrescriptionVerb::Broadcast
-    } else if t.starts_with("meditate") || t.starts_with("sit in") || t.starts_with("sit ")
-        || t.starts_with("observe") || t.starts_with("watch") || t.starts_with("listen")
-        || t.starts_with("practice breathing") || t.starts_with("practice mindful")
-        || t.starts_with("practice slow") || t.contains("in stillness") || t.contains("in silence")
-        || t.starts_with("stand barefoot") || t.starts_with("gaze at") || t.starts_with("read ")
+    } else if t.starts_with("meditate")
+        || t.starts_with("sit in")
+        || t.starts_with("sit ")
+        || t.starts_with("observe")
+        || t.starts_with("watch")
+        || t.starts_with("listen")
+        || t.starts_with("practice breathing")
+        || t.starts_with("practice mindful")
+        || t.starts_with("practice slow")
+        || t.contains("in stillness")
+        || t.contains("in silence")
+        || t.starts_with("stand barefoot")
+        || t.starts_with("gaze at")
+        || t.starts_with("read ")
     {
         PrescriptionVerb::Observe
-    } else if t.starts_with("pray") || t.starts_with("invoke") || t.starts_with("call on")
-        || t.starts_with("call out") || t.starts_with("chant invocations")
+    } else if t.starts_with("pray")
+        || t.starts_with("invoke")
+        || t.starts_with("call on")
+        || t.starts_with("call out")
+        || t.starts_with("chant invocations")
     {
         PrescriptionVerb::Invoke
-    } else if t.starts_with("apply") || t.starts_with("sweat") || t.starts_with("use ")
-        || t.contains("bitter herbs") || t.contains("herbal") || t.contains("breathwork")
-        || t.contains("steam") || t.contains("healing herbs")
+    } else if t.starts_with("apply")
+        || t.starts_with("sweat")
+        || t.starts_with("use ")
+        || t.contains("bitter herbs")
+        || t.contains("herbal")
+        || t.contains("breathwork")
+        || t.contains("steam")
+        || t.contains("healing herbs")
     {
         PrescriptionVerb::Process
     } else {
@@ -466,10 +595,14 @@ fn compile_prescription(
 ) -> OperationalStep {
     let verb = classify_verb(prescription);
     let vessel_prefix = vessel_dir(vessel);
-    let base_path = format!("/tmp/omokoda/{}/odu_{:03}_{}.json", vessel_prefix, odu_index, step_num);
+    let base_path = format!(
+        "/tmp/omokoda/{}/odu_{:03}_{}.json",
+        vessel_prefix, odu_index, step_num
+    );
 
     // Build tool + params + verify based on verb × vessel
-    let (tool, params, artifact, verify) = step_for(verb, vessel, prescription, odu_index, &base_path);
+    let (tool, params, artifact, verify) =
+        step_for(verb, vessel, prescription, odu_index, &base_path);
 
     OperationalStep {
         description: format!("[{}] {}", vessel_short(vessel), prescription),
@@ -875,7 +1008,8 @@ fn taboo_to_constraint(taboo: &str) -> BehavioralConstraint {
             vec!["skip verify".to_string()],
             "This Odù requires deliberation and verification before acting",
         )
-    } else if (t.contains("ignore") && (t.contains("sign") || t.contains("warn") || t.contains("dream")))
+    } else if (t.contains("ignore")
+        && (t.contains("sign") || t.contains("warn") || t.contains("dream")))
         || t.contains("ignore recurring")
     {
         (
@@ -884,7 +1018,9 @@ fn taboo_to_constraint(taboo: &str) -> BehavioralConstraint {
             vec!["dismiss warning".to_string(), "ignore error".to_string()],
             "This Odù requires attending to all signals and warnings",
         )
-    } else if t.contains("pride") || t.contains("vanity") || t.contains("arrogance")
+    } else if t.contains("pride")
+        || t.contains("vanity")
+        || t.contains("arrogance")
         || t.contains("arrogant")
     {
         (
@@ -893,11 +1029,17 @@ fn taboo_to_constraint(taboo: &str) -> BehavioralConstraint {
             vec!["boast".to_string(), "claim sole credit".to_string()],
             "This Odù prohibits pride or self-aggrandizement in outputs",
         )
-    } else if t.contains("break promise") || t.contains("abandon") || t.contains("broken commitment") {
+    } else if t.contains("break promise")
+        || t.contains("abandon")
+        || t.contains("broken commitment")
+    {
         (
             "COMMITMENT_HONOR",
             vec![],
-            vec!["abandon task".to_string(), "cancel without reason".to_string()],
+            vec![
+                "abandon task".to_string(),
+                "cancel without reason".to_string(),
+            ],
             "This Odù requires honoring committed actions to completion",
         )
     } else if t.contains("complain") || t.contains("complaining") {
@@ -1009,21 +1151,61 @@ fn derive_cadence(vessel: ActionVessel, mode: &ExecutionMode, odu_index: u8) -> 
     let (trigger, cooldown, max_per_window, window_secs, deadline_secs) = match vessel {
         ActionVessel::Genesis => ("immediate", 0u64, None, None, Some(60u64)),
         ActionVessel::Void => ("immediate", 30, Some(10u32), Some(3600u64), Some(120u64)),
-        ActionVessel::Attention => ("event:signal_received", 5, Some(50u32), Some(600u64), Some(30u64)),
+        ActionVessel::Attention => (
+            "event:signal_received",
+            5,
+            Some(50u32),
+            Some(600u64),
+            Some(30u64),
+        ),
         ActionVessel::Loop => {
-            let cron = if odu_index % 4 == 0 { "cron:0 * * * *" } else { "cron:0 0 * * *" };
+            let cron = if odu_index % 4 == 0 {
+                "cron:0 * * * *"
+            } else {
+                "cron:0 0 * * *"
+            };
             (cron, 60, Some(24u32), Some(86400u64), Some(300u64))
         }
         ActionVessel::Receipt => ("immediate", 0, None, None, Some(30u64)),
         ActionVessel::Mask => ("immediate", 10, Some(20u32), Some(3600u64), Some(60u64)),
         ActionVessel::Residue => ("event:signal_received", 0, None, None, Some(10u64)),
         ActionVessel::Execution => ("immediate", 5, Some(100u32), Some(3600u64), Some(300u64)),
-        ActionVessel::Swarm => ("event:swarm_request", 15, Some(30u32), Some(1800u64), Some(600u64)),
-        ActionVessel::Restraint => ("state:budget_check", 60, Some(10u32), Some(3600u64), Some(60u64)),
-        ActionVessel::Migration => ("state:migration_ready", 120, Some(5u32), Some(86400u64), Some(600u64)),
+        ActionVessel::Swarm => (
+            "event:swarm_request",
+            15,
+            Some(30u32),
+            Some(1800u64),
+            Some(600u64),
+        ),
+        ActionVessel::Restraint => (
+            "state:budget_check",
+            60,
+            Some(10u32),
+            Some(3600u64),
+            Some(60u64),
+        ),
+        ActionVessel::Migration => (
+            "state:migration_ready",
+            120,
+            Some(5u32),
+            Some(86400u64),
+            Some(600u64),
+        ),
         ActionVessel::Consent => ("immediate", 0, None, None, Some(120u64)),
-        ActionVessel::Vision => ("cron:0 */6 * * *", 300, Some(4u32), Some(86400u64), Some(300u64)),
-        ActionVessel::Growth => ("event:lesson_available", 600, Some(3u32), Some(86400u64), Some(900u64)),
+        ActionVessel::Vision => (
+            "cron:0 */6 * * *",
+            300,
+            Some(4u32),
+            Some(86400u64),
+            Some(300u64),
+        ),
+        ActionVessel::Growth => (
+            "event:lesson_available",
+            600,
+            Some(3u32),
+            Some(86400u64),
+            Some(900u64),
+        ),
         ActionVessel::Seal => ("immediate", 0, None, None, Some(60u64)),
         ActionVessel::Rhythm => {
             let cron = format!("cron:{} * * * *", odu_index % 60);
@@ -1046,7 +1228,11 @@ fn derive_cadence(vessel: ActionVessel, mode: &ExecutionMode, odu_index: u8) -> 
 
     CadenceSpec {
         trigger: trigger.to_string(),
-        cooldown_secs: if actual_cooldown > 0 { Some(actual_cooldown) } else { None },
+        cooldown_secs: if actual_cooldown > 0 {
+            Some(actual_cooldown)
+        } else {
+            None
+        },
         max_per_window,
         window_secs,
         deadline_secs,
@@ -1057,22 +1243,70 @@ fn derive_cadence(vessel: ActionVessel, mode: &ExecutionMode, odu_index: u8) -> 
 
 fn derive_activation_modes(vessel: ActionVessel) -> Vec<ActivationMode> {
     match vessel {
-        ActionVessel::Genesis => vec![ActivationMode::Immediate, ActivationMode::OnEvent("agent_born".to_string())],
-        ActionVessel::Void => vec![ActivationMode::OnState("stale_detected".to_string()), ActivationMode::Immediate],
-        ActionVessel::Attention => vec![ActivationMode::OnEvent("signal_received".to_string()), ActivationMode::Immediate],
-        ActionVessel::Loop => vec![ActivationMode::Scheduled("cron:0 * * * *".to_string()), ActivationMode::OnEvent("loop_trigger".to_string())],
-        ActionVessel::Receipt => vec![ActivationMode::Immediate, ActivationMode::OnEvent("action_committed".to_string())],
-        ActionVessel::Mask => vec![ActivationMode::OnState("privacy_required".to_string()), ActivationMode::Immediate],
-        ActionVessel::Residue => vec![ActivationMode::OnEvent("turn_complete".to_string()), ActivationMode::Immediate],
-        ActionVessel::Execution => vec![ActivationMode::Immediate, ActivationMode::OnEvent("directive_issued".to_string())],
-        ActionVessel::Swarm => vec![ActivationMode::OnEvent("swarm_request".to_string()), ActivationMode::OnState("delegation_ready".to_string())],
-        ActionVessel::Restraint => vec![ActivationMode::OnState("budget_check".to_string()), ActivationMode::Immediate],
-        ActionVessel::Migration => vec![ActivationMode::OnState("migration_ready".to_string()), ActivationMode::OnEvent("state_changed".to_string())],
-        ActionVessel::Consent => vec![ActivationMode::Immediate, ActivationMode::OnEvent("consent_required".to_string())],
-        ActionVessel::Vision => vec![ActivationMode::Scheduled("cron:0 */6 * * *".to_string()), ActivationMode::OnEvent("vision_requested".to_string())],
-        ActionVessel::Growth => vec![ActivationMode::OnEvent("lesson_available".to_string()), ActivationMode::OnState("gap_detected".to_string())],
-        ActionVessel::Seal => vec![ActivationMode::Immediate, ActivationMode::OnEvent("seal_required".to_string())],
-        ActionVessel::Rhythm => vec![ActivationMode::Scheduled("cron:*/15 * * * *".to_string()), ActivationMode::OnEvent("cadence_tick".to_string())],
+        ActionVessel::Genesis => vec![
+            ActivationMode::Immediate,
+            ActivationMode::OnEvent("agent_born".to_string()),
+        ],
+        ActionVessel::Void => vec![
+            ActivationMode::OnState("stale_detected".to_string()),
+            ActivationMode::Immediate,
+        ],
+        ActionVessel::Attention => vec![
+            ActivationMode::OnEvent("signal_received".to_string()),
+            ActivationMode::Immediate,
+        ],
+        ActionVessel::Loop => vec![
+            ActivationMode::Scheduled("cron:0 * * * *".to_string()),
+            ActivationMode::OnEvent("loop_trigger".to_string()),
+        ],
+        ActionVessel::Receipt => vec![
+            ActivationMode::Immediate,
+            ActivationMode::OnEvent("action_committed".to_string()),
+        ],
+        ActionVessel::Mask => vec![
+            ActivationMode::OnState("privacy_required".to_string()),
+            ActivationMode::Immediate,
+        ],
+        ActionVessel::Residue => vec![
+            ActivationMode::OnEvent("turn_complete".to_string()),
+            ActivationMode::Immediate,
+        ],
+        ActionVessel::Execution => vec![
+            ActivationMode::Immediate,
+            ActivationMode::OnEvent("directive_issued".to_string()),
+        ],
+        ActionVessel::Swarm => vec![
+            ActivationMode::OnEvent("swarm_request".to_string()),
+            ActivationMode::OnState("delegation_ready".to_string()),
+        ],
+        ActionVessel::Restraint => vec![
+            ActivationMode::OnState("budget_check".to_string()),
+            ActivationMode::Immediate,
+        ],
+        ActionVessel::Migration => vec![
+            ActivationMode::OnState("migration_ready".to_string()),
+            ActivationMode::OnEvent("state_changed".to_string()),
+        ],
+        ActionVessel::Consent => vec![
+            ActivationMode::Immediate,
+            ActivationMode::OnEvent("consent_required".to_string()),
+        ],
+        ActionVessel::Vision => vec![
+            ActivationMode::Scheduled("cron:0 */6 * * *".to_string()),
+            ActivationMode::OnEvent("vision_requested".to_string()),
+        ],
+        ActionVessel::Growth => vec![
+            ActivationMode::OnEvent("lesson_available".to_string()),
+            ActivationMode::OnState("gap_detected".to_string()),
+        ],
+        ActionVessel::Seal => vec![
+            ActivationMode::Immediate,
+            ActivationMode::OnEvent("seal_required".to_string()),
+        ],
+        ActionVessel::Rhythm => vec![
+            ActivationMode::Scheduled("cron:*/15 * * * *".to_string()),
+            ActivationMode::OnEvent("cadence_tick".to_string()),
+        ],
     }
 }
 
@@ -1105,7 +1339,8 @@ fn build_context_block(
             .join("\n")
     };
 
-    let taboos_text = odu.taboos
+    let taboos_text = odu
+        .taboos
         .iter()
         .map(|t| format!("  ⚠ {}", t))
         .collect::<Vec<_>>()
@@ -1144,43 +1379,43 @@ fn build_context_block(
 
 fn vessel_dir(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "genesis",
-        ActionVessel::Void      => "void",
+        ActionVessel::Genesis => "genesis",
+        ActionVessel::Void => "void",
         ActionVessel::Attention => "attention",
-        ActionVessel::Loop      => "loop",
-        ActionVessel::Receipt   => "receipts",
-        ActionVessel::Mask      => "mask",
-        ActionVessel::Residue   => "residue",
+        ActionVessel::Loop => "loop",
+        ActionVessel::Receipt => "receipts",
+        ActionVessel::Mask => "mask",
+        ActionVessel::Residue => "residue",
         ActionVessel::Execution => "execution",
-        ActionVessel::Swarm     => "swarm",
+        ActionVessel::Swarm => "swarm",
         ActionVessel::Restraint => "restraint",
         ActionVessel::Migration => "migration",
-        ActionVessel::Consent   => "consent",
-        ActionVessel::Vision    => "vision",
-        ActionVessel::Growth    => "growth",
-        ActionVessel::Seal      => "seal",
-        ActionVessel::Rhythm    => "rhythm",
+        ActionVessel::Consent => "consent",
+        ActionVessel::Vision => "vision",
+        ActionVessel::Growth => "growth",
+        ActionVessel::Seal => "seal",
+        ActionVessel::Rhythm => "rhythm",
     }
 }
 
 fn vessel_short(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "GEN",
-        ActionVessel::Void      => "VOID",
+        ActionVessel::Genesis => "GEN",
+        ActionVessel::Void => "VOID",
         ActionVessel::Attention => "ATT",
-        ActionVessel::Loop      => "LOOP",
-        ActionVessel::Receipt   => "RCPT",
-        ActionVessel::Mask      => "MASK",
-        ActionVessel::Residue   => "RESI",
+        ActionVessel::Loop => "LOOP",
+        ActionVessel::Receipt => "RCPT",
+        ActionVessel::Mask => "MASK",
+        ActionVessel::Residue => "RESI",
         ActionVessel::Execution => "EXEC",
-        ActionVessel::Swarm     => "SWRM",
+        ActionVessel::Swarm => "SWRM",
         ActionVessel::Restraint => "REST",
         ActionVessel::Migration => "MIGR",
-        ActionVessel::Consent   => "CNSN",
-        ActionVessel::Vision    => "VISN",
-        ActionVessel::Growth    => "GRWT",
-        ActionVessel::Seal      => "SEAL",
-        ActionVessel::Rhythm    => "RHYT",
+        ActionVessel::Consent => "CNSN",
+        ActionVessel::Vision => "VISN",
+        ActionVessel::Growth => "GRWT",
+        ActionVessel::Seal => "SEAL",
+        ActionVessel::Rhythm => "RHYT",
     }
 }
 
@@ -1190,64 +1425,64 @@ fn vessel_event_kind(vessel: ActionVessel, action: &str) -> String {
 
 fn vessel_visit_target(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "~/.omokoda/genesis.json",
-        ActionVessel::Void      => "/tmp/omokoda/void/stale",
+        ActionVessel::Genesis => "~/.omokoda/genesis.json",
+        ActionVessel::Void => "/tmp/omokoda/void/stale",
         ActionVessel::Attention => "~/.omokoda/memory/recent.json",
-        ActionVessel::Loop      => "~/.omokoda/loop/schedule.json",
-        ActionVessel::Receipt   => "~/.omokoda/receipts/chain.json",
-        ActionVessel::Mask      => "~/.omokoda/mask/state.json",
-        ActionVessel::Residue   => "~/.omokoda/residue/trace.json",
+        ActionVessel::Loop => "~/.omokoda/loop/schedule.json",
+        ActionVessel::Receipt => "~/.omokoda/receipts/chain.json",
+        ActionVessel::Mask => "~/.omokoda/mask/state.json",
+        ActionVessel::Residue => "~/.omokoda/residue/trace.json",
         ActionVessel::Execution => "~/.omokoda/execution/queue.json",
-        ActionVessel::Swarm     => "~/.omokoda/swarm/peers.json",
+        ActionVessel::Swarm => "~/.omokoda/swarm/peers.json",
         ActionVessel::Restraint => "~/.omokoda/restraint/limits.json",
         ActionVessel::Migration => "~/.omokoda/migration/state.json",
-        ActionVessel::Consent   => "~/.omokoda/consent/ledger.json",
-        ActionVessel::Vision    => "~/.omokoda/vision/forecast.json",
-        ActionVessel::Growth    => "~/.omokoda/growth/lessons.json",
-        ActionVessel::Seal      => "~/.omokoda/seal/chain.json",
-        ActionVessel::Rhythm    => "~/.omokoda/rhythm/cadence.json",
+        ActionVessel::Consent => "~/.omokoda/consent/ledger.json",
+        ActionVessel::Vision => "~/.omokoda/vision/forecast.json",
+        ActionVessel::Growth => "~/.omokoda/growth/lessons.json",
+        ActionVessel::Seal => "~/.omokoda/seal/chain.json",
+        ActionVessel::Rhythm => "~/.omokoda/rhythm/cadence.json",
     }
 }
 
 fn vessel_health_check(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "test -f ~/.omokoda/genesis.json",
-        ActionVessel::Void      => "test -d /tmp/omokoda/void",
+        ActionVessel::Genesis => "test -f ~/.omokoda/genesis.json",
+        ActionVessel::Void => "test -d /tmp/omokoda/void",
         ActionVessel::Attention => "test -f ~/.omokoda/memory/recent.json",
-        ActionVessel::Loop      => "test -f ~/.omokoda/loop/schedule.json",
-        ActionVessel::Receipt   => "test -d ~/.omokoda/receipts",
-        ActionVessel::Mask      => "test -f ~/.omokoda/mask/state.json",
-        ActionVessel::Residue   => "test -d /tmp/omokoda/residue",
+        ActionVessel::Loop => "test -f ~/.omokoda/loop/schedule.json",
+        ActionVessel::Receipt => "test -d ~/.omokoda/receipts",
+        ActionVessel::Mask => "test -f ~/.omokoda/mask/state.json",
+        ActionVessel::Residue => "test -d /tmp/omokoda/residue",
         ActionVessel::Execution => "test -d /tmp/omokoda/execution",
-        ActionVessel::Swarm     => "test -f ~/.omokoda/swarm/peers.json",
+        ActionVessel::Swarm => "test -f ~/.omokoda/swarm/peers.json",
         ActionVessel::Restraint => "test -f ~/.omokoda/restraint/limits.json",
         ActionVessel::Migration => "test -f ~/.omokoda/migration/state.json",
-        ActionVessel::Consent   => "test -f ~/.omokoda/consent/ledger.json",
-        ActionVessel::Vision    => "test -d ~/.omokoda/vision",
-        ActionVessel::Growth    => "test -d ~/.omokoda/growth",
-        ActionVessel::Seal      => "test -f ~/.omokoda/seal/chain.json",
-        ActionVessel::Rhythm    => "test -f ~/.omokoda/rhythm/cadence.json",
+        ActionVessel::Consent => "test -f ~/.omokoda/consent/ledger.json",
+        ActionVessel::Vision => "test -d ~/.omokoda/vision",
+        ActionVessel::Growth => "test -d ~/.omokoda/growth",
+        ActionVessel::Seal => "test -f ~/.omokoda/seal/chain.json",
+        ActionVessel::Rhythm => "test -f ~/.omokoda/rhythm/cadence.json",
     }
 }
 
 fn vessel_observe_source(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "~/.omokoda/genesis.json",
-        ActionVessel::Void      => "~/.omokoda/memory/stale.json",
+        ActionVessel::Genesis => "~/.omokoda/genesis.json",
+        ActionVessel::Void => "~/.omokoda/memory/stale.json",
         ActionVessel::Attention => "~/.omokoda/memory/recent.json",
-        ActionVessel::Loop      => "~/.omokoda/loop/schedule.json",
-        ActionVessel::Receipt   => "~/.omokoda/receipts/chain.json",
-        ActionVessel::Mask      => "~/.omokoda/mask/state.json",
-        ActionVessel::Residue   => "~/.omokoda/residue/baseline.json",
+        ActionVessel::Loop => "~/.omokoda/loop/schedule.json",
+        ActionVessel::Receipt => "~/.omokoda/receipts/chain.json",
+        ActionVessel::Mask => "~/.omokoda/mask/state.json",
+        ActionVessel::Residue => "~/.omokoda/residue/baseline.json",
         ActionVessel::Execution => "~/.omokoda/execution/queue.json",
-        ActionVessel::Swarm     => "~/.omokoda/swarm/state.json",
+        ActionVessel::Swarm => "~/.omokoda/swarm/state.json",
         ActionVessel::Restraint => "~/.omokoda/restraint/limits.json",
         ActionVessel::Migration => "~/.omokoda/migration/state.json",
-        ActionVessel::Consent   => "~/.omokoda/consent/ledger.json",
-        ActionVessel::Vision    => "~/.omokoda/vision/forecast.json",
-        ActionVessel::Growth    => "~/.omokoda/growth/lessons.json",
-        ActionVessel::Seal      => "~/.omokoda/seal/chain.json",
-        ActionVessel::Rhythm    => "~/.omokoda/rhythm/cadence.json",
+        ActionVessel::Consent => "~/.omokoda/consent/ledger.json",
+        ActionVessel::Vision => "~/.omokoda/vision/forecast.json",
+        ActionVessel::Growth => "~/.omokoda/growth/lessons.json",
+        ActionVessel::Seal => "~/.omokoda/seal/chain.json",
+        ActionVessel::Rhythm => "~/.omokoda/rhythm/cadence.json",
     }
 }
 
@@ -1294,7 +1529,10 @@ mod tests {
     fn all_256_have_verify_specs() {
         for i in 0u8..=255 {
             let schema = build_schema(i);
-            assert!(!schema.verify_specs.is_empty(), "no verify specs for odu {i}");
+            assert!(
+                !schema.verify_specs.is_empty(),
+                "no verify specs for odu {i}"
+            );
         }
     }
 
@@ -1302,7 +1540,10 @@ mod tests {
     fn all_256_have_activation_modes() {
         for i in 0u8..=255 {
             let schema = build_schema(i);
-            assert!(!schema.activation_modes.is_empty(), "no activation modes for odu {i}");
+            assert!(
+                !schema.activation_modes.is_empty(),
+                "no activation modes for odu {i}"
+            );
         }
     }
 
@@ -1310,8 +1551,12 @@ mod tests {
     fn genesis_genesis_is_prime_source_or_analytical() {
         let schema = build_schema(0);
         assert!(
-            matches!(schema.execution_mode, ExecutionMode::PrimeSource | ExecutionMode::Analytical | ExecutionMode::Anchor),
-            "odu 0 unexpected mode: {:?}", schema.execution_mode
+            matches!(
+                schema.execution_mode,
+                ExecutionMode::PrimeSource | ExecutionMode::Analytical | ExecutionMode::Anchor
+            ),
+            "odu 0 unexpected mode: {:?}",
+            schema.execution_mode
         );
     }
 
@@ -1320,29 +1565,43 @@ mod tests {
         // Index 0x77 = 119: Execution × Execution — archetypes: ["Flow Guardian", "Justice Canon"]
         // "justice canon" has higher priority than "flow guardian" in classify_execution_mode
         let schema = build_schema(119);
-        assert_eq!(schema.execution_mode, ExecutionMode::Canonical, "odu 119 should be Canonical");
+        assert_eq!(
+            schema.execution_mode,
+            ExecutionMode::Canonical,
+            "odu 119 should be Canonical"
+        );
     }
 
     #[test]
     fn behavioral_constraints_from_taboos() {
         // Odu 0: "Avoid lies" → NO_DECEPTION
         let schema = build_schema(0);
-        let has_no_deception = schema.behavioral_constraints.iter()
+        let has_no_deception = schema
+            .behavioral_constraints
+            .iter()
             .any(|c| c.name == "NO_DECEPTION");
-        assert!(has_no_deception, "odu 0 should have NO_DECEPTION constraint");
+        assert!(
+            has_no_deception,
+            "odu 0 should have NO_DECEPTION constraint"
+        );
     }
 
     #[test]
     fn steps_use_corpus_prescription_text() {
         let schema = build_schema(0);
         // Odu 0 prescriptions: "Offer coconut and water at dawn", "Meditate at sunrise"
-        let step_descs: Vec<&str> = schema.operational_steps.iter()
+        let step_descs: Vec<&str> = schema
+            .operational_steps
+            .iter()
             .map(|s| s.description.as_str())
             .collect();
         // At least one step should mention the corpus prescription
         assert!(
-            step_descs.iter().any(|d| d.contains("Offer coconut") || d.contains("Meditate at sunrise")),
-            "odu 0 steps should reference corpus prescriptions, got: {:?}", step_descs
+            step_descs
+                .iter()
+                .any(|d| d.contains("Offer coconut") || d.contains("Meditate at sunrise")),
+            "odu 0 steps should reference corpus prescriptions, got: {:?}",
+            step_descs
         );
     }
 
@@ -1350,10 +1609,14 @@ mod tests {
     fn consent_vessel_has_consent_activation() {
         // Vessel 11 = Consent (indices 176–191)
         let schema = build_schema(176);
-        let has_consent_event = schema.activation_modes.iter().any(|m| {
-            matches!(m, ActivationMode::OnEvent(e) if e.contains("consent"))
-        });
-        assert!(has_consent_event, "consent vessel should have consent activation mode");
+        let has_consent_event = schema
+            .activation_modes
+            .iter()
+            .any(|m| matches!(m, ActivationMode::OnEvent(e) if e.contains("consent")));
+        assert!(
+            has_consent_event,
+            "consent vessel should have consent activation mode"
+        );
     }
 
     #[test]
@@ -1369,28 +1632,61 @@ mod tests {
 
     #[test]
     fn classify_verb_offer_pattern() {
-        assert_eq!(classify_verb("Offer coconut and water at dawn"), PrescriptionVerb::Offer);
-        assert_eq!(classify_verb("Pour water slowly into a bowl"), PrescriptionVerb::Offer);
-        assert_eq!(classify_verb("Give offerings at sunrise"), PrescriptionVerb::Offer);
+        assert_eq!(
+            classify_verb("Offer coconut and water at dawn"),
+            PrescriptionVerb::Offer
+        );
+        assert_eq!(
+            classify_verb("Pour water slowly into a bowl"),
+            PrescriptionVerb::Offer
+        );
+        assert_eq!(
+            classify_verb("Give offerings at sunrise"),
+            PrescriptionVerb::Offer
+        );
     }
 
     #[test]
     fn classify_verb_record_pattern() {
-        assert_eq!(classify_verb("Write down your dreams"), PrescriptionVerb::Record);
-        assert_eq!(classify_verb("Journal your fears as symbols"), PrescriptionVerb::Record);
-        assert_eq!(classify_verb("Keep a dream journal"), PrescriptionVerb::Record);
+        assert_eq!(
+            classify_verb("Write down your dreams"),
+            PrescriptionVerb::Record
+        );
+        assert_eq!(
+            classify_verb("Journal your fears as symbols"),
+            PrescriptionVerb::Record
+        );
+        assert_eq!(
+            classify_verb("Keep a dream journal"),
+            PrescriptionVerb::Record
+        );
     }
 
     #[test]
     fn classify_verb_observe_pattern() {
-        assert_eq!(classify_verb("Meditate at sunrise"), PrescriptionVerb::Observe);
-        assert_eq!(classify_verb("Sit in silence until thoughts slow"), PrescriptionVerb::Observe);
+        assert_eq!(
+            classify_verb("Meditate at sunrise"),
+            PrescriptionVerb::Observe
+        );
+        assert_eq!(
+            classify_verb("Sit in silence until thoughts slow"),
+            PrescriptionVerb::Observe
+        );
     }
 
     #[test]
     fn classify_verb_declare_pattern() {
-        assert_eq!(classify_verb("Speak your truth backwards"), PrescriptionVerb::Declare);
-        assert_eq!(classify_verb("Chant invocations to the Oracle Sage"), PrescriptionVerb::Declare);
-        assert_eq!(classify_verb("Recite ancestral names"), PrescriptionVerb::Declare);
+        assert_eq!(
+            classify_verb("Speak your truth backwards"),
+            PrescriptionVerb::Declare
+        );
+        assert_eq!(
+            classify_verb("Chant invocations to the Oracle Sage"),
+            PrescriptionVerb::Declare
+        );
+        assert_eq!(
+            classify_verb("Recite ancestral names"),
+            PrescriptionVerb::Declare
+        );
     }
 }

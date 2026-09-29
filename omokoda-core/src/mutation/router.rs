@@ -91,7 +91,11 @@ pub trait MutationBackend: Send + Sync {
 
     /// Check whether the plan is safe to execute.
     /// MUST NOT mutate any state.
-    fn validate(&self, plan: &MutationPlan, ctx: &BackendContext) -> Result<ValidationResult, String>;
+    fn validate(
+        &self,
+        plan: &MutationPlan,
+        ctx: &BackendContext,
+    ) -> Result<ValidationResult, String>;
 
     /// Execute the mutation.
     /// Router calls this ONLY when `validate` returned `passed = true`.
@@ -200,11 +204,7 @@ impl MutationRouter {
     }
 
     /// Attempt rollback for a plan using the registered backend.
-    pub fn rollback_plan(
-        &self,
-        plan: &MutationPlan,
-        ctx: &BackendContext,
-    ) -> Result<(), String> {
+    pub fn rollback_plan(&self, plan: &MutationPlan, ctx: &BackendContext) -> Result<(), String> {
         let backend = self
             .backends
             .get(&plan.domain)
@@ -233,36 +233,72 @@ mod tests {
     /// Minimal always-pass backend for testing the router's invariant enforcement.
     struct PassBackend;
     impl MutationBackend for PassBackend {
-        fn domain(&self) -> MutationDomain { MutationDomain::Network }
-        fn name(&self) -> &str { "pass" }
-        fn inspect(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<InspectResult, String> {
-            Ok(InspectResult { summary: vec!["ok".to_string()], before_hash: None })
+        fn domain(&self) -> MutationDomain {
+            MutationDomain::Network
         }
-        fn validate(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<ValidationResult, String> {
-            Ok(ValidationResult { passed: true, reason: "always valid".to_string() })
+        fn name(&self) -> &str {
+            "pass"
+        }
+        fn inspect(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<InspectResult, String> {
+            Ok(InspectResult {
+                summary: vec!["ok".to_string()],
+                before_hash: None,
+            })
+        }
+        fn validate(
+            &self,
+            _p: &MutationPlan,
+            _c: &BackendContext,
+        ) -> Result<ValidationResult, String> {
+            Ok(ValidationResult {
+                passed: true,
+                reason: "always valid".to_string(),
+            })
         }
         fn apply(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<ApplyResult, String> {
-            Ok(ApplyResult { output: "applied".to_string(), after_hash: None, rollback_available: false })
+            Ok(ApplyResult {
+                output: "applied".to_string(),
+                after_hash: None,
+                rollback_available: false,
+            })
         }
-        fn rollback(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<(), String> { Ok(()) }
+        fn rollback(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<(), String> {
+            Ok(())
+        }
     }
 
     /// Minimal always-fail validation backend.
     struct FailBackend;
     impl MutationBackend for FailBackend {
-        fn domain(&self) -> MutationDomain { MutationDomain::Device }
-        fn name(&self) -> &str { "fail" }
-        fn inspect(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<InspectResult, String> {
-            Ok(InspectResult { summary: vec![], before_hash: None })
+        fn domain(&self) -> MutationDomain {
+            MutationDomain::Device
         }
-        fn validate(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<ValidationResult, String> {
-            Ok(ValidationResult { passed: false, reason: "stale plan".to_string() })
+        fn name(&self) -> &str {
+            "fail"
+        }
+        fn inspect(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<InspectResult, String> {
+            Ok(InspectResult {
+                summary: vec![],
+                before_hash: None,
+            })
+        }
+        fn validate(
+            &self,
+            _p: &MutationPlan,
+            _c: &BackendContext,
+        ) -> Result<ValidationResult, String> {
+            Ok(ValidationResult {
+                passed: false,
+                reason: "stale plan".to_string(),
+            })
         }
         fn apply(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<ApplyResult, String> {
             // This MUST never be called — the router invariant guarantees it.
             panic!("apply called after validation failure — router invariant violated")
         }
-        fn rollback(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<(), String> { Ok(()) }
+        fn rollback(&self, _p: &MutationPlan, _c: &BackendContext) -> Result<(), String> {
+            Ok(())
+        }
     }
 
     fn make_plan(domain_cat: ActionCategory) -> MutationPlan {
@@ -304,7 +340,10 @@ mod tests {
         plan.domain = MutationDomain::Program;
         let ctx = BackendContext::empty();
         let err = router.route_plan(&plan, &ctx).unwrap_err();
-        assert!(err.contains("no backend"), "expected 'no backend' in: {err}");
+        assert!(
+            err.contains("no backend"),
+            "expected 'no backend' in: {err}"
+        );
     }
 
     #[test]

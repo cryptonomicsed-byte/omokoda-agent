@@ -41,7 +41,11 @@ pub fn eip55_checksum(addr_hex: &str) -> String {
         .map(|(i, c)| {
             if c.is_ascii_alphabetic() {
                 let nibble = (digest[i / 2] >> (if i % 2 == 0 { 4 } else { 0 })) & 0xf;
-                if nibble >= 8 { c.to_ascii_uppercase() } else { c }
+                if nibble >= 8 {
+                    c.to_ascii_uppercase()
+                } else {
+                    c
+                }
             } else {
                 c
             }
@@ -56,7 +60,9 @@ pub fn derive_ethereum(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Str
     let seed = mnemonic_to_seed(mnemonic, passphrase);
     let xprv = bip32::XPrv::derive_from_path(
         seed,
-        &"m/44'/60'/0'/0".parse::<bip32::DerivationPath>().map_err(|e| e.to_string())?,
+        &"m/44'/60'/0'/0"
+            .parse::<bip32::DerivationPath>()
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let signing_key: k256::ecdsa::SigningKey = xprv.private_key().clone();
@@ -81,7 +87,9 @@ pub fn derive_bitcoin(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Stri
     let seed = mnemonic_to_seed(mnemonic, passphrase);
     let xprv = bip32::XPrv::derive_from_path(
         seed,
-        &"m/84'/0'/0'/0".parse::<bip32::DerivationPath>().map_err(|e| e.to_string())?,
+        &"m/84'/0'/0'/0"
+            .parse::<bip32::DerivationPath>()
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let signing_key: k256::ecdsa::SigningKey = xprv.private_key().clone();
@@ -103,7 +111,9 @@ pub fn derive_cosmos(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Strin
     let seed = mnemonic_to_seed(mnemonic, passphrase);
     let xprv = bip32::XPrv::derive_from_path(
         seed,
-        &"m/44'/118'/0'/0".parse::<bip32::DerivationPath>().map_err(|e| e.to_string())?,
+        &"m/44'/118'/0'/0"
+            .parse::<bip32::DerivationPath>()
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let signing_key: k256::ecdsa::SigningKey = xprv.private_key().clone();
@@ -123,12 +133,7 @@ pub fn derive_cosmos(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Strin
 /// hardened, as SLIP-0010 ed25519 requires). Address = base58(pubkey).
 pub fn derive_solana(mnemonic: &str, passphrase: &str) -> Result<ChainKey, String> {
     let seed = mnemonic_to_seed(mnemonic, passphrase);
-    let path = [
-        44 | HARDENED,
-        501 | HARDENED,
-        0 | HARDENED,
-        0 | HARDENED,
-    ];
+    let path = [44 | HARDENED, 501 | HARDENED, 0 | HARDENED, 0 | HARDENED];
     let signing_key = Wallet::derive_ed25519_slip10(&seed, &path)?;
     let pubkey = signing_key.verifying_key().to_bytes();
     Ok(ChainKey {
@@ -198,14 +203,18 @@ pub fn derive_minipae_key(
     let path = format!("m/44'/30174'/{}'/{}'", agent_index, owner_index);
     let xprv = bip32::XPrv::derive_from_path(
         seed,
-        &path.parse::<bip32::DerivationPath>().map_err(|e| e.to_string())?,
+        &path
+            .parse::<bip32::DerivationPath>()
+            .map_err(|e| e.to_string())?,
     )
     .map_err(|e| e.to_string())?;
     let signing_key: k256::ecdsa::SigningKey = xprv.private_key().clone();
     let verifying_key = signing_key.verifying_key();
     let compressed = verifying_key.to_encoded_point(true);
     // BIP-340/Nostr x-only pubkey: drop the parity-flag byte, keep the X coordinate.
-    let x_only: [u8; 32] = compressed.as_bytes()[1..33].try_into().map_err(|_| "bad pubkey length")?;
+    let x_only: [u8; 32] = compressed.as_bytes()[1..33]
+        .try_into()
+        .map_err(|_| "bad pubkey length")?;
     let address = bech32_npub(&x_only)?;
     Ok(ChainKey {
         private_key_hex: hex::encode(signing_key.to_bytes()),
@@ -233,8 +242,7 @@ const HARDENED: u32 = 0x8000_0000;
 ///
 /// Path mnemonic: "omokoda:libp2p:v1"
 pub fn derive_libp2p_key(k_root: &[u8]) -> (String, String) {
-    let mut mac = Hmac::<Sha256>::new_from_slice(k_root)
-        .expect("HMAC accepts any key length");
+    let mut mac = Hmac::<Sha256>::new_from_slice(k_root).expect("HMAC accepts any key length");
     mac.update(b"omokoda:libp2p:v1");
     let seed: [u8; 32] = mac.finalize().into_bytes().into();
     let signing_key = ed25519_dalek::SigningKey::from_bytes(&seed);
@@ -250,8 +258,7 @@ pub fn derive_libp2p_key(k_root: &[u8]) -> (String, String) {
 ///
 /// Path mnemonic: "omokoda:email:v1"
 pub fn derive_email_local(k_root: &[u8]) -> String {
-    let mut mac = Hmac::<Sha256>::new_from_slice(k_root)
-        .expect("HMAC accepts any key length");
+    let mut mac = Hmac::<Sha256>::new_from_slice(k_root).expect("HMAC accepts any key length");
     mac.update(b"omokoda:email:v1");
     let result = mac.finalize().into_bytes();
     hex::encode(&result[..8]) // 8 bytes → 16 hex chars
@@ -583,9 +590,7 @@ pub fn mine_create2_vanity(
     if prefix_lc.chars().any(|c| !c.is_ascii_hexdigit())
         || suffix_lc.chars().any(|c| !c.is_ascii_hexdigit())
     {
-        return Err(
-            "CREATE2 vanity pattern must contain only hex characters 0-9 a-f".into(),
-        );
+        return Err("CREATE2 vanity pattern must contain only hex characters 0-9 a-f".into());
     }
     if prefix_lc.len() + suffix_lc.len() > 40 {
         return Err("Combined vanity pattern length exceeds 40 hex chars".into());
@@ -598,8 +603,8 @@ pub fn mine_create2_vanity(
     }
     let deployer_bytes = hex::decode(deployer).map_err(|e| e.to_string())?;
 
-    let bytecode_raw = hex::decode(bytecode_hex.trim_start_matches("0x"))
-        .map_err(|e| e.to_string())?;
+    let bytecode_raw =
+        hex::decode(bytecode_hex.trim_start_matches("0x")).map_err(|e| e.to_string())?;
     let mut bh = Keccak256::new();
     bh.update(&bytecode_raw);
     let init_code_hash = bh.finalize();
@@ -697,9 +702,8 @@ pub fn export_keystore_v3(private_key_hex: &str, password: &str) -> Result<Keyst
     let pk_bytes = hex::decode(pk_hex).map_err(|e| e.to_string())?;
 
     // Derive Ethereum address from private key.
-    let signing_key =
-        k256::ecdsa::SigningKey::from_bytes(pk_bytes.as_slice().into())
-            .map_err(|e| e.to_string())?;
+    let signing_key = k256::ecdsa::SigningKey::from_bytes(pk_bytes.as_slice().into())
+        .map_err(|e| e.to_string())?;
     let verifying_key = signing_key.verifying_key();
     let uncompressed = verifying_key.to_encoded_point(false);
     let pub_bytes = uncompressed.as_bytes();
@@ -714,13 +718,8 @@ pub fn export_keystore_v3(private_key_hex: &str, password: &str) -> Result<Keyst
     let mut salt = [0u8; 32];
     rng.fill_bytes(&mut salt);
     let mut derived_key = [0u8; 32];
-    pbkdf2::pbkdf2::<Hmac<Sha256>>(
-        password.as_bytes(),
-        &salt,
-        262_144,
-        &mut derived_key,
-    )
-    .map_err(|e| format!("PBKDF2 error: {e}"))?;
+    pbkdf2::pbkdf2::<Hmac<Sha256>>(password.as_bytes(), &salt, 262_144, &mut derived_key)
+        .map_err(|e| format!("PBKDF2 error: {e}"))?;
 
     // Encrypt: XChaCha20Poly1305 with the first 32 bytes of derived key.
     let mut nonce_bytes = [0u8; 24];
@@ -781,13 +780,8 @@ pub fn import_keystore_v3(keystore: &KeystoreV3, password: &str) -> Result<Strin
 
     // Derive key.
     let mut derived_key = [0u8; 32];
-    pbkdf2::pbkdf2::<Hmac<Sha256>>(
-        password.as_bytes(),
-        &salt,
-        c,
-        &mut derived_key,
-    )
-    .map_err(|e| format!("PBKDF2 error: {e}"))?;
+    pbkdf2::pbkdf2::<Hmac<Sha256>>(password.as_bytes(), &salt, c, &mut derived_key)
+        .map_err(|e| format!("PBKDF2 error: {e}"))?;
 
     // Decode ciphertext.
     let ciphertext = hex::decode(&crypto.ciphertext).map_err(|e| e.to_string())?;
@@ -808,10 +802,7 @@ pub fn import_keystore_v3(keystore: &KeystoreV3, password: &str) -> Result<Strin
         .ok_or("missing cipherparams.nonce")?;
     let nonce_bytes = hex::decode(nonce_hex).map_err(|e| e.to_string())?;
     if nonce_bytes.len() != 24 {
-        return Err(format!(
-            "nonce must be 24 bytes, got {}",
-            nonce_bytes.len()
-        ));
+        return Err(format!("nonce must be 24 bytes, got {}", nonce_bytes.len()));
     }
     let cipher_key = ChaChaKey::from_slice(&derived_key);
     let cipher = XChaCha20Poly1305::new(cipher_key);
@@ -959,7 +950,10 @@ mod tests {
         // Different k_root → different key
         let k_root2 = b"different_k_root_32_bytes_here__";
         let (_, peer_other) = derive_libp2p_key(k_root2);
-        assert_ne!(peer1, peer_other, "different k_root must produce different peer_id");
+        assert_ne!(
+            peer1, peer_other,
+            "different k_root must produce different peer_id"
+        );
     }
 
     #[test]
@@ -972,7 +966,10 @@ mod tests {
         // Different k_root → different local
         let k_root2 = b"different_k_root_32_bytes_here__";
         let local_other = derive_email_local(k_root2);
-        assert_ne!(local1, local_other, "different k_root must produce different email local");
+        assert_ne!(
+            local1, local_other,
+            "different k_root must produce different email local"
+        );
     }
 
     #[test]
@@ -994,8 +991,7 @@ mod tests {
         // Same root mnemonic, six different chains -- every derived
         // private key must be unique. A collision here would mean two
         // chains accidentally share a derivation path.
-        let sui = crate::identity::wallet::Wallet::derive_from_mnemonic(TEST_MNEMONIC, "")
-            .unwrap();
+        let sui = crate::identity::wallet::Wallet::derive_from_mnemonic(TEST_MNEMONIC, "").unwrap();
         let sui_hex = hex::encode(sui.to_bytes());
         let eth = derive_ethereum(TEST_MNEMONIC, "").unwrap().private_key_hex;
         let btc = derive_bitcoin(TEST_MNEMONIC, "").unwrap().private_key_hex;
@@ -1007,7 +1003,10 @@ mod tests {
         let keys = [sui_hex, eth, btc, cosmos, sol, aptos, nostr];
         for i in 0..keys.len() {
             for j in (i + 1)..keys.len() {
-                assert_ne!(keys[i], keys[j], "chain {i} and chain {j} must not share a key");
+                assert_ne!(
+                    keys[i], keys[j],
+                    "chain {i} and chain {j} must not share a key"
+                );
             }
         }
     }

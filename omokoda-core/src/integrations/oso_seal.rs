@@ -85,18 +85,10 @@ pub trait AccessProvider: Send + Sync {
     fn encrypt(&self, data: &[u8], policy: &AccessPolicy) -> Result<EncryptedBlob, SealError>;
 
     /// Produce an `AccessGrant` for `identity` if the policy allows it.
-    fn authorize(
-        &self,
-        blob: &EncryptedBlob,
-        identity: &str,
-    ) -> Result<AccessGrant, SealError>;
+    fn authorize(&self, blob: &EncryptedBlob, identity: &str) -> Result<AccessGrant, SealError>;
 
     /// Decrypt a blob using a previously issued grant.
-    fn decrypt(
-        &self,
-        blob: &EncryptedBlob,
-        grant: &AccessGrant,
-    ) -> Result<Vec<u8>, SealError>;
+    fn decrypt(&self, blob: &EncryptedBlob, grant: &AccessGrant) -> Result<Vec<u8>, SealError>;
 
     /// Delegate an existing grant to another identity with optional constraints.
     fn delegate(
@@ -126,7 +118,10 @@ pub struct LocalSealProvider {
 
 impl LocalSealProvider {
     pub fn new(key: [u8; 32]) -> Self {
-        Self { key, grants: Arc::new(Mutex::new(HashMap::new())) }
+        Self {
+            key,
+            grants: Arc::new(Mutex::new(HashMap::new())),
+        }
     }
 
     pub fn random() -> Self {
@@ -137,13 +132,16 @@ impl LocalSealProvider {
 }
 
 impl AccessProvider for LocalSealProvider {
-    fn backend(&self) -> SealBackend { SealBackend::Local }
+    fn backend(&self) -> SealBackend {
+        SealBackend::Local
+    }
 
     fn encrypt(&self, data: &[u8], policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
             .map_err(|e| SealError::Backend(e.to_string()))?;
         let nonce = ChaCha20Poly1305::generate_nonce(&mut AeadRng);
-        let mut ciphertext = cipher.encrypt(&nonce, data)
+        let mut ciphertext = cipher
+            .encrypt(&nonce, data)
             .map_err(|e| SealError::Backend(e.to_string()))?;
         // Prepend nonce to ciphertext so it's self-contained.
         let mut payload = nonce.to_vec();
@@ -160,11 +158,7 @@ impl AccessProvider for LocalSealProvider {
         })
     }
 
-    fn authorize(
-        &self,
-        blob: &EncryptedBlob,
-        identity: &str,
-    ) -> Result<AccessGrant, SealError> {
+    fn authorize(&self, blob: &EncryptedBlob, identity: &str) -> Result<AccessGrant, SealError> {
         let grant = AccessGrant {
             grant_id: uuid::Uuid::new_v4().to_string(),
             grantee_identity: identity.to_string(),
@@ -173,15 +167,14 @@ impl AccessProvider for LocalSealProvider {
             expires_at: None,
             token: self.key.to_vec(), // local: token IS the key
         };
-        self.grants.lock().unwrap().insert(grant.grant_id.clone(), grant.clone());
+        self.grants
+            .lock()
+            .unwrap()
+            .insert(grant.grant_id.clone(), grant.clone());
         Ok(grant)
     }
 
-    fn decrypt(
-        &self,
-        blob: &EncryptedBlob,
-        grant: &AccessGrant,
-    ) -> Result<Vec<u8>, SealError> {
+    fn decrypt(&self, blob: &EncryptedBlob, grant: &AccessGrant) -> Result<Vec<u8>, SealError> {
         if grant.token.len() != 32 {
             return Err(SealError::DecryptionFailed("bad token length".into()));
         }
@@ -200,7 +193,9 @@ impl AccessProvider for LocalSealProvider {
         // Verify plaintext integrity.
         let hash = *blake3::hash(&plaintext).as_bytes();
         if hash != blob.plaintext_hash {
-            return Err(SealError::DecryptionFailed("plaintext hash mismatch".into()));
+            return Err(SealError::DecryptionFailed(
+                "plaintext hash mismatch".into(),
+            ));
         }
         Ok(plaintext)
     }
@@ -219,12 +214,18 @@ impl AccessProvider for LocalSealProvider {
             expires_at,
             token: grant.token.clone(),
         };
-        self.grants.lock().unwrap().insert(delegated.grant_id.clone(), delegated.clone());
+        self.grants
+            .lock()
+            .unwrap()
+            .insert(delegated.grant_id.clone(), delegated.clone());
         Ok(delegated)
     }
 
     fn revoke(&self, grant_id: &GrantId) -> Result<(), SealError> {
-        self.grants.lock().unwrap().remove(grant_id)
+        self.grants
+            .lock()
+            .unwrap()
+            .remove(grant_id)
             .map(|_| ())
             .ok_or_else(|| SealError::GrantNotFound(grant_id.clone()))
     }
@@ -237,22 +238,39 @@ pub struct SuiSealProvider {
 }
 
 impl AccessProvider for SuiSealProvider {
-    fn backend(&self) -> SealBackend { SealBackend::SuiSeal }
+    fn backend(&self) -> SealBackend {
+        SealBackend::SuiSeal
+    }
 
     fn encrypt(&self, _data: &[u8], _policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
-        Err(SealError::Unavailable("Sui/Seal encrypt not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "Sui/Seal encrypt not yet implemented".into(),
+        ))
     }
     fn authorize(&self, _blob: &EncryptedBlob, _identity: &str) -> Result<AccessGrant, SealError> {
-        Err(SealError::Unavailable("Sui/Seal authorize not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "Sui/Seal authorize not yet implemented".into(),
+        ))
     }
     fn decrypt(&self, _blob: &EncryptedBlob, _grant: &AccessGrant) -> Result<Vec<u8>, SealError> {
-        Err(SealError::Unavailable("Sui/Seal decrypt not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "Sui/Seal decrypt not yet implemented".into(),
+        ))
     }
-    fn delegate(&self, _grant: &AccessGrant, _to: &str, _exp: Option<u64>) -> Result<AccessGrant, SealError> {
-        Err(SealError::Unavailable("Sui/Seal delegate not yet implemented".into()))
+    fn delegate(
+        &self,
+        _grant: &AccessGrant,
+        _to: &str,
+        _exp: Option<u64>,
+    ) -> Result<AccessGrant, SealError> {
+        Err(SealError::Unavailable(
+            "Sui/Seal delegate not yet implemented".into(),
+        ))
     }
     fn revoke(&self, grant_id: &GrantId) -> Result<(), SealError> {
-        Err(SealError::Unavailable(format!("Sui/Seal revoke not yet implemented: {grant_id}")))
+        Err(SealError::Unavailable(format!(
+            "Sui/Seal revoke not yet implemented: {grant_id}"
+        )))
     }
 }
 
@@ -264,22 +282,39 @@ pub struct Nip46Provider {
 }
 
 impl AccessProvider for Nip46Provider {
-    fn backend(&self) -> SealBackend { SealBackend::Nip46 }
+    fn backend(&self) -> SealBackend {
+        SealBackend::Nip46
+    }
 
     fn encrypt(&self, _data: &[u8], _policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
-        Err(SealError::Unavailable("NIP-46 encrypt not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "NIP-46 encrypt not yet implemented".into(),
+        ))
     }
     fn authorize(&self, _blob: &EncryptedBlob, _identity: &str) -> Result<AccessGrant, SealError> {
-        Err(SealError::Unavailable("NIP-46 authorize not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "NIP-46 authorize not yet implemented".into(),
+        ))
     }
     fn decrypt(&self, _blob: &EncryptedBlob, _grant: &AccessGrant) -> Result<Vec<u8>, SealError> {
-        Err(SealError::Unavailable("NIP-46 decrypt not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "NIP-46 decrypt not yet implemented".into(),
+        ))
     }
-    fn delegate(&self, _grant: &AccessGrant, _to: &str, _exp: Option<u64>) -> Result<AccessGrant, SealError> {
-        Err(SealError::Unavailable("NIP-46 delegate not yet implemented".into()))
+    fn delegate(
+        &self,
+        _grant: &AccessGrant,
+        _to: &str,
+        _exp: Option<u64>,
+    ) -> Result<AccessGrant, SealError> {
+        Err(SealError::Unavailable(
+            "NIP-46 delegate not yet implemented".into(),
+        ))
     }
     fn revoke(&self, _grant_id: &GrantId) -> Result<(), SealError> {
-        Err(SealError::Unavailable("NIP-46 revoke not yet implemented".into()))
+        Err(SealError::Unavailable(
+            "NIP-46 revoke not yet implemented".into(),
+        ))
     }
 }
 
@@ -304,7 +339,9 @@ mod tests {
         assert_ne!(blob.ciphertext, plaintext);
         assert_eq!(blob.backend, SealBackend::Local);
 
-        let grant = provider.authorize(&blob, "agent-xyz").expect("authorize ok");
+        let grant = provider
+            .authorize(&blob, "agent-xyz")
+            .expect("authorize ok");
         assert_eq!(grant.grantee_identity, "agent-xyz");
 
         let decrypted = provider.decrypt(&blob, &grant).expect("decrypt ok");
@@ -316,7 +353,9 @@ mod tests {
         // Revoking removes from grant store but does NOT invalidate the token
         // (local provider — no server-side enforcement in this tier).
         let provider = LocalSealProvider::random();
-        let blob = provider.encrypt(b"data", &AccessPolicy::default()).expect("ok");
+        let blob = provider
+            .encrypt(b"data", &AccessPolicy::default())
+            .expect("ok");
         let grant = provider.authorize(&blob, "a").expect("ok");
         let grant_id = grant.grant_id.clone();
 
@@ -331,17 +370,28 @@ mod tests {
     #[test]
     fn local_seal_delegate_roundtrip() {
         let provider = LocalSealProvider::random();
-        let blob = provider.encrypt(b"delegated secret", &AccessPolicy::default()).expect("ok");
+        let blob = provider
+            .encrypt(b"delegated secret", &AccessPolicy::default())
+            .expect("ok");
         let original_grant = provider.authorize(&blob, "owner").expect("ok");
-        let delegated = provider.delegate(&original_grant, "delegate", None).expect("ok");
+        let delegated = provider
+            .delegate(&original_grant, "delegate", None)
+            .expect("ok");
 
-        let decrypted = provider.decrypt(&blob, &delegated).expect("decrypt via delegate ok");
+        let decrypted = provider
+            .decrypt(&blob, &delegated)
+            .expect("decrypt via delegate ok");
         assert_eq!(decrypted, b"delegated secret");
     }
 
     #[test]
     fn sui_seal_returns_unavailable() {
-        let p = SuiSealProvider { rpc_url: "https://sui-rpc.example".into() };
-        assert!(matches!(p.encrypt(b"x", &AccessPolicy::default()), Err(SealError::Unavailable(_))));
+        let p = SuiSealProvider {
+            rpc_url: "https://sui-rpc.example".into(),
+        };
+        assert!(matches!(
+            p.encrypt(b"x", &AccessPolicy::default()),
+            Err(SealError::Unavailable(_))
+        ));
     }
 }

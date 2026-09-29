@@ -117,7 +117,10 @@ mod tests {
     #[test]
     fn an_unknown_state_is_refused_at_the_call_site() {
         assert!("vibing".parse::<WorkState>().is_err());
-        assert_eq!("needs_review".parse::<WorkState>().unwrap(), WorkState::NeedsReview);
+        assert_eq!(
+            "needs_review".parse::<WorkState>().unwrap(),
+            WorkState::NeedsReview
+        );
     }
 
     #[test]

@@ -68,29 +68,29 @@ pub enum ReceiptPolicy {
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct MutationPlan {
     /// Stable identifier for this plan (SHA-256 of actor+intent+domain+operation+ts).
-    pub id:            [u8; 32],
+    pub id: [u8; 32],
     /// The agent executing the plan.
-    pub actor:         String,
+    pub actor: String,
     /// Human-readable description of the intent.
-    pub intent:        String,
+    pub intent: String,
     /// Which state domain is being mutated.
-    pub domain:        MutationDomain,
+    pub domain: MutationDomain,
     /// String identifier of the target (tool name, node id, device id, etc.).
-    pub target:        String,
+    pub target: String,
     /// Hash of the state before the mutation (if known).
-    pub before_hash:   Option<[u8; 32]>,
+    pub before_hash: Option<[u8; 32]>,
     /// The operation name (tool_name, LQL verb, Zero patch kind, etc.).
-    pub operation:     String,
+    pub operation: String,
     /// Minimum tier required to execute this plan.
     pub required_tier: u8,
     /// The action category driving If-Script vessel selection.
-    pub category:      ActionCategory,
+    pub category: ActionCategory,
     /// Vessel alignment result (set after If-Script evaluation).
-    pub alignment:     Option<VesselAlignment>,
+    pub alignment: Option<VesselAlignment>,
     /// When/if to write this action to GIX memory.
     pub memory_effect: MemoryEffectPolicy,
     /// Receipt commitment level.
-    pub receipt:       ReceiptPolicy,
+    pub receipt: ReceiptPolicy,
     /// Unix milliseconds when the plan was created.
     pub created_at_ms: u64,
 }
@@ -100,11 +100,11 @@ impl MutationPlan {
     ///
     /// Domain is inferred from `ActionCategory`; tier is the agent's current tier.
     pub fn from_tool_call(
-        actor:     &str,
+        actor: &str,
         tool_name: &str,
-        category:  ActionCategory,
-        tier:      u8,
-        ts_ms:     u64,
+        category: ActionCategory,
+        tier: u8,
+        ts_ms: u64,
     ) -> Self {
         let domain = domain_for_category(category);
         let operation = tool_name.to_string();
@@ -125,16 +125,16 @@ impl MutationPlan {
         // High-stakes domains require a receipt; economy always required.
         let receipt = match domain {
             MutationDomain::Economy => ReceiptPolicy::Required,
-            MutationDomain::World   => ReceiptPolicy::Optional,
-            _                       => ReceiptPolicy::None,
+            MutationDomain::World => ReceiptPolicy::Optional,
+            _ => ReceiptPolicy::None,
         };
 
         // Program/Model/Memory mutations should always be recorded.
         let memory_effect = match domain {
-            MutationDomain::Program |
-            MutationDomain::Model   |
-            MutationDomain::Memory  => MemoryEffectPolicy::Always,
-            _                       => MemoryEffectPolicy::OnSuccess,
+            MutationDomain::Program | MutationDomain::Model | MutationDomain::Memory => {
+                MemoryEffectPolicy::Always
+            }
+            _ => MemoryEffectPolicy::OnSuccess,
         };
 
         Self {
@@ -158,22 +158,19 @@ impl MutationPlan {
 /// Infer the mutation domain from the action category.
 fn domain_for_category(cat: ActionCategory) -> MutationDomain {
     match cat {
-        ActionCategory::Identity    |
-        ActionCategory::Cryptographic => MutationDomain::Memory,
-        ActionCategory::Learning    => MutationDomain::Model,
-        ActionCategory::Execution   => MutationDomain::Program,
-        ActionCategory::Swarm       |
-        ActionCategory::Migration   => MutationDomain::World,
-        ActionCategory::Receipt     => MutationDomain::Economy,
-        ActionCategory::Privacy     |
-        ActionCategory::Consent     => MutationDomain::Memory,
-        ActionCategory::Observation |
-        ActionCategory::Focus       |
-        ActionCategory::Iteration   |
-        ActionCategory::Telemetry   |
-        ActionCategory::Restraint   |
-        ActionCategory::Temporal    |
-        ActionCategory::Dissolution => MutationDomain::World,
+        ActionCategory::Identity | ActionCategory::Cryptographic => MutationDomain::Memory,
+        ActionCategory::Learning => MutationDomain::Model,
+        ActionCategory::Execution => MutationDomain::Program,
+        ActionCategory::Swarm | ActionCategory::Migration => MutationDomain::World,
+        ActionCategory::Receipt => MutationDomain::Economy,
+        ActionCategory::Privacy | ActionCategory::Consent => MutationDomain::Memory,
+        ActionCategory::Observation
+        | ActionCategory::Focus
+        | ActionCategory::Iteration
+        | ActionCategory::Telemetry
+        | ActionCategory::Restraint
+        | ActionCategory::Temporal
+        | ActionCategory::Dissolution => MutationDomain::World,
     }
 }
 
@@ -183,21 +180,35 @@ mod tests {
 
     #[test]
     fn mutation_plan_domain_inferred_from_category() {
-        let plan = MutationPlan::from_tool_call("agent1", "write_file", ActionCategory::Execution, 3, 1000);
+        let plan = MutationPlan::from_tool_call(
+            "agent1",
+            "write_file",
+            ActionCategory::Execution,
+            3,
+            1000,
+        );
         assert_eq!(plan.domain, MutationDomain::Program);
     }
 
     #[test]
     fn mutation_plan_economy_requires_receipt() {
-        let plan = MutationPlan::from_tool_call("agent1", "ingest_arp_receipt", ActionCategory::Receipt, 3, 1000);
+        let plan = MutationPlan::from_tool_call(
+            "agent1",
+            "ingest_arp_receipt",
+            ActionCategory::Receipt,
+            3,
+            1000,
+        );
         assert_eq!(plan.domain, MutationDomain::Economy);
         assert_eq!(plan.receipt, ReceiptPolicy::Required);
     }
 
     #[test]
     fn mutation_plan_id_is_deterministic() {
-        let p1 = MutationPlan::from_tool_call("a", "read_file", ActionCategory::Observation, 2, 9999);
-        let p2 = MutationPlan::from_tool_call("a", "read_file", ActionCategory::Observation, 2, 9999);
+        let p1 =
+            MutationPlan::from_tool_call("a", "read_file", ActionCategory::Observation, 2, 9999);
+        let p2 =
+            MutationPlan::from_tool_call("a", "read_file", ActionCategory::Observation, 2, 9999);
         assert_eq!(p1.id, p2.id);
     }
 
@@ -205,11 +216,21 @@ mod tests {
     fn all_categories_have_a_domain() {
         use crate::ifscript_gate::ActionCategory;
         let cats = [
-            ActionCategory::Identity, ActionCategory::Dissolution, ActionCategory::Focus,
-            ActionCategory::Iteration, ActionCategory::Receipt, ActionCategory::Privacy,
-            ActionCategory::Telemetry, ActionCategory::Execution, ActionCategory::Swarm,
-            ActionCategory::Restraint, ActionCategory::Migration, ActionCategory::Consent,
-            ActionCategory::Observation, ActionCategory::Learning, ActionCategory::Cryptographic,
+            ActionCategory::Identity,
+            ActionCategory::Dissolution,
+            ActionCategory::Focus,
+            ActionCategory::Iteration,
+            ActionCategory::Receipt,
+            ActionCategory::Privacy,
+            ActionCategory::Telemetry,
+            ActionCategory::Execution,
+            ActionCategory::Swarm,
+            ActionCategory::Restraint,
+            ActionCategory::Migration,
+            ActionCategory::Consent,
+            ActionCategory::Observation,
+            ActionCategory::Learning,
+            ActionCategory::Cryptographic,
             ActionCategory::Temporal,
         ];
         for cat in cats {

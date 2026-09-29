@@ -20,22 +20,22 @@ type HmacSha256 = Hmac<Sha256>;
 // region of the HMAC output is used during genesis weight derivation.
 
 pub const VESSEL_NAMES: [&str; 16] = [
-    "Genesis",    // 0
-    "Void",       // 1
-    "Attention",  // 2
-    "Loop",       // 3
-    "Receipt",    // 4
-    "Mask",       // 5
-    "Residue",    // 6
-    "Execution",  // 7
-    "Swarm",      // 8
-    "Restraint",  // 9
-    "Migration",  // 10
-    "Consent",    // 11
-    "Vision",     // 12
-    "Growth",     // 13
-    "Seal",       // 14
-    "Rhythm",     // 15
+    "Genesis",   // 0
+    "Void",      // 1
+    "Attention", // 2
+    "Loop",      // 3
+    "Receipt",   // 4
+    "Mask",      // 5
+    "Residue",   // 6
+    "Execution", // 7
+    "Swarm",     // 8
+    "Restraint", // 9
+    "Migration", // 10
+    "Consent",   // 11
+    "Vision",    // 12
+    "Growth",    // 13
+    "Seal",      // 14
+    "Rhythm",    // 15
 ];
 
 // ── Core struct ───────────────────────────────────────────────────────────────
@@ -181,8 +181,7 @@ impl Ori {
             previous_ori_hash: &self.previous_ori_hash,
             experience_count: self.experience_count,
         };
-        let json_bytes = serde_json::to_vec(&wire)
-            .expect("OriForHash serialisation is infallible");
+        let json_bytes = serde_json::to_vec(&wire).expect("OriForHash serialisation is infallible");
         sha256_hex(&json_bytes)
     }
 }
@@ -190,8 +189,8 @@ impl Ori {
 // ── Free helpers ──────────────────────────────────────────────────────────────
 
 fn derive_vessel_weight(entropy_seed: &[u8], vessel_name: &str) -> f32 {
-    let mut mac = HmacSha256::new_from_slice(entropy_seed)
-        .expect("HMAC-SHA256 accepts any key length");
+    let mut mac =
+        HmacSha256::new_from_slice(entropy_seed).expect("HMAC-SHA256 accepts any key length");
     mac.update(vessel_name.as_bytes());
     let result = mac.finalize().into_bytes();
     let raw = u32::from_be_bytes([result[0], result[1], result[2], result[3]]);
@@ -350,8 +349,7 @@ pub fn persist_ori_at_birth(
 
     let ori = Ori::genesis(entropy_seed, ifascript_version);
 
-    let ori_json =
-        serde_json::to_string_pretty(&ori).map_err(|e| format!("Ori serialize: {e}"))?;
+    let ori_json = serde_json::to_string_pretty(&ori).map_err(|e| format!("Ori serialize: {e}"))?;
 
     let home = HomeDir::new();
 
@@ -634,11 +632,15 @@ impl Ori {
         };
 
         // Derive vessel weights using child entropy + ancestral salt as HMAC key.
-        let hmac_key: Vec<u8> = child_entropy.iter().chain(ancestral_salt.iter()).cloned().collect();
+        let hmac_key: Vec<u8> = child_entropy
+            .iter()
+            .chain(ancestral_salt.iter())
+            .cloned()
+            .collect();
         let mut vessel_weights = [0.0f32; 16];
         for (i, name) in VESSEL_NAMES.iter().enumerate() {
-            let mut mac = HmacSha256::new_from_slice(&hmac_key)
-                .expect("HMAC-SHA256 accepts any key length");
+            let mut mac =
+                HmacSha256::new_from_slice(&hmac_key).expect("HMAC-SHA256 accepts any key length");
             mac.update(name.as_bytes());
             let result = mac.finalize().into_bytes();
             let raw = u32::from_be_bytes([result[0], result[1], result[2], result[3]]);
@@ -675,8 +677,7 @@ fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
     (0..s.len())
         .step_by(2)
         .map(|i| {
-            u8::from_str_radix(&s[i..i + 2], 16)
-                .map_err(|e| format!("invalid hex at {i}: {e}"))
+            u8::from_str_radix(&s[i..i + 2], 16).map_err(|e| format!("invalid hex at {i}: {e}"))
         })
         .collect()
 }
@@ -738,7 +739,10 @@ mod tests {
         assert_eq!(display.len(), 16);
         for (name, bullets) in &display {
             let count = bullets.chars().count();
-            assert_eq!(count, 5, "vessel '{name}' display has wrong length: '{bullets}'");
+            assert_eq!(
+                count, 5,
+                "vessel '{name}' display has wrong length: '{bullets}'"
+            );
         }
     }
 
@@ -787,7 +791,10 @@ mod tests {
     fn generate_ori_md_is_not_editable() {
         let ori = Ori::genesis(&sample_seed(), "0.1.0");
         let md = generate_ori_md("test-agent", &ori);
-        assert!(md.contains("DO NOT EDIT"), "must contain DO NOT EDIT warning");
+        assert!(
+            md.contains("DO NOT EDIT"),
+            "must contain DO NOT EDIT warning"
+        );
     }
 
     #[test]
@@ -827,8 +834,12 @@ mod tests {
             vec![],
             "0.1.0",
         );
-        let child_ori = Ori::from_child_birth_context(&ctx).expect("single-parent birth must succeed");
-        assert_ne!(child_ori.vessel_weights, parent_ori.vessel_weights, "child must differ from parent");
+        let child_ori =
+            Ori::from_child_birth_context(&ctx).expect("single-parent birth must succeed");
+        assert_ne!(
+            child_ori.vessel_weights, parent_ori.vessel_weights,
+            "child must differ from parent"
+        );
         assert_ne!(child_ori.birth_entropy_hash, parent_ori.birth_entropy_hash);
     }
 
@@ -857,25 +868,43 @@ mod tests {
         let child_entropy = b"same-child-entropy-for-both";
 
         let ctx_a = ChildBirthContext::new(
-            BirthMode::SingleParent, child_entropy, vec![commitment_a], vec![], "0.1.0",
+            BirthMode::SingleParent,
+            child_entropy,
+            vec![commitment_a],
+            vec![],
+            "0.1.0",
         );
         let ctx_b = ChildBirthContext::new(
-            BirthMode::SingleParent, child_entropy, vec![commitment_b], vec![], "0.1.0",
+            BirthMode::SingleParent,
+            child_entropy,
+            vec![commitment_b],
+            vec![],
+            "0.1.0",
         );
 
         let ori_a = Ori::from_child_birth_context(&ctx_a).unwrap();
         let ori_b = Ori::from_child_birth_context(&ctx_b).unwrap();
-        assert_ne!(ori_a.vessel_weights, ori_b.vessel_weights,
-            "same child entropy with different parents must produce different vessel weights");
+        assert_ne!(
+            ori_a.vessel_weights, ori_b.vessel_weights,
+            "same child entropy with different parents must produce different vessel weights"
+        );
     }
 
     #[test]
     fn context_hash_is_deterministic() {
         let ctx_a = ChildBirthContext::new(
-            BirthMode::Sovereign, b"entropy-for-hash-test", vec![], vec![], "0.1.0",
+            BirthMode::Sovereign,
+            b"entropy-for-hash-test",
+            vec![],
+            vec![],
+            "0.1.0",
         );
         let ctx_b = ChildBirthContext::new(
-            BirthMode::Sovereign, b"entropy-for-hash-test", vec![], vec![], "0.1.0",
+            BirthMode::Sovereign,
+            b"entropy-for-hash-test",
+            vec![],
+            vec![],
+            "0.1.0",
         );
         assert_eq!(ctx_a.context_hash, ctx_b.context_hash);
     }
@@ -884,9 +913,13 @@ mod tests {
     fn consent_receipt_signature_hint_is_stable() {
         let receipt_a = ConsentReceipt::new("agent-x", "abc123hash");
         let receipt_b = ConsentReceipt::new("agent-x", "abc123hash");
-        assert_eq!(receipt_a.signature_hint, receipt_b.signature_hint,
-            "same inputs must produce same signature_hint");
-        assert!(receipt_a.signature_hint.starts_with("ed25519:"),
-            "hint must start with ed25519: prefix");
+        assert_eq!(
+            receipt_a.signature_hint, receipt_b.signature_hint,
+            "same inputs must produce same signature_hint"
+        );
+        assert!(
+            receipt_a.signature_hint.starts_with("ed25519:"),
+            "hint must start with ed25519: prefix"
+        );
     }
 }

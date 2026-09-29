@@ -29,7 +29,9 @@ pub use vibration::VibrationGate;
 use crate::identity::AgentId;
 
 /// Sensitivity tier for data accessed or produced by an action.
-#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize)]
+#[derive(
+    Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Default, serde::Serialize, serde::Deserialize,
+)]
 pub enum DataSensitivity {
     #[default]
     Public,

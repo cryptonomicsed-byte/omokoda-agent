@@ -115,20 +115,31 @@ mod tests {
     #[tokio::test]
     async fn invalid_query_returns_error() {
         let tool = LarqlTool;
-        let result = tool.execute(r#"{"query":"INVALID SYNTAX HERE"}"#, &ctx()).await;
-        assert!(result.is_err() || {
-            let (out, _) = result.unwrap();
-            out.contains("error") || out.contains("parse")
-        });
+        let result = tool
+            .execute(r#"{"query":"INVALID SYNTAX HERE"}"#, &ctx())
+            .await;
+        assert!(
+            result.is_err() || {
+                let (out, _) = result.unwrap();
+                out.contains("error") || out.contains("parse")
+            }
+        );
     }
 
     #[tokio::test]
     async fn verify_query_returns_passed_field() {
         let tool = LarqlTool;
         let result = tool
-            .execute(r#"{"query":"VERIFY Genesis WHERE archetypes CONTAINS \"Steward\""}"#, &ctx())
+            .execute(
+                r#"{"query":"VERIFY Genesis WHERE archetypes CONTAINS \"Steward\""}"#,
+                &ctx(),
+            )
             .await;
-        assert!(result.is_ok(), "VERIFY query should not panic: {:?}", result);
+        assert!(
+            result.is_ok(),
+            "VERIFY query should not panic: {:?}",
+            result
+        );
         let (out, _) = result.unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         // passed may be true/false/null — just assert it's present

@@ -443,8 +443,8 @@ fn cmd_status_extra() -> Result<()> {
     } else {
         let contents = std::fs::read_to_string(&ori_path)
             .with_context(|| format!("reading {}", ori_path.display()))?;
-        let ori: omokoda_core::Ori = serde_json::from_str(&contents)
-            .with_context(|| "parsing ori.json")?;
+        let ori: omokoda_core::Ori =
+            serde_json::from_str(&contents).with_context(|| "parsing ori.json")?;
 
         let state_hash_short = if ori.state_hash.len() > 16 {
             format!("{}...", &ori.state_hash[..16])
@@ -540,23 +540,25 @@ fn omokoda_home() -> PathBuf {
 }
 
 fn cmd_constitution(raw: bool) -> Result<()> {
-    let path = omokoda_home().join("constitution").join("constitution.json");
+    let path = omokoda_home()
+        .join("constitution")
+        .join("constitution.json");
 
     if !path.exists() {
         println!("No constitution found. Run `omokoda birth` to initialize.");
         return Ok(());
     }
 
-    let contents = std::fs::read_to_string(&path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let contents =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 
     if raw {
         println!("{}", contents);
         return Ok(());
     }
 
-    let v: serde_json::Value = serde_json::from_str(&contents)
-        .with_context(|| "parsing constitution.json as JSON")?;
+    let v: serde_json::Value =
+        serde_json::from_str(&contents).with_context(|| "parsing constitution.json as JSON")?;
 
     let pretty = serde_json::to_string_pretty(&v)?;
 
@@ -577,35 +579,74 @@ fn cmd_constitution(raw: bool) -> Result<()> {
 
     println!("{:<22} {}", "Odu:".bold(), str_field("odu_name"));
     println!("{:<22} {}", "Odu Index:".bold(), num_field("odu_index"));
-    println!("{:<22} {}", "Archetype:".bold(), str_field("behavioral_archetype"));
-    println!("{:<22} {}", "Nostr pubkey:".bold(), str_field("nostr_pubkey_hex"));
-    println!("{:<22} {}", "Sui soul object:".bold(),
+    println!(
+        "{:<22} {}",
+        "Archetype:".bold(),
+        str_field("behavioral_archetype")
+    );
+    println!(
+        "{:<22} {}",
+        "Nostr pubkey:".bold(),
+        str_field("nostr_pubkey_hex")
+    );
+    println!(
+        "{:<22} {}",
+        "Sui soul object:".bold(),
         v.get("sui_soul_object_id")
             .and_then(|x| if x.is_null() { None } else { x.as_str() })
-            .unwrap_or("(not set)"));
-    println!("{:<22} {}", "Birth timestamp:".bold(), num_field("birth_timestamp"));
-    println!("{:<22} {}", "BTC block height:".bold(),
+            .unwrap_or("(not set)")
+    );
+    println!(
+        "{:<22} {}",
+        "Birth timestamp:".bold(),
+        num_field("birth_timestamp")
+    );
+    println!(
+        "{:<22} {}",
+        "BTC block height:".bold(),
         v.get("birth_btc_height")
-            .and_then(|x| if x.is_null() { None } else { Some(x.to_string()) })
-            .unwrap_or_else(|| "(not set)".to_string()));
-    println!("{:<22} {}", "Gate alignment seed:".bold(), num_field("gate_alignment_seed"));
-    println!("{:<22} {}", "Koodu birth score:".bold(), num_field("koodu_birth_score"));
+            .and_then(|x| if x.is_null() {
+                None
+            } else {
+                Some(x.to_string())
+            })
+            .unwrap_or_else(|| "(not set)".to_string())
+    );
+    println!(
+        "{:<22} {}",
+        "Gate alignment seed:".bold(),
+        num_field("gate_alignment_seed")
+    );
+    println!(
+        "{:<22} {}",
+        "Koodu birth score:".bold(),
+        num_field("koodu_birth_score")
+    );
 
     if let Some(dna) = v.get("hermetic_dna").and_then(|x| x.as_array()) {
         let dna_str: Vec<String> = dna.iter().map(|x| x.to_string()).collect();
         println!("{:<22} [{}]", "Hermetic DNA:".bold(), dna_str.join(", "));
     }
 
-    println!("{:<22} {}", "Signature:".bold(),
+    println!(
+        "{:<22} {}",
+        "Signature:".bold(),
         v.get("signature_hex")
             .and_then(|x| if x.is_null() { None } else { x.as_str() })
-            .unwrap_or("(unsigned)"));
+            .unwrap_or("(unsigned)")
+    );
 
     // Show BIPON39 phrase — abbreviated for security
     let phrase = str_field("bipon39_phrase");
     let words: Vec<&str> = phrase.split_whitespace().collect();
     let abbreviated = if words.len() > 3 {
-        format!("{} {} {} ... ({} words)", words[0], words[1], words[2], words.len())
+        format!(
+            "{} {} {} ... ({} words)",
+            words[0],
+            words[1],
+            words[2],
+            words.len()
+        )
     } else {
         phrase.clone()
     };
@@ -630,16 +671,16 @@ fn cmd_identity(raw: bool) -> Result<()> {
         return Ok(());
     }
 
-    let contents = std::fs::read_to_string(&path)
-        .with_context(|| format!("reading {}", path.display()))?;
+    let contents =
+        std::fs::read_to_string(&path).with_context(|| format!("reading {}", path.display()))?;
 
     if raw {
         println!("{}", contents);
         return Ok(());
     }
 
-    let v: serde_json::Value = serde_json::from_str(&contents)
-        .with_context(|| "parsing identity.json as JSON")?;
+    let v: serde_json::Value =
+        serde_json::from_str(&contents).with_context(|| "parsing identity.json as JSON")?;
 
     let str_field = |key: &str| -> String {
         v.get(key)
@@ -650,19 +691,25 @@ fn cmd_identity(raw: bool) -> Result<()> {
 
     println!("{}", "Agent Identity".bold().cyan());
     println!("{}", "─".repeat(40).dimmed());
-    println!("{:<22} {}", "Name:".bold(),        str_field("name"));
-    println!("{:<22} {}", "Agent ID:".bold(),    str_field("agent_id"));
-    println!("{:<22} {}", "Birth Hash:".bold(),  str_field("birth_hash"));
-    println!("{:<22} {}", "Nostr pubkey:".bold(),
+    println!("{:<22} {}", "Name:".bold(), str_field("name"));
+    println!("{:<22} {}", "Agent ID:".bold(), str_field("agent_id"));
+    println!("{:<22} {}", "Birth Hash:".bold(), str_field("birth_hash"));
+    println!(
+        "{:<22} {}",
+        "Nostr pubkey:".bold(),
         v.get("nostr_pubkey")
             .or_else(|| v.get("nostr_pubkey_hex"))
             .and_then(|x| if x.is_null() { None } else { x.as_str() })
-            .unwrap_or("(not set)"));
-    println!("{:<22} {}", "Sui address:".bold(),
+            .unwrap_or("(not set)")
+    );
+    println!(
+        "{:<22} {}",
+        "Sui address:".bold(),
         v.get("sui_address")
             .or_else(|| v.get("sui_soul_object_id"))
             .and_then(|x| if x.is_null() { None } else { x.as_str() })
-            .unwrap_or("(not set)"));
+            .unwrap_or("(not set)")
+    );
 
     println!();
     println!("{}", "Tip: use --raw to print full JSON.".dimmed());

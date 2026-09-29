@@ -12,15 +12,12 @@
 //! audit/Merkle/Gix1Index layer on top of those projections.
 
 pub use gix_core::{
-    Gix1Index,
-    GlyphGraph as GixGraph,
-    gix1_audit, gix1_merkle_root, GIX1_EMPTY_ROOT,
-    GlyphNode as GixNode, GlyphEdge as GixEdge, GixKind, Gix1Entry,
+    gix1_audit, gix1_merkle_root, Gix1Entry, Gix1Index, GixKind, GlyphEdge as GixEdge,
+    GlyphGraph as GixGraph, GlyphNode as GixNode, GIX1_EMPTY_ROOT,
 };
 pub use gix_types::{
-    GixMemoryRef, GixMemoryTier, GixNamespace, RoutingHints,
-    GixVisibility, GixProvenance, GixMinipaeLocator,
-    Gix1,
+    Gix1, GixMemoryRef, GixMemoryTier, GixMinipaeLocator, GixNamespace, GixProvenance,
+    GixVisibility, RoutingHints,
 };
 
 use crate::memory::memdir::OduDirectory;
@@ -108,11 +105,16 @@ pub fn project_gix(dir: &OduDirectory) -> GixGraph {
         chain.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
         for pair in chain.windows(2) {
             let from_digest = gix_types::content_hash(&pair[0].content);
-            let to_digest   = gix_types::content_hash(&pair[1].content);
+            let to_digest = gix_types::content_hash(&pair[1].content);
             let from = hex::encode(from_digest);
-            let to   = hex::encode(to_digest);
+            let to = hex::encode(to_digest);
             if from != to {
-                graph.add_edge(GixEdge { from, to, relation: "follows".to_string(), weight: 1 });
+                graph.add_edge(GixEdge {
+                    from,
+                    to,
+                    relation: "follows".to_string(),
+                    weight: 1,
+                });
             }
         }
     }
@@ -135,10 +137,10 @@ pub fn project_gix(dir: &OduDirectory) -> GixGraph {
             for pair in ids.windows(2) {
                 if pair[0] != pair[1] {
                     graph.add_edge(GixEdge {
-                        from:     pair[0].clone(),
-                        to:       pair[1].clone(),
+                        from: pair[0].clone(),
+                        to: pair[1].clone(),
                         relation: "recalls".to_string(),
-                        weight:   2,
+                        weight: 2,
                     });
                 }
             }
@@ -154,13 +156,13 @@ pub fn project_gix(dir: &OduDirectory) -> GixGraph {
                     // Pick the most recent parent entry (latest created_at).
                     if let Some(parent) = cluster.iter().max_by_key(|e| e.created_at) {
                         let from = hex::encode(gix_types::content_hash(&parent.content));
-                        let to   = hex::encode(gix_types::content_hash(&entry.content));
+                        let to = hex::encode(gix_types::content_hash(&entry.content));
                         if from != to {
                             graph.add_edge(GixEdge {
                                 from,
                                 to,
                                 relation: "derives".to_string(),
-                                weight:   1,
+                                weight: 1,
                             });
                         }
                     }
@@ -173,23 +175,28 @@ pub fn project_gix(dir: &OduDirectory) -> GixGraph {
     // point back to their immediate predecessor in the same path cluster.
     // Negative weight (-1) signals that this edge inverts the preceding assertion.
     {
-        const CONTRADICTION_TAGS: &[&str] = &["error", "fail", "failure", "contradiction", "rejected"];
+        const CONTRADICTION_TAGS: &[&str] =
+            &["error", "fail", "failure", "contradiction", "rejected"];
         for cluster in by_path.values() {
             let mut chain: Vec<&crate::memory::memdir::OduEntry> = cluster.clone();
             chain.sort_by(|a, b| a.created_at.cmp(&b.created_at).then(a.id.cmp(&b.id)));
             for (pos, entry) in chain.iter().enumerate() {
-                let has_contradiction = entry.tags.iter()
+                let has_contradiction = entry
+                    .tags
+                    .iter()
                     .any(|t| CONTRADICTION_TAGS.contains(&t.as_str()));
-                if !has_contradiction || pos == 0 { continue; }
+                if !has_contradiction || pos == 0 {
+                    continue;
+                }
                 let pred = chain[pos - 1];
                 let from = hex::encode(gix_types::content_hash(&pred.content));
-                let to   = hex::encode(gix_types::content_hash(&entry.content));
+                let to = hex::encode(gix_types::content_hash(&entry.content));
                 if from != to {
                     graph.add_edge(GixEdge {
                         from,
                         to,
                         relation: "contradicts".to_string(),
-                        weight:   -1,
+                        weight: -1,
                     });
                 }
             }
@@ -216,7 +223,7 @@ pub fn entry_to_gix_memory_ref(
 ) -> GixMemoryRef {
     use crate::memory::engine::MemoryTier;
     let gix_tier = match tier {
-        MemoryTier::Working  => GixMemoryTier::Working,
+        MemoryTier::Working => GixMemoryTier::Working,
         MemoryTier::Episodic => GixMemoryTier::Episodic,
         MemoryTier::Semantic => GixMemoryTier::Semantic,
     };
@@ -249,7 +256,11 @@ impl GixSelectResult {
 /// DESCRIBE: return all metadata for a single entry by canonical id.
 /// Returns `None` if the entry is not present in the index.
 pub fn query_describe(index: &Gix1Index, id: &str) -> Option<GixSelectResult> {
-    index.entries().iter().find(|e| e.canonical_id == id).map(GixSelectResult::from_entry)
+    index
+        .entries()
+        .iter()
+        .find(|e| e.canonical_id == id)
+        .map(GixSelectResult::from_entry)
 }
 
 /// SELECT: filter entries by optional kind and optional time range \[since_ts, until_ts\].
@@ -337,10 +348,7 @@ pub fn query_infer(index: &Gix1Index, id_prefix: &str, limit: usize) -> Vec<GixS
 /// Implementation note: this replicates the same pairwise SHA-256 reduction
 /// used by `gix1_merkle_root` in `gix_types`.  We build the proof bottom-up
 /// so callers can independently verify inclusion without holding the full index.
-pub fn merkle_proof(
-    index: &Gix1Index,
-    id: &str,
-) -> Result<(String, String, Vec<String>), String> {
+pub fn merkle_proof(index: &Gix1Index, id: &str) -> Result<(String, String, Vec<String>), String> {
     use sha2::{Digest, Sha256};
 
     if index.is_empty() {
@@ -378,7 +386,11 @@ pub fn merkle_proof(
         // Find this node's sibling at the current level.
         let sibling_pos = if pos % 2 == 0 {
             // Left node: sibling is to the right (or self if odd layer).
-            if pos + 1 < layer.len() { pos + 1 } else { pos }
+            if pos + 1 < layer.len() {
+                pos + 1
+            } else {
+                pos
+            }
         } else {
             // Right node: sibling is to the left.
             pos - 1
@@ -389,8 +401,12 @@ pub fn merkle_proof(
         let mut next: Vec<[u8; 32]> = Vec::with_capacity((layer.len() + 1) / 2);
         let mut i = 0;
         while i < layer.len() {
-            let left  = layer[i];
-            let right = if i + 1 < layer.len() { layer[i + 1] } else { left };
+            let left = layer[i];
+            let right = if i + 1 < layer.len() {
+                layer[i + 1]
+            } else {
+                left
+            };
             let mut h = Sha256::new();
             h.update(&left);
             h.update(&right);
@@ -418,14 +434,14 @@ pub fn merkle_proof(
 /// Pass the result to `CanonicalObjectStore::insert_memory()` to register both
 /// the envelope and the locator in one atomic step.
 pub fn entry_to_minipae_locator(
-    entry:       &crate::memory::memdir::OduEntry,
-    tier:        crate::memory::engine::MemoryTier,
+    entry: &crate::memory::memdir::OduEntry,
+    tier: crate::memory::engine::MemoryTier,
     agent_pubkey: &str,
-    relay_hint:  Option<String>,
+    relay_hint: Option<String>,
 ) -> (Gix1, GixMinipaeLocator) {
     let mem_ref = entry_to_gix_memory_ref(entry, tier, 0);
-    let env     = mem_ref.to_gix1(RoutingHints {
-        primary:  relay_hint.clone(),
+    let env = mem_ref.to_gix1(RoutingHints {
+        primary: relay_hint.clone(),
         fallback: vec![],
     });
     let locator = GixMinipaeLocator::from_gix1(&env, agent_pubkey, relay_hint);
@@ -441,9 +457,9 @@ pub fn entry_to_minipae_locator(
 /// Returns `(Gix1, GixProvenance)` so callers can store, log, or transmit
 /// the provenance record independently of the envelope.
 pub fn entry_with_provenance(
-    entry:       &crate::memory::memdir::OduEntry,
-    tier:        crate::memory::engine::MemoryTier,
-    supersedes:  Option<[u8; 32]>,
+    entry: &crate::memory::memdir::OduEntry,
+    tier: crate::memory::engine::MemoryTier,
+    supersedes: Option<[u8; 32]>,
     derived_from: Vec<[u8; 32]>,
 ) -> (Gix1, GixProvenance) {
     use gix_types::content_hash;
@@ -451,7 +467,7 @@ pub fn entry_with_provenance(
     let content_hash_bytes = content_hash(&entry.content);
 
     let mut provenance = GixProvenance::new(content_hash_bytes);
-    provenance.supersedes   = supersedes;
+    provenance.supersedes = supersedes;
     provenance.derived_from = derived_from;
 
     let prov_fingerprint = provenance.fingerprint();
@@ -490,9 +506,9 @@ pub fn entry_with_provenance(
 ///
 /// Returns `Ok(())` if all five checks pass, `Err(message)` on first failure.
 pub fn verify_authority_contract(
-    env:      &Gix1,
-    prov:     &GixProvenance,
-    locator:  Option<&GixMinipaeLocator>,
+    env: &Gix1,
+    prov: &GixProvenance,
+    locator: Option<&GixMinipaeLocator>,
 ) -> Result<(), String> {
     // Check 1: hash-domain isolation
     if env.canonical_id == prov.content_hash {
@@ -519,13 +535,15 @@ pub fn verify_authority_contract(
         if loc.slug != expected_slug {
             return Err(format!(
                 "locator slug {:?} does not match envelope {}",
-                loc.slug, hex::encode(env.canonical_id)
+                loc.slug,
+                hex::encode(env.canonical_id)
             ));
         }
         if loc.canonical_id != hex::encode(env.canonical_id) {
             return Err(format!(
                 "locator canonical_id {:?} does not match envelope {}",
-                loc.canonical_id, hex::encode(env.canonical_id)
+                loc.canonical_id,
+                hex::encode(env.canonical_id)
             ));
         }
     }
@@ -560,8 +578,8 @@ pub struct ActionMemoryNode {
     pub canonical_id_hex: String,
     /// The original content string: `"{tool}|{vessel}|{category}|{alignment}|{ok/err}"`.
     /// Empty string if the content is not available in the session cache.
-    pub content:          String,
-    pub created_at_ms:    u64,
+    pub content: String,
+    pub created_at_ms: u64,
 }
 
 /// Walk the action-memory supersedes chain starting from `tip_id_hex`.
@@ -572,10 +590,10 @@ pub struct ActionMemoryNode {
 /// `content_cache` maps canonical_id_hex → original content string; populated
 /// by `Steward::record_action_memory` for the current session.
 pub fn walk_action_lineage(
-    store:         &gix_core::CanonicalObjectStore,
+    store: &gix_core::CanonicalObjectStore,
     content_cache: &std::collections::HashMap<String, String>,
-    tip_id_hex:    &str,
-    limit:         usize,
+    tip_id_hex: &str,
+    limit: usize,
 ) -> Vec<ActionMemoryNode> {
     let mut result = Vec::new();
     let mut current = tip_id_hex.to_string();
@@ -584,28 +602,27 @@ pub fn walk_action_lineage(
         // Look up the envelope in the index.
         let env = match store.get_object(&current) {
             Some(e) => e,
-            None    => break,
+            None => break,
         };
-        let content = content_cache
-            .get(&current)
-            .cloned()
-            .unwrap_or_default();
+        let content = content_cache.get(&current).cloned().unwrap_or_default();
 
         result.push(ActionMemoryNode {
             canonical_id_hex: current.clone(),
             content,
-            created_at_ms:    env.created_at,
+            created_at_ms: env.created_at,
         });
 
         // Find the target of the first "supersedes" edge from this node.
-        let next = store.graph.edges()
+        let next = store
+            .graph
+            .edges()
             .iter()
             .find(|e| e.from == current && e.relation == "supersedes")
             .map(|e| e.to.clone());
 
         match next {
             Some(n) => current = n,
-            None    => break,
+            None => break,
         }
     }
     result
@@ -614,7 +631,9 @@ pub fn walk_action_lineage(
 // ── helpers ───────────────────────────────────────────────────────────────────
 
 fn dir_canonical_ids(dir: &OduDirectory) -> Vec<String> {
-    let mut ids: Vec<String> = dir.entries.values()
+    let mut ids: Vec<String> = dir
+        .entries
+        .values()
         .map(|e| hex::encode(gix_types::content_hash(&e.content)))
         .collect();
     ids.sort_unstable();
@@ -651,12 +670,15 @@ mod gix_bridge_tests {
     fn follows_edges_appear_within_path_cluster() {
         let dir = make_dir(vec![
             entry("e1", "alpha", "memory/core", 100, &[]),
-            entry("e2", "beta",  "memory/core", 200, &[]),
+            entry("e2", "beta", "memory/core", 200, &[]),
             entry("e3", "gamma", "memory/other", 300, &[]),
         ]);
         let g = project_gix(&dir);
-        let edges: Vec<_> = g.edges().iter()
-            .filter(|e| e.relation == "follows").collect();
+        let edges: Vec<_> = g
+            .edges()
+            .iter()
+            .filter(|e| e.relation == "follows")
+            .collect();
         // e1→e2 follow edge; e3 is in a different cluster — no cross-cluster follows
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].weight, 1);
@@ -666,12 +688,15 @@ mod gix_bridge_tests {
     fn recalls_edges_link_entries_with_shared_tag() {
         let dir = make_dir(vec![
             entry("e1", "alpha content", "memory/a", 100, &["session", "core"]),
-            entry("e2", "beta content",  "memory/b", 200, &["session"]),
+            entry("e2", "beta content", "memory/b", 200, &["session"]),
             entry("e3", "gamma content", "memory/c", 300, &["unrelated"]),
         ]);
         let g = project_gix(&dir);
-        let recalls: Vec<_> = g.edges().iter()
-            .filter(|e| e.relation == "recalls").collect();
+        let recalls: Vec<_> = g
+            .edges()
+            .iter()
+            .filter(|e| e.relation == "recalls")
+            .collect();
         // e1 and e2 both have tag "session" → 1 recalls edge
         assert_eq!(recalls.len(), 1);
         assert_eq!(recalls[0].weight, 2);
@@ -680,12 +705,15 @@ mod gix_bridge_tests {
     #[test]
     fn derives_edges_link_child_path_to_parent() {
         let dir = make_dir(vec![
-            entry("e1", "parent content", "memory",      100, &[]),
-            entry("e2", "child content",  "memory/core", 200, &[]),
+            entry("e1", "parent content", "memory", 100, &[]),
+            entry("e2", "child content", "memory/core", 200, &[]),
         ]);
         let g = project_gix(&dir);
-        let derives: Vec<_> = g.edges().iter()
-            .filter(|e| e.relation == "derives").collect();
+        let derives: Vec<_> = g
+            .edges()
+            .iter()
+            .filter(|e| e.relation == "derives")
+            .collect();
         // e2 is at "memory/core", parent is "memory" which contains e1
         assert_eq!(derives.len(), 1);
         assert_eq!(derives[0].weight, 1);
@@ -698,8 +726,11 @@ mod gix_bridge_tests {
             entry("e2", "error log", "memory/core", 200, &["error"]),
         ]);
         let g = project_gix(&dir);
-        let contradicts: Vec<_> = g.edges().iter()
-            .filter(|e| e.relation == "contradicts").collect();
+        let contradicts: Vec<_> = g
+            .edges()
+            .iter()
+            .filter(|e| e.relation == "contradicts")
+            .collect();
         assert_eq!(contradicts.len(), 1);
         assert_eq!(contradicts[0].weight, -1);
     }
@@ -736,9 +767,8 @@ mod gix_bridge_tests {
     fn entry_to_minipae_locator_slug_is_deterministic() {
         use crate::memory::engine::MemoryTier;
         let e = entry("e1", "some memory content", "memory/core", 100, &[]);
-        let (env, locator) = super::entry_to_minipae_locator(
-            &e, MemoryTier::Working, "npub1test", None,
-        );
+        let (env, locator) =
+            super::entry_to_minipae_locator(&e, MemoryTier::Working, "npub1test", None);
         let expected_slug = format!("mem/{}", hex::encode(env.canonical_id));
         assert_eq!(locator.slug, expected_slug);
         assert_eq!(locator.canonical_id, hex::encode(env.canonical_id));
@@ -749,9 +779,7 @@ mod gix_bridge_tests {
     fn entry_with_provenance_stamps_fingerprint_on_envelope() {
         use crate::memory::engine::MemoryTier;
         let e = entry("e1", "agent decision", "memory/episodic", 200, &[]);
-        let (env, prov) = super::entry_with_provenance(
-            &e, MemoryTier::Episodic, None, vec![],
-        );
+        let (env, prov) = super::entry_with_provenance(&e, MemoryTier::Episodic, None, vec![]);
         // Provenance fingerprint must appear on the envelope.
         assert_eq!(env.provenance, Some(prov.fingerprint()));
         assert_eq!(env.namespace, GixNamespace::TriuneMemory);
@@ -764,9 +792,8 @@ mod gix_bridge_tests {
         use gix_types::content_hash;
         let old_id = content_hash("old memory");
         let e = entry("e2", "updated memory", "memory/episodic", 300, &[]);
-        let (_, prov) = super::entry_with_provenance(
-            &e, MemoryTier::Episodic, Some(old_id), vec![],
-        );
+        let (_, prov) =
+            super::entry_with_provenance(&e, MemoryTier::Episodic, Some(old_id), vec![]);
         assert_eq!(prov.supersedes, Some(old_id));
     }
 
@@ -775,24 +802,25 @@ mod gix_bridge_tests {
         use crate::memory::engine::MemoryTier;
         use gix_core::CanonicalObjectStore;
         let e = entry("e1", "canonical memory", "memory/semantic", 400, &[]);
-        let (env, locator) = super::entry_to_minipae_locator(
-            &e, MemoryTier::Semantic, "agent-key-abc", None,
-        );
+        let (env, locator) =
+            super::entry_to_minipae_locator(&e, MemoryTier::Semantic, "agent-key-abc", None);
         let canonical_id = hex::encode(env.canonical_id);
 
         let mut store = CanonicalObjectStore::new();
         let returned_id = store.insert_memory(env, locator);
 
         assert_eq!(returned_id, canonical_id);
-        let resolved = store.resolve_locator(&canonical_id).expect("locator must be registered");
+        let resolved = store
+            .resolve_locator(&canonical_id)
+            .expect("locator must be registered");
         assert_eq!(resolved.slug, format!("mem/{canonical_id}"));
     }
 
     #[test]
     fn no_self_edges_in_any_relation() {
         let dir = make_dir(vec![
-            entry("e1", "unique alpha",   "memory/core", 100, &["tag"]),
-            entry("e2", "unique alpha",   "memory/core", 200, &["tag", "error"]),
+            entry("e1", "unique alpha", "memory/core", 100, &["tag"]),
+            entry("e2", "unique alpha", "memory/core", 200, &["tag", "error"]),
         ]);
         let g = project_gix(&dir);
         for edge in g.edges() {
@@ -803,8 +831,8 @@ mod gix_bridge_tests {
     // ── Phase 9B: verify_authority_contract tests ─────────────────────────────
 
     fn authority_envelope_and_provenance(content: &str) -> (Gix1, GixProvenance) {
-        use gix_types::content_hash;
         use crate::memory::engine::MemoryTier;
+        use gix_types::content_hash;
         let e = entry("auth-e1", content, "test", 1000, &[]);
         let (env, _) = entry_with_provenance(&e, MemoryTier::Working, None, vec![]);
         let content_hash_bytes = content_hash(content);
@@ -843,7 +871,7 @@ mod gix_bridge_tests {
 
     #[test]
     fn authority_contract_rejects_self_supersession() {
-        use gix_types::{Gix1, GixKind, GixNamespace, RoutingHints, content_hash};
+        use gix_types::{content_hash, Gix1, GixKind, GixNamespace, RoutingHints};
         // Envelope payload is raw bytes; canonical_id = SHA-256(bytes).
         // Provenance content_hash uses content_hash() which is SHA-256 of text.
         // Use DIFFERENT text for payload vs content hash to avoid check-1 collision.
@@ -859,7 +887,10 @@ mod gix_bridge_tests {
         // Use a DIFFERENT string for content_hash so canonical_id ≠ content_hash
         let mut prov = GixProvenance::new(content_hash("different-content-material"));
         // Verify they're distinct (check 1 must pass)
-        assert_ne!(env.canonical_id, prov.content_hash, "test precondition: hashes must differ");
+        assert_ne!(
+            env.canonical_id, prov.content_hash,
+            "test precondition: hashes must differ"
+        );
         // Now set self-supersession to trigger check 4
         prov.supersedes = Some(env.canonical_id);
         let result = verify_authority_contract(&env, &prov, None);

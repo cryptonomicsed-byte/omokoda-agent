@@ -11,8 +11,8 @@
 //! produce no receipt — the failure is recorded as action memory by
 //! `record_action_memory()` instead.
 
-use crate::mutation::{MutationDomain, MutationPlan};
 use crate::mutation::router::MutationResult;
+use crate::mutation::{MutationDomain, MutationPlan};
 
 /// A sealed record of a completed mutation.
 ///
@@ -134,11 +134,17 @@ impl MutationReceipt {
 mod tests {
     use super::*;
     use crate::ifscript_gate::ActionCategory;
-    use crate::mutation::{MutationDomain, MutationPlan};
     use crate::mutation::router::MutationResult;
+    use crate::mutation::{MutationDomain, MutationPlan};
 
     fn make_plan() -> MutationPlan {
-        MutationPlan::from_tool_call("agent-1", "zero_patch", ActionCategory::Execution, 5, 1_000_000)
+        MutationPlan::from_tool_call(
+            "agent-1",
+            "zero_patch",
+            ActionCategory::Execution,
+            5,
+            1_000_000,
+        )
     }
 
     fn make_result(plan: &MutationPlan) -> MutationResult {
@@ -217,7 +223,7 @@ mod tests {
         let plan = make_plan();
         let mut result = make_result(&plan);
         result.validation_passed = false; // force invalid state
-        // Must panic — no receipt for a failed mutation.
+                                          // Must panic — no receipt for a failed mutation.
         let _ = MutationReceipt::from_result(&plan, &result, None, None);
     }
 }

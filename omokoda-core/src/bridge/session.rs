@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
+use std::collections::VecDeque;
 use std::io::{BufRead, BufReader, Write};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
-use std::collections::VecDeque;
 use std::sync::{Arc, Mutex};
 
 /// Options for spawning a child omokoda-cli session.
@@ -37,7 +37,10 @@ pub struct PermissionRequest {
 /// Activity emitted by the session as it reads the child's NDJSON output.
 #[derive(Debug, Clone)]
 pub enum SessionActivity {
-    ToolStart { tool: String, input: serde_json::Value },
+    ToolStart {
+        tool: String,
+        input: serde_json::Value,
+    },
     Text(String),
     Result(serde_json::Value),
     Error(String),
@@ -66,7 +69,10 @@ impl SessionHandle {
     }
 
     /// Refresh auth tokens via stdin control message.
-    pub fn refresh_tokens(&mut self, env_vars: std::collections::HashMap<String, String>) -> std::io::Result<()> {
+    pub fn refresh_tokens(
+        &mut self,
+        env_vars: std::collections::HashMap<String, String>,
+    ) -> std::io::Result<()> {
         let msg = serde_json::json!({
             "type": "update_environment_variables",
             "env": env_vars,
@@ -83,7 +89,9 @@ impl SessionHandle {
     pub fn force_kill(&mut self) {
         use std::os::unix::process::CommandExt;
         let pid = self.child.id();
-        unsafe { libc::kill(pid as i32, libc::SIGKILL); }
+        unsafe {
+            libc::kill(pid as i32, libc::SIGKILL);
+        }
     }
 
     /// Last N stderr lines captured from the child.
@@ -109,7 +117,8 @@ impl SessionSpawner {
         let stdin = child.stdin.take().expect("stdin configured");
         let stdout = child.stdout.take().expect("stdout configured");
 
-        let stderr_ring: Arc<Mutex<VecDeque<String>>> = Arc::new(Mutex::new(VecDeque::with_capacity(10)));
+        let stderr_ring: Arc<Mutex<VecDeque<String>>> =
+            Arc::new(Mutex::new(VecDeque::with_capacity(10)));
         let ring_clone = stderr_ring.clone();
 
         // Spawn thread to drain stderr into ring buffer
@@ -126,7 +135,11 @@ impl SessionSpawner {
             });
         }
 
-        let handle = SessionHandle { child, stdin, stderr_ring };
+        let handle = SessionHandle {
+            child,
+            stdin,
+            stderr_ring,
+        };
         let stream = NdjsonStream::new(stdout, opts.transcript_path);
         Ok((handle, stream))
     }
@@ -140,9 +153,17 @@ pub struct NdjsonStream {
 
 impl NdjsonStream {
     fn new(stdout: ChildStdout, transcript_path: Option<String>) -> Self {
-        let transcript = transcript_path
-            .and_then(|p| std::fs::OpenOptions::new().create(true).append(true).open(p).ok());
-        Self { reader: BufReader::new(stdout), transcript }
+        let transcript = transcript_path.and_then(|p| {
+            std::fs::OpenOptions::new()
+                .create(true)
+                .append(true)
+                .open(p)
+                .ok()
+        });
+        Self {
+            reader: BufReader::new(stdout),
+            transcript,
+        }
     }
 
     fn log_line(&mut self, line: &str) {
@@ -184,10 +205,14 @@ impl Iterator for NdjsonStream {
                     )),
                     "control_request" => {
                         // Permission gate: child is asking if it may use a tool
-                        if let Ok(req) = serde_json::from_value::<PermissionRequest>(v["request"].clone()) {
+                        if let Ok(req) =
+                            serde_json::from_value::<PermissionRequest>(v["request"].clone())
+                        {
                             Some(SessionActivity::PermissionNeeded(req))
                         } else {
-                            Some(SessionActivity::Error("malformed control_request".to_string()))
+                            Some(SessionActivity::Error(
+                                "malformed control_request".to_string(),
+                            ))
                         }
                     }
                     _ => Some(SessionActivity::Text(trimmed.to_string())),

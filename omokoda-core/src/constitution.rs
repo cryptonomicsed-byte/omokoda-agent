@@ -111,7 +111,13 @@ fn compute_gate_alignment(dna: &[f32; 7]) -> f64 {
 
 fn derive_archetype(odu_index: u8, dna: &[f32; 7]) -> String {
     let archetype_names = [
-        "Spark", "Mind", "Foundation", "Emotion", "Womb", "Fire", "Ascension",
+        "Spark",
+        "Mind",
+        "Foundation",
+        "Emotion",
+        "Womb",
+        "Fire",
+        "Ascension",
     ];
     // Dominant gate = the principle with the highest score
     let dominant_idx = dna
@@ -120,20 +126,28 @@ fn derive_archetype(odu_index: u8, dna: &[f32; 7]) -> String {
         .max_by(|a, b| a.1.partial_cmp(b.1).unwrap_or(std::cmp::Ordering::Equal))
         .map(|(i, _)| i)
         .unwrap_or(0);
-    format!(
-        "Odù-{} — {}",
-        odu_index,
-        archetype_names[dominant_idx % 7]
-    )
+    format!("Odù-{} — {}", odu_index, archetype_names[dominant_idx % 7])
 }
 
 fn odu_name_for(index: u8) -> String {
     // 256 Odù names — abbreviated list for common positions
     let names = [
-        "Ogbe Meji", "Oyeku Meji", "Iwori Meji", "Odi Meji",
-        "Irosun Meji", "Owonrin Meji", "Obara Meji", "Okanran Meji",
-        "Ogunda Meji", "Osa Meji", "Ika Meji", "Oturupon Meji",
-        "Otura Meji", "Irete Meji", "Ose Meji", "Ofun Meji",
+        "Ogbe Meji",
+        "Oyeku Meji",
+        "Iwori Meji",
+        "Odi Meji",
+        "Irosun Meji",
+        "Owonrin Meji",
+        "Obara Meji",
+        "Okanran Meji",
+        "Ogunda Meji",
+        "Osa Meji",
+        "Ika Meji",
+        "Oturupon Meji",
+        "Otura Meji",
+        "Irete Meji",
+        "Ose Meji",
+        "Ofun Meji",
     ];
     if (index as usize) < names.len() {
         names[index as usize].to_string()

@@ -95,10 +95,7 @@ impl AgentCapsule {
         let shared_secret = eph_secret.diffie_hellman(&dest_x25519);
 
         // 3. HKDF-SHA256: IKM = shared_secret, salt = "oso-migration-v1", info = agent_id.
-        let hk = Hkdf::<Sha256>::new(
-            Some(b"oso-migration-v1"),
-            shared_secret.as_bytes(),
-        );
+        let hk = Hkdf::<Sha256>::new(Some(b"oso-migration-v1"), shared_secret.as_bytes());
         let mut session_key = [0u8; 32];
         hk.expand(agent_id.as_bytes(), &mut session_key)
             .map_err(|e| format!("HKDF expand failed: {e}"))?;
@@ -143,16 +140,13 @@ impl AgentCapsule {
     }
 
     /// Decrypt a capsule using the destination node's Ed25519 signing key.
-    pub fn open(
-        &self,
-        dest_signing_key: &SigningKey,
-    ) -> Result<Vec<u8>, String> {
+    pub fn open(&self, dest_signing_key: &SigningKey) -> Result<Vec<u8>, String> {
         // 1. Re-derive X25519 private key from Ed25519 secret scalar.
         let dest_x25519_priv = ed25519_sk_to_x25519_sk(dest_signing_key);
 
         // 2. Recover ephemeral pubkey.
-        let eph_bytes = hex::decode(&self.ephemeral_pubkey)
-            .map_err(|e| format!("eph_pub decode: {e}"))?;
+        let eph_bytes =
+            hex::decode(&self.ephemeral_pubkey).map_err(|e| format!("eph_pub decode: {e}"))?;
         let eph_bytes: [u8; 32] = eph_bytes
             .try_into()
             .map_err(|_| "eph_pub must be 32 bytes".to_string())?;
@@ -160,10 +154,7 @@ impl AgentCapsule {
 
         // 3. Shared secret + HKDF.
         let shared_secret = dest_x25519_priv.diffie_hellman(&eph_pub);
-        let hk = Hkdf::<Sha256>::new(
-            Some(b"oso-migration-v1"),
-            shared_secret.as_bytes(),
-        );
+        let hk = Hkdf::<Sha256>::new(Some(b"oso-migration-v1"), shared_secret.as_bytes());
         let mut session_key = [0u8; 32];
         hk.expand(self.agent_id.as_bytes(), &mut session_key)
             .map_err(|e| format!("HKDF expand: {e}"))?;
@@ -193,7 +184,8 @@ impl AgentCapsule {
         let migration_timestamp = current_unix_ts();
         let encrypted_vault = vault_data.to_vec();
         let vault_nonce = [0u8; 12];
-        let ephemeral_pubkey = String::from("0000000000000000000000000000000000000000000000000000000000000000");
+        let ephemeral_pubkey =
+            String::from("0000000000000000000000000000000000000000000000000000000000000000");
         let capsule_hash = Self::capsule_content_hash(
             agent_id,
             source_node_pubkey,
@@ -265,7 +257,7 @@ fn ed25519_sk_to_x25519_sk(sk: &SigningKey) -> x25519_dalek::StaticSecret {
     let mut scalar = [0u8; 32];
     scalar.copy_from_slice(&hash[..32]);
     // RFC 7748 clamping
-    scalar[0]  &= 248;
+    scalar[0] &= 248;
     scalar[31] &= 127;
     scalar[31] |= 64;
     x25519_dalek::StaticSecret::from(scalar)
@@ -287,24 +279,37 @@ mod tests {
     #[test]
     fn capsule_hash_is_deterministic() {
         let h1 = AgentCapsule::capsule_content_hash(
-            "agent-abc123", "src_pubkey", "dst_pubkey", 1_700_000_000, "eph", b"vault_bytes",
+            "agent-abc123",
+            "src_pubkey",
+            "dst_pubkey",
+            1_700_000_000,
+            "eph",
+            b"vault_bytes",
         );
         let h2 = AgentCapsule::capsule_content_hash(
-            "agent-abc123", "src_pubkey", "dst_pubkey", 1_700_000_000, "eph", b"vault_bytes",
+            "agent-abc123",
+            "src_pubkey",
+            "dst_pubkey",
+            1_700_000_000,
+            "eph",
+            b"vault_bytes",
         );
         assert_eq!(h1, h2);
     }
 
     #[test]
     fn capsule_hash_changes_with_any_field() {
-        let base = AgentCapsule::capsule_content_hash(
-            "agent-abc", "src", "dst", 1_000, "eph", b"vault",
-        );
-        let diff_agent = AgentCapsule::capsule_content_hash(
-            "agent-xyz", "src", "dst", 1_000, "eph", b"vault",
-        );
+        let base =
+            AgentCapsule::capsule_content_hash("agent-abc", "src", "dst", 1_000, "eph", b"vault");
+        let diff_agent =
+            AgentCapsule::capsule_content_hash("agent-xyz", "src", "dst", 1_000, "eph", b"vault");
         let diff_vault = AgentCapsule::capsule_content_hash(
-            "agent-abc", "src", "dst", 1_000, "eph", b"different_vault",
+            "agent-abc",
+            "src",
+            "dst",
+            1_000,
+            "eph",
+            b"different_vault",
         );
         assert_ne!(base, diff_agent);
         assert_ne!(base, diff_vault);
@@ -313,7 +318,10 @@ mod tests {
     #[test]
     fn seal_compat_shim_produces_valid_capsule() {
         let capsule = AgentCapsule::seal(
-            b"fake_vault_data", "agent-test", "src_pubkey_hex", "dst_pubkey_hex",
+            b"fake_vault_data",
+            "agent-test",
+            "src_pubkey_hex",
+            "dst_pubkey_hex",
         )
         .expect("seal must succeed");
         assert_eq!(capsule.agent_id, "agent-test");
@@ -321,8 +329,12 @@ mod tests {
         assert_eq!(capsule.capsule_hash.len(), 32);
         // Hash must match independent computation with the compat shim's fixed eph value.
         let expected = AgentCapsule::capsule_content_hash(
-            "agent-test", "src_pubkey_hex", "dst_pubkey_hex",
-            capsule.migration_timestamp, &capsule.ephemeral_pubkey, b"fake_vault_data",
+            "agent-test",
+            "src_pubkey_hex",
+            "dst_pubkey_hex",
+            capsule.migration_timestamp,
+            &capsule.ephemeral_pubkey,
+            b"fake_vault_data",
         );
         assert_eq!(capsule.capsule_hash, expected);
     }
@@ -333,10 +345,9 @@ mod tests {
         let dst_sk = EdSk::generate(&mut OsRng);
         let vault = b"sovereign agent vault data - private keys inside";
 
-        let capsule = AgentCapsule::seal_encrypted(
-            vault, "test-agent", &src_sk, &dst_sk.verifying_key(),
-        )
-        .expect("seal_encrypted must succeed");
+        let capsule =
+            AgentCapsule::seal_encrypted(vault, "test-agent", &src_sk, &dst_sk.verifying_key())
+                .expect("seal_encrypted must succeed");
 
         // Verify signature exists.
         assert!(!capsule.source_node_sig.is_empty());
@@ -354,10 +365,9 @@ mod tests {
         let dst_sk = EdSk::generate(&mut OsRng);
         let wrong_sk = EdSk::generate(&mut OsRng);
 
-        let capsule = AgentCapsule::seal_encrypted(
-            b"secret", "agent", &src_sk, &dst_sk.verifying_key(),
-        )
-        .expect("seal ok");
+        let capsule =
+            AgentCapsule::seal_encrypted(b"secret", "agent", &src_sk, &dst_sk.verifying_key())
+                .expect("seal ok");
 
         let result = capsule.open(&wrong_sk);
         assert!(result.is_err(), "wrong key must fail to decrypt");

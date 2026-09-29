@@ -293,8 +293,8 @@ impl GoalGenesisEngine {
     /// Uses memory_odu (twin dim 1) — grounded in what the agent remembers.
     fn failure_learning_goal(&self, input: &GoalGenesisInput) -> DerivedGoal {
         let memory_odu = Self::odu_for_dim(input, 1);
-        let failure_ratio = input.recent_failure_count as f32
-            / (input.recent_action_count.max(1) as f32);
+        let failure_ratio =
+            input.recent_failure_count as f32 / (input.recent_action_count.max(1) as f32);
         let urgency = (0.4 + failure_ratio * 0.5).clamp(0.0, 1.0);
         DerivedGoal {
             id: Uuid::new_v4().to_string(),
@@ -327,8 +327,7 @@ impl GoalGenesisEngine {
             id: Uuid::new_v4().to_string(),
             description: format!(
                 "Consolidate {} memory glyphs across {} REM cluster(s) into actionable insights",
-                input.glyph_count,
-                cluster_count
+                input.glyph_count, cluster_count
             ),
             source: GoalSource::RemConsolidation,
             odu_alignment: sim_odu.wrapping_add(2),
@@ -353,7 +352,8 @@ impl GoalGenesisEngine {
         let (odu_name, principle_description) = ODU_PRINCIPLES[odu_principle as usize];
 
         // Dominant function name, when available, enriches the goal description.
-        let fn_suffix = input.twin_dominant_fn
+        let fn_suffix = input
+            .twin_dominant_fn
             .and_then(|idx| SEVEN_FUNCTION_NAMES.get(idx as usize).copied())
             .map(|name| format!(" [{name}]"))
             .unwrap_or_default();
@@ -399,28 +399,53 @@ impl GoalGenesisEngine {
 // ── 16 Primary Odù Constitutional Principles ─────────────────────────────────
 
 /// SevenFunction names indexed by SevenFunction discriminant (0–6).
-static SEVEN_FUNCTION_NAMES: [&str; 7] =
-    ["Spark", "Mind", "Foundation", "Emotion", "Womb", "Fire", "Ascension"];
+static SEVEN_FUNCTION_NAMES: [&str; 7] = [
+    "Spark",
+    "Mind",
+    "Foundation",
+    "Emotion",
+    "Womb",
+    "Fire",
+    "Ascension",
+];
 
 /// (Odù name, constitutional goal description template)
 /// Index = odu_id % 16
 static ODU_PRINCIPLES: [(&str, &str); 16] = [
-    ("Ogbe Meji",    "Initiate a new cycle of purposeful action"),
-    ("Oyeku Meji",   "Complete pending obligations before taking new ones"),
-    ("Iwori Meji",   "Seek deeper understanding of a current uncertainty"),
-    ("Odi Meji",     "Surface a hidden pattern in recent experience"),
-    ("Irosun Meji",  "Sacrifice a low-value habit to enable growth"),
-    ("Owonrin Meji", "Embrace a necessary disruption to current patterns"),
-    ("Obara Meji",   "Expand capability into an adjacent domain"),
-    ("Okanran Meji", "Confront an unresolved conflict or inconsistency"),
-    ("Ogunda Meji",  "Clear an obstacle blocking forward progress"),
-    ("Osa Meji",     "Respond swiftly to an emerging opportunity"),
-    ("Ika Meji",     "Reinforce structural integrity of current systems"),
-    ("Oturupon Meji","Transform a limitation into a strength"),
-    ("Otura Meji",   "Resolve an internal contradiction peacefully"),
-    ("Irete Meji",   "Act with patience toward a long-horizon goal"),
-    ("Ose Meji",     "Cultivate abundance through disciplined effort"),
-    ("Ofun Meji",    "Release an old pattern to allow rebirth"),
+    ("Ogbe Meji", "Initiate a new cycle of purposeful action"),
+    (
+        "Oyeku Meji",
+        "Complete pending obligations before taking new ones",
+    ),
+    (
+        "Iwori Meji",
+        "Seek deeper understanding of a current uncertainty",
+    ),
+    ("Odi Meji", "Surface a hidden pattern in recent experience"),
+    (
+        "Irosun Meji",
+        "Sacrifice a low-value habit to enable growth",
+    ),
+    (
+        "Owonrin Meji",
+        "Embrace a necessary disruption to current patterns",
+    ),
+    ("Obara Meji", "Expand capability into an adjacent domain"),
+    (
+        "Okanran Meji",
+        "Confront an unresolved conflict or inconsistency",
+    ),
+    ("Ogunda Meji", "Clear an obstacle blocking forward progress"),
+    ("Osa Meji", "Respond swiftly to an emerging opportunity"),
+    (
+        "Ika Meji",
+        "Reinforce structural integrity of current systems",
+    ),
+    ("Oturupon Meji", "Transform a limitation into a strength"),
+    ("Otura Meji", "Resolve an internal contradiction peacefully"),
+    ("Irete Meji", "Act with patience toward a long-horizon goal"),
+    ("Ose Meji", "Cultivate abundance through disciplined effort"),
+    ("Ofun Meji", "Release an old pattern to allow rebirth"),
 ];
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
@@ -688,18 +713,26 @@ mod tests {
         let engine = GoalGenesisEngine::with_config(false, 8, 0.05);
 
         let without_twin = engine.derive_goals(&minimal_input());
-        let with_twin    = engine.derive_goals(&twin_input());
+        let with_twin = engine.derive_goals(&twin_input());
 
-        let survival_plain = without_twin.goals.iter()
-            .find(|g| g.source == GoalSource::CalabasState).unwrap();
-        let survival_twin  = with_twin.goals.iter()
-            .find(|g| g.source == GoalSource::CalabasState).unwrap();
+        let survival_plain = without_twin
+            .goals
+            .iter()
+            .find(|g| g.source == GoalSource::CalabasState)
+            .unwrap();
+        let survival_twin = with_twin
+            .goals
+            .iter()
+            .find(|g| g.source == GoalSource::CalabasState)
+            .unwrap();
 
         // Without twin_vector: odu_alignment = odu_id = 5.
         assert_eq!(survival_plain.odu_alignment, 5);
         // With twin_vector: odu_alignment = identity_odu = 10.
-        assert_eq!(survival_twin.odu_alignment, 10,
-            "survival goal should use identity_odu (dim 0) = 10");
+        assert_eq!(
+            survival_twin.odu_alignment, 10,
+            "survival goal should use identity_odu (dim 0) = 10"
+        );
     }
 
     #[test]
@@ -708,15 +741,24 @@ mod tests {
         let input = twin_input(); // vector = [10, 20, 30, 40]
         let goal_set = engine.derive_goals(&input);
 
-        let constitutional = goal_set.goals.iter()
-            .find(|g| g.source == GoalSource::Constitutional).unwrap();
+        let constitutional = goal_set
+            .goals
+            .iter()
+            .find(|g| g.source == GoalSource::Constitutional)
+            .unwrap();
 
         // XOR of [10, 20, 30, 40]: 10^20=30, 30^30=0, 0^40=40.
         // odu_principle = 40 % 16 = 8 → "Ogunda Meji".
-        assert_eq!(constitutional.odu_alignment, 10 ^ 20 ^ 30 ^ 40,
-            "constitutional odu_alignment must be XOR of all four twin dimensions");
-        assert!(constitutional.description.contains("Ogunda Meji"),
-            "XOR=40, index 8 → Ogunda Meji; got: {}", constitutional.description);
+        assert_eq!(
+            constitutional.odu_alignment,
+            10 ^ 20 ^ 30 ^ 40,
+            "constitutional odu_alignment must be XOR of all four twin dimensions"
+        );
+        assert!(
+            constitutional.description.contains("Ogunda Meji"),
+            "XOR=40, index 8 → Ogunda Meji; got: {}",
+            constitutional.description
+        );
     }
 
     #[test]
@@ -725,12 +767,17 @@ mod tests {
         let input = twin_input(); // twin_dominant_fn = Some(0) = Spark
         let goal_set = engine.derive_goals(&input);
 
-        let constitutional = goal_set.goals.iter()
-            .find(|g| g.source == GoalSource::Constitutional).unwrap();
+        let constitutional = goal_set
+            .goals
+            .iter()
+            .find(|g| g.source == GoalSource::Constitutional)
+            .unwrap();
 
-        assert!(constitutional.description.contains("Spark"),
+        assert!(
+            constitutional.description.contains("Spark"),
             "dominant function 'Spark' must appear in constitutional goal; got: {}",
-            constitutional.description);
+            constitutional.description
+        );
     }
 
     #[test]

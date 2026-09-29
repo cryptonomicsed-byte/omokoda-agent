@@ -52,7 +52,12 @@ impl YtForgeTool {
     /// When `description` is provided, paste-mode is used: no network fetch
     /// (datacenter IPs are bot-walled by YouTube), straight to repo
     /// extraction + clone + classification.
-    fn harvest(&self, url: &str, description: Option<&str>, title: Option<&str>) -> Result<Value, String> {
+    fn harvest(
+        &self,
+        url: &str,
+        description: Option<&str>,
+        title: Option<&str>,
+    ) -> Result<Value, String> {
         let script = self.scripts_dir.join("yt_harvest.py");
         let mut cmd = Command::new("python3");
         cmd.arg(&script).arg(url);
@@ -66,8 +71,12 @@ impl YtForgeTool {
             .output()
             .map_err(|e| format!("failed to launch yt_harvest.py: {e}"))?;
         let stdout = String::from_utf8_lossy(&out.stdout);
-        let v: Value = serde_json::from_str(stdout.trim())
-            .map_err(|e| format!("yt_harvest.py returned non-JSON: {e}; raw: {}", stdout.trim()))?;
+        let v: Value = serde_json::from_str(stdout.trim()).map_err(|e| {
+            format!(
+                "yt_harvest.py returned non-JSON: {e}; raw: {}",
+                stdout.trim()
+            )
+        })?;
         if v.get("ok").and_then(|b| b.as_bool()) != Some(true) {
             let reason = v
                 .get("error")

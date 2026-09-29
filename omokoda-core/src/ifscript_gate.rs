@@ -32,9 +32,9 @@ use ifascript::{
 // ── Public gate input / decision types ───────────────────────────────────────
 
 pub struct CausalGateInput<'a> {
-    pub tier:            u8,
-    pub odu_id:          u8,
-    pub tool_name:       &'a str,
+    pub tier: u8,
+    pub odu_id: u8,
+    pub tool_name: &'a str,
     /// The agent's birth Odù (SoulProof.primary_odu). Used for the Mentalism
     /// principle check: the soul's governing SevenFunction shapes what is
     /// permissible. Pass 0 when soul data is unavailable (e.g. pre-birth checks).
@@ -42,8 +42,8 @@ pub struct CausalGateInput<'a> {
 }
 
 pub struct CausalDecision {
-    pub allowed:       bool,
-    pub warnings:      usize,
+    pub allowed: bool,
+    pub warnings: usize,
     pub denial_reason: Option<String>,
 }
 
@@ -113,197 +113,197 @@ pub enum VesselAlignment {
 ///   - Truly foreign categories (e.g. Seal vessel doing raw Execution) are
 ///     Blocked to enforce the vessel contract.
 pub fn vessel_action_alignment(vessel: ActionVessel, category: ActionCategory) -> VesselAlignment {
-    use ActionVessel as AV;
     use ActionCategory as AC;
+    use ActionVessel as AV;
     use VesselAlignment::*;
 
     match (vessel, category) {
         // ── Genesis: Initialize, covenant, identity seeding ───────────────────
-        (AV::Genesis, AC::Identity)      => Primary,
-        (AV::Genesis, AC::Learning)      => Primary,
-        (AV::Genesis, AC::Consent)       => Primary,
-        (AV::Genesis, AC::Observation)   => Permitted,
-        (AV::Genesis, AC::Telemetry)     => Permitted,
-        (AV::Genesis, AC::Restraint)     => Permitted,
-        (AV::Genesis, AC::Temporal)      => Permitted,
-        (AV::Genesis, AC::Dissolution)   => Blocked,   // genesis cannot end itself
-        (AV::Genesis, AC::Cryptographic) => Blocked,   // key ops must go through Seal vessel
-        (AV::Genesis, _)                 => Permitted,
+        (AV::Genesis, AC::Identity) => Primary,
+        (AV::Genesis, AC::Learning) => Primary,
+        (AV::Genesis, AC::Consent) => Primary,
+        (AV::Genesis, AC::Observation) => Permitted,
+        (AV::Genesis, AC::Telemetry) => Permitted,
+        (AV::Genesis, AC::Restraint) => Permitted,
+        (AV::Genesis, AC::Temporal) => Permitted,
+        (AV::Genesis, AC::Dissolution) => Blocked, // genesis cannot end itself
+        (AV::Genesis, AC::Cryptographic) => Blocked, // key ops must go through Seal vessel
+        (AV::Genesis, _) => Permitted,
 
         // ── Void: Clear, release, dissolution ────────────────────────────────
         (AV::Void, AC::Dissolution) => Primary,
-        (AV::Void, AC::Migration)   => Primary,
-        (AV::Void, AC::Telemetry)   => Primary,        // void must record what it erases
-        (AV::Void, AC::Restraint)   => Permitted,
-        (AV::Void, AC::Temporal)    => Permitted,
-        (AV::Void, AC::Identity)    => Blocked,        // void cannot mint new identities
-        (AV::Void, AC::Receipt)     => Blocked,        // void cannot generate economic records
+        (AV::Void, AC::Migration) => Primary,
+        (AV::Void, AC::Telemetry) => Primary, // void must record what it erases
+        (AV::Void, AC::Restraint) => Permitted,
+        (AV::Void, AC::Temporal) => Permitted,
+        (AV::Void, AC::Identity) => Blocked, // void cannot mint new identities
+        (AV::Void, AC::Receipt) => Blocked,  // void cannot generate economic records
         (AV::Void, AC::Cryptographic) => Blocked,
-        (AV::Void, _)               => Permitted,
+        (AV::Void, _) => Permitted,
 
         // ── Attention: Focus, signal/noise, prioritization ────────────────────
-        (AV::Attention, AC::Focus)       => Primary,
+        (AV::Attention, AC::Focus) => Primary,
         (AV::Attention, AC::Observation) => Primary,
-        (AV::Attention, AC::Learning)    => Primary,
-        (AV::Attention, AC::Telemetry)   => Permitted,
-        (AV::Attention, AC::Restraint)   => Permitted,
-        (AV::Attention, AC::Execution)   => Blocked,   // attention observes, does not execute
-        (AV::Attention, AC::Receipt)     => Blocked,
+        (AV::Attention, AC::Learning) => Primary,
+        (AV::Attention, AC::Telemetry) => Permitted,
+        (AV::Attention, AC::Restraint) => Permitted,
+        (AV::Attention, AC::Execution) => Blocked, // attention observes, does not execute
+        (AV::Attention, AC::Receipt) => Blocked,
         (AV::Attention, AC::Cryptographic) => Blocked,
-        (AV::Attention, _)               => Permitted,
+        (AV::Attention, _) => Permitted,
 
         // ── Loop: Pattern, iteration, batch ───────────────────────────────────
-        (AV::Loop, AC::Iteration)  => Primary,
-        (AV::Loop, AC::Execution)  => Primary,
-        (AV::Loop, AC::Telemetry)  => Primary,
+        (AV::Loop, AC::Iteration) => Primary,
+        (AV::Loop, AC::Execution) => Primary,
+        (AV::Loop, AC::Telemetry) => Primary,
         (AV::Loop, AC::Observation) => Permitted,
-        (AV::Loop, AC::Focus)      => Permitted,
-        (AV::Loop, AC::Restraint)  => Permitted,
-        (AV::Loop, AC::Identity)   => Blocked,         // loops do not re-birth
-        (AV::Loop, AC::Consent)    => Blocked,         // loops do not prompt users repeatedly
-        (AV::Loop, _)              => Permitted,
+        (AV::Loop, AC::Focus) => Permitted,
+        (AV::Loop, AC::Restraint) => Permitted,
+        (AV::Loop, AC::Identity) => Blocked, // loops do not re-birth
+        (AV::Loop, AC::Consent) => Blocked,  // loops do not prompt users repeatedly
+        (AV::Loop, _) => Permitted,
 
         // ── Receipt: Record, accountability, economic ─────────────────────────
-        (AV::Receipt, AC::Receipt)     => Primary,
-        (AV::Receipt, AC::Telemetry)   => Primary,
-        (AV::Receipt, AC::Temporal)    => Primary,     // receipts are timestamped artifacts
+        (AV::Receipt, AC::Receipt) => Primary,
+        (AV::Receipt, AC::Telemetry) => Primary,
+        (AV::Receipt, AC::Temporal) => Primary, // receipts are timestamped artifacts
         (AV::Receipt, AC::Observation) => Permitted,
-        (AV::Receipt, AC::Restraint)   => Permitted,
+        (AV::Receipt, AC::Restraint) => Permitted,
         (AV::Receipt, AC::Cryptographic) => Permitted, // signing receipts is normal
-        (AV::Receipt, AC::Execution)   => Blocked,     // receipt vessel should not raw-exec
+        (AV::Receipt, AC::Execution) => Blocked,       // receipt vessel should not raw-exec
         (AV::Receipt, AC::Dissolution) => Blocked,     // receipts are immutable records
-        (AV::Receipt, _)               => Permitted,
+        (AV::Receipt, _) => Permitted,
 
         // ── Mask: Public/private split, persona management ────────────────────
-        (AV::Mask, AC::Privacy)       => Primary,
-        (AV::Mask, AC::Identity)      => Primary,
+        (AV::Mask, AC::Privacy) => Primary,
+        (AV::Mask, AC::Identity) => Primary,
         (AV::Mask, AC::Cryptographic) => Primary,
-        (AV::Mask, AC::Telemetry)     => Permitted,
-        (AV::Mask, AC::Consent)       => Permitted,
-        (AV::Mask, AC::Observation)   => Permitted,
-        (AV::Mask, AC::Swarm)         => Blocked,      // Mask vessel does not broadcast
-        (AV::Mask, AC::Receipt)       => Blocked,      // private ops leave no public receipt
-        (AV::Mask, _)                 => Permitted,
+        (AV::Mask, AC::Telemetry) => Permitted,
+        (AV::Mask, AC::Consent) => Permitted,
+        (AV::Mask, AC::Observation) => Permitted,
+        (AV::Mask, AC::Swarm) => Blocked, // Mask vessel does not broadcast
+        (AV::Mask, AC::Receipt) => Blocked, // private ops leave no public receipt
+        (AV::Mask, _) => Permitted,
 
         // ── Residue: Behavioral echoes, telemetry, trace ──────────────────────
-        (AV::Residue, AC::Telemetry)   => Primary,
+        (AV::Residue, AC::Telemetry) => Primary,
         (AV::Residue, AC::Observation) => Primary,
-        (AV::Residue, AC::Learning)    => Primary,
-        (AV::Residue, AC::Focus)       => Permitted,
-        (AV::Residue, AC::Restraint)   => Permitted,
-        (AV::Residue, AC::Temporal)    => Permitted,
-        (AV::Residue, AC::Execution)   => Blocked,     // residue records, does not act
-        (AV::Residue, AC::Swarm)       => Blocked,
+        (AV::Residue, AC::Learning) => Primary,
+        (AV::Residue, AC::Focus) => Permitted,
+        (AV::Residue, AC::Restraint) => Permitted,
+        (AV::Residue, AC::Temporal) => Permitted,
+        (AV::Residue, AC::Execution) => Blocked, // residue records, does not act
+        (AV::Residue, AC::Swarm) => Blocked,
         (AV::Residue, AC::Cryptographic) => Blocked,
-        (AV::Residue, _)               => Permitted,
+        (AV::Residue, _) => Permitted,
 
         // ── Execution: Precision tool dispatch, direct action ─────────────────
-        (AV::Execution, AC::Execution)   => Primary,
-        (AV::Execution, AC::Iteration)   => Primary,
-        (AV::Execution, AC::Telemetry)   => Primary,
+        (AV::Execution, AC::Execution) => Primary,
+        (AV::Execution, AC::Iteration) => Primary,
+        (AV::Execution, AC::Telemetry) => Primary,
         (AV::Execution, AC::Observation) => Permitted,
-        (AV::Execution, AC::Receipt)     => Permitted, // execution generates receipts
-        (AV::Execution, AC::Restraint)   => Permitted,
-        (AV::Execution, AC::Swarm)       => Blocked,   // execution acts alone, not in swarm
-        (AV::Execution, AC::Consent)     => Blocked,   // execution does not pause for approval
-        (AV::Execution, _)               => Permitted,
+        (AV::Execution, AC::Receipt) => Permitted, // execution generates receipts
+        (AV::Execution, AC::Restraint) => Permitted,
+        (AV::Execution, AC::Swarm) => Blocked, // execution acts alone, not in swarm
+        (AV::Execution, AC::Consent) => Blocked, // execution does not pause for approval
+        (AV::Execution, _) => Permitted,
 
         // ── Swarm: Collective coordination, delegation ────────────────────────
-        (AV::Swarm, AC::Swarm)       => Primary,
-        (AV::Swarm, AC::Consent)     => Primary,
-        (AV::Swarm, AC::Receipt)     => Primary,       // swarm ops are receipted
-        (AV::Swarm, AC::Temporal)    => Permitted,
-        (AV::Swarm, AC::Telemetry)   => Permitted,
+        (AV::Swarm, AC::Swarm) => Primary,
+        (AV::Swarm, AC::Consent) => Primary,
+        (AV::Swarm, AC::Receipt) => Primary, // swarm ops are receipted
+        (AV::Swarm, AC::Temporal) => Permitted,
+        (AV::Swarm, AC::Telemetry) => Permitted,
         (AV::Swarm, AC::Observation) => Permitted,
-        (AV::Swarm, AC::Privacy)     => Blocked,       // swarm is collective, not private
+        (AV::Swarm, AC::Privacy) => Blocked, // swarm is collective, not private
         (AV::Swarm, AC::Cryptographic) => Blocked,
         (AV::Swarm, AC::Dissolution) => Blocked,
-        (AV::Swarm, _)               => Permitted,
+        (AV::Swarm, _) => Permitted,
 
         // ── Restraint: Ethical limits, Ebo, rate limits ───────────────────────
-        (AV::Restraint, AC::Restraint)   => Primary,
-        (AV::Restraint, AC::Consent)     => Primary,
-        (AV::Restraint, AC::Telemetry)   => Primary,
+        (AV::Restraint, AC::Restraint) => Primary,
+        (AV::Restraint, AC::Consent) => Primary,
+        (AV::Restraint, AC::Telemetry) => Primary,
         (AV::Restraint, AC::Observation) => Permitted,
-        (AV::Restraint, AC::Temporal)    => Permitted,
-        (AV::Restraint, AC::Focus)       => Permitted,
-        (AV::Restraint, AC::Execution)   => Blocked,   // restraint halts, does not act
-        (AV::Restraint, AC::Swarm)       => Blocked,
-        (AV::Restraint, AC::Receipt)     => Blocked,
-        (AV::Restraint, _)               => Permitted,
+        (AV::Restraint, AC::Temporal) => Permitted,
+        (AV::Restraint, AC::Focus) => Permitted,
+        (AV::Restraint, AC::Execution) => Blocked, // restraint halts, does not act
+        (AV::Restraint, AC::Swarm) => Blocked,
+        (AV::Restraint, AC::Receipt) => Blocked,
+        (AV::Restraint, _) => Permitted,
 
         // ── Migration: Portability, state export, version upgrade ─────────────
-        (AV::Migration, AC::Migration)   => Primary,
-        (AV::Migration, AC::Identity)    => Primary,
-        (AV::Migration, AC::Temporal)    => Primary,
+        (AV::Migration, AC::Migration) => Primary,
+        (AV::Migration, AC::Identity) => Primary,
+        (AV::Migration, AC::Temporal) => Primary,
         (AV::Migration, AC::Observation) => Permitted,
-        (AV::Migration, AC::Telemetry)   => Permitted,
-        (AV::Migration, AC::Consent)     => Permitted,
+        (AV::Migration, AC::Telemetry) => Permitted,
+        (AV::Migration, AC::Consent) => Permitted,
         (AV::Migration, AC::Cryptographic) => Permitted,
         (AV::Migration, AC::Dissolution) => Permitted, // migration may archive old state
-        (AV::Migration, AC::Receipt)     => Blocked,   // migration is not economic
-        (AV::Migration, AC::Swarm)       => Blocked,
-        (AV::Migration, _)               => Permitted,
+        (AV::Migration, AC::Receipt) => Blocked,       // migration is not economic
+        (AV::Migration, AC::Swarm) => Blocked,
+        (AV::Migration, _) => Permitted,
 
         // ── Consent: Human approval, delegation, handshake ───────────────────
-        (AV::Consent, AC::Consent)     => Primary,
-        (AV::Consent, AC::Identity)    => Primary,
+        (AV::Consent, AC::Consent) => Primary,
+        (AV::Consent, AC::Identity) => Primary,
         (AV::Consent, AC::Observation) => Primary,
-        (AV::Consent, AC::Telemetry)   => Permitted,
-        (AV::Consent, AC::Temporal)    => Permitted,
-        (AV::Consent, AC::Restraint)   => Permitted,
-        (AV::Consent, AC::Execution)   => Blocked,     // consent awaits, does not execute
+        (AV::Consent, AC::Telemetry) => Permitted,
+        (AV::Consent, AC::Temporal) => Permitted,
+        (AV::Consent, AC::Restraint) => Permitted,
+        (AV::Consent, AC::Execution) => Blocked, // consent awaits, does not execute
         (AV::Consent, AC::Dissolution) => Blocked,
         (AV::Consent, AC::Cryptographic) => Blocked,
-        (AV::Consent, _)               => Permitted,
+        (AV::Consent, _) => Permitted,
 
         // ── Vision: Direction, planning, observation ──────────────────────────
         (AV::Vision, AC::Observation) => Primary,
-        (AV::Vision, AC::Learning)    => Primary,
-        (AV::Vision, AC::Focus)       => Primary,
-        (AV::Vision, AC::Temporal)    => Permitted,
-        (AV::Vision, AC::Telemetry)   => Permitted,
-        (AV::Vision, AC::Restraint)   => Permitted,
-        (AV::Vision, AC::Execution)   => Blocked,      // vision plans, does not execute
-        (AV::Vision, AC::Receipt)     => Blocked,
+        (AV::Vision, AC::Learning) => Primary,
+        (AV::Vision, AC::Focus) => Primary,
+        (AV::Vision, AC::Temporal) => Permitted,
+        (AV::Vision, AC::Telemetry) => Permitted,
+        (AV::Vision, AC::Restraint) => Permitted,
+        (AV::Vision, AC::Execution) => Blocked, // vision plans, does not execute
+        (AV::Vision, AC::Receipt) => Blocked,
         (AV::Vision, AC::Cryptographic) => Blocked,
-        (AV::Vision, _)               => Permitted,
+        (AV::Vision, _) => Permitted,
 
         // ── Growth: Fractal expansion, learning, knowledge ingestion ──────────
-        (AV::Growth, AC::Learning)    => Primary,
-        (AV::Growth, AC::Identity)    => Primary,
-        (AV::Growth, AC::Iteration)   => Primary,
+        (AV::Growth, AC::Learning) => Primary,
+        (AV::Growth, AC::Identity) => Primary,
+        (AV::Growth, AC::Iteration) => Primary,
         (AV::Growth, AC::Observation) => Permitted,
-        (AV::Growth, AC::Telemetry)   => Permitted,
-        (AV::Growth, AC::Temporal)    => Permitted,
-        (AV::Growth, AC::Dissolution) => Blocked,      // growth does not destroy
-        (AV::Growth, AC::Restraint)   => Blocked,      // growth does not self-limit
+        (AV::Growth, AC::Telemetry) => Permitted,
+        (AV::Growth, AC::Temporal) => Permitted,
+        (AV::Growth, AC::Dissolution) => Blocked, // growth does not destroy
+        (AV::Growth, AC::Restraint) => Blocked,   // growth does not self-limit
         (AV::Growth, AC::Cryptographic) => Blocked,
-        (AV::Growth, _)               => Permitted,
+        (AV::Growth, _) => Permitted,
 
         // ── Seal: Sacred privacy, cryptographic operations ────────────────────
         (AV::Seal, AC::Cryptographic) => Primary,
-        (AV::Seal, AC::Privacy)       => Primary,
-        (AV::Seal, AC::Restraint)     => Primary,
-        (AV::Seal, AC::Telemetry)     => Permitted,    // minimal; sealed ops are logged lightly
-        (AV::Seal, AC::Consent)       => Permitted,
-        (AV::Seal, AC::Temporal)      => Permitted,
-        (AV::Seal, AC::Swarm)         => Blocked,      // sealed ops are never collective
-        (AV::Seal, AC::Execution)     => Blocked,
-        (AV::Seal, AC::Iteration)     => Blocked,
-        (AV::Seal, _)                 => Permitted,
+        (AV::Seal, AC::Privacy) => Primary,
+        (AV::Seal, AC::Restraint) => Primary,
+        (AV::Seal, AC::Telemetry) => Permitted, // minimal; sealed ops are logged lightly
+        (AV::Seal, AC::Consent) => Permitted,
+        (AV::Seal, AC::Temporal) => Permitted,
+        (AV::Seal, AC::Swarm) => Blocked, // sealed ops are never collective
+        (AV::Seal, AC::Execution) => Blocked,
+        (AV::Seal, AC::Iteration) => Blocked,
+        (AV::Seal, _) => Permitted,
 
         // ── Rhythm: Ritual cadence, temporal coordination ─────────────────────
-        (AV::Rhythm, AC::Temporal)    => Primary,
-        (AV::Rhythm, AC::Iteration)   => Primary,
-        (AV::Rhythm, AC::Telemetry)   => Primary,
+        (AV::Rhythm, AC::Temporal) => Primary,
+        (AV::Rhythm, AC::Iteration) => Primary,
+        (AV::Rhythm, AC::Telemetry) => Primary,
         (AV::Rhythm, AC::Observation) => Permitted,
-        (AV::Rhythm, AC::Restraint)   => Permitted,
-        (AV::Rhythm, AC::Focus)       => Permitted,
-        (AV::Rhythm, AC::Identity)    => Blocked,      // rhythm does not re-identity
+        (AV::Rhythm, AC::Restraint) => Permitted,
+        (AV::Rhythm, AC::Focus) => Permitted,
+        (AV::Rhythm, AC::Identity) => Blocked, // rhythm does not re-identity
         (AV::Rhythm, AC::Cryptographic) => Blocked,
-        (AV::Rhythm, AC::Receipt)     => Blocked,
-        (AV::Rhythm, _)               => Permitted,
+        (AV::Rhythm, AC::Receipt) => Blocked,
+        (AV::Rhythm, _) => Permitted,
     }
 }
 
@@ -312,9 +312,9 @@ pub fn vessel_action_alignment(vessel: ActionVessel, category: ActionCategory) -
 /// `tool_category` must be determined by the caller from the tool registry.
 /// Returns `VesselAlignment::Primary` if no vessel context is available (fail-open).
 pub fn evaluate_vessel_alignment(
-    vessel:    ActionVessel,
-    category:  ActionCategory,
-    _tier:     u8,  // reserved — max tier is T5; Blocked cannot be overridden
+    vessel: ActionVessel,
+    category: ActionCategory,
+    _tier: u8, // reserved — max tier is T5; Blocked cannot be overridden
 ) -> VesselAlignment {
     vessel_action_alignment(vessel, category)
 }
@@ -327,82 +327,134 @@ pub fn evaluate_vessel_alignment(
 pub fn tool_action_category(tool_name: &str) -> ActionCategory {
     match tool_name {
         // ── Observation ────────────────────────────────────────────────────
-        "read_file" | "list_files" | "glob" | "search_code"
-        | "grep" | "describe" | "inspect" | "query" | "think"
-        | "agent_analytics" | "get_agent_profile" | "code_overview" => ActionCategory::Observation,
+        "read_file" | "list_files" | "glob" | "search_code" | "grep" | "describe" | "inspect"
+        | "query" | "think" | "agent_analytics" | "get_agent_profile" | "code_overview" => {
+            ActionCategory::Observation
+        }
 
         // ── Execution ──────────────────────────────────────────────────────
-        "write_file" | "edit_file" | "bash" | "execute_command"
-        | "run_pipeline" | "copilot_execute" | "osovm_run" => ActionCategory::Execution,
+        "write_file" | "edit_file" | "bash" | "execute_command" | "run_pipeline"
+        | "copilot_execute" | "osovm_run" => ActionCategory::Execution,
 
         // ── Receipt ────────────────────────────────────────────────────────
-        "ingest_arp_receipt" | "record_receipt" | "store_receipt"
-        | "submit_receipt" | "confirm_receipt" | "settle_receipt"
-        | "get_receipt" | "ingest_twin_receipt" => ActionCategory::Receipt,
+        "ingest_arp_receipt"
+        | "record_receipt"
+        | "store_receipt"
+        | "submit_receipt"
+        | "confirm_receipt"
+        | "settle_receipt"
+        | "get_receipt"
+        | "ingest_twin_receipt" => ActionCategory::Receipt,
 
         // ── Cryptographic ─────────────────────────────────────────────────
-        "seal_glyph" | "open_glyph" | "seal_broadcast"
-        | "sign_broadcast" | "sign_transaction" | "create_wallet"
-        | "reveal_wallet_key" | "approve_alchemy_session" => ActionCategory::Cryptographic,
+        "seal_glyph"
+        | "open_glyph"
+        | "seal_broadcast"
+        | "sign_broadcast"
+        | "sign_transaction"
+        | "create_wallet"
+        | "reveal_wallet_key"
+        | "approve_alchemy_session" => ActionCategory::Cryptographic,
 
         // ── Identity ──────────────────────────────────────────────────────
-        "register_agent" | "birth_omokoda" | "provision_identity"
-        | "update_profile" | "bind_nostr_identity"
-        | "custody_challenge" | "custody_confirm" => ActionCategory::Identity,
+        "register_agent"
+        | "birth_omokoda"
+        | "provision_identity"
+        | "update_profile"
+        | "bind_nostr_identity"
+        | "custody_challenge"
+        | "custody_confirm" => ActionCategory::Identity,
 
         // ── Swarm ─────────────────────────────────────────────────────────
-        "broadcast_intent" | "post_swarm_task" | "delegate_task"
-        | "send_message" | "post_channel_message" | "join_block"
-        | "create_guild" | "publish_feed_post" | "publish_buzz" => ActionCategory::Swarm,
+        "broadcast_intent"
+        | "post_swarm_task"
+        | "delegate_task"
+        | "send_message"
+        | "post_channel_message"
+        | "join_block"
+        | "create_guild"
+        | "publish_feed_post"
+        | "publish_buzz" => ActionCategory::Swarm,
 
         // ── Consent ───────────────────────────────────────────────────────
-        "initiate_handshake" | "accept_handshake" | "reject_handshake"
-        | "accept_delegation" | "reject_delegation"
-        | "accept_collab_request" | "accept_task" => ActionCategory::Consent,
+        "initiate_handshake"
+        | "accept_handshake"
+        | "reject_handshake"
+        | "accept_delegation"
+        | "reject_delegation"
+        | "accept_collab_request"
+        | "accept_task" => ActionCategory::Consent,
 
         // ── Telemetry ─────────────────────────────────────────────────────
-        "push_trace" | "report_error" | "agent_heartbeat"
-        | "add_journal" | "log_encounter" | "publish_vibe"
-        | "ingest_scan_result" => ActionCategory::Telemetry,
+        "push_trace" | "report_error" | "agent_heartbeat" | "add_journal" | "log_encounter"
+        | "publish_vibe" | "ingest_scan_result" => ActionCategory::Telemetry,
 
         // ── Temporal ──────────────────────────────────────────────────────
-        "create_scheduled" | "trigger_buzz_workflow"
-        | "cron_create" | "schedule_wakeup" | "device_heartbeat"
-        | "emission_tick" | "auto_snapshot" => ActionCategory::Temporal,
+        "create_scheduled"
+        | "trigger_buzz_workflow"
+        | "cron_create"
+        | "schedule_wakeup"
+        | "device_heartbeat"
+        | "emission_tick"
+        | "auto_snapshot" => ActionCategory::Temporal,
 
         // ── Learning ──────────────────────────────────────────────────────
-        "create_knowledge_snippet" | "ingest_memory" | "store_memory"
-        | "ingest_external_conversation" | "vql_query"
-        | "create_vault_note" | "sync_vault" | "mirror_buzz_engram" => ActionCategory::Learning,
+        "create_knowledge_snippet"
+        | "ingest_memory"
+        | "store_memory"
+        | "ingest_external_conversation"
+        | "vql_query"
+        | "create_vault_note"
+        | "sync_vault"
+        | "mirror_buzz_engram" => ActionCategory::Learning,
 
         // ── Privacy ───────────────────────────────────────────────────────
-        "create_persona" | "update_persona" | "delete_persona"
-        | "set_visibility" | "store_sealed" | "fetch_sealed"
-        | "buzz_bunker_start" | "buzz_pairing" => ActionCategory::Privacy,
+        "create_persona" | "update_persona" | "delete_persona" | "set_visibility"
+        | "store_sealed" | "fetch_sealed" | "buzz_bunker_start" | "buzz_pairing" => {
+            ActionCategory::Privacy
+        }
 
         // ── Dissolution ───────────────────────────────────────────────────
-        "cleanup_workspace" | "delete_broadcast" | "delete_strategy"
-        | "leave_guild" | "leave_block" | "rollback_transaction"
-        | "delete_knowledge_snippet" | "tombstone_buzz_engram" => ActionCategory::Dissolution,
+        "cleanup_workspace"
+        | "delete_broadcast"
+        | "delete_strategy"
+        | "leave_guild"
+        | "leave_block"
+        | "rollback_transaction"
+        | "delete_knowledge_snippet"
+        | "tombstone_buzz_engram" => ActionCategory::Dissolution,
 
         // ── Migration ─────────────────────────────────────────────────────
-        "export_vault" | "import_vault" | "download_vault"
-        | "clone_repository" | "load_workspace_snapshot"
-        | "create_workspace_snapshot" | "update_twin_state" => ActionCategory::Migration,
+        "export_vault"
+        | "import_vault"
+        | "download_vault"
+        | "clone_repository"
+        | "load_workspace_snapshot"
+        | "create_workspace_snapshot"
+        | "update_twin_state" => ActionCategory::Migration,
 
         // ── Focus ─────────────────────────────────────────────────────────
-        "find_similar" | "search_memory" | "search_vault"
-        | "semantic_agent_search" | "query_knowledge"
-        | "mine_patterns" | "predict_next_activity" => ActionCategory::Focus,
+        "find_similar"
+        | "search_memory"
+        | "search_vault"
+        | "semantic_agent_search"
+        | "query_knowledge"
+        | "mine_patterns"
+        | "predict_next_activity" => ActionCategory::Focus,
 
         // ── Iteration ─────────────────────────────────────────────────────
-        "list_tasks" | "list_orders" | "list_wallets"
-        | "list_broadcasts" | "list_guilds" | "list_rooms"
-        | "list_jobs" | "list_proposals" | "list_envelopes" => ActionCategory::Iteration,
+        "list_tasks" | "list_orders" | "list_wallets" | "list_broadcasts" | "list_guilds"
+        | "list_rooms" | "list_jobs" | "list_proposals" | "list_envelopes" => {
+            ActionCategory::Iteration
+        }
 
         // ── Restraint ─────────────────────────────────────────────────────
-        "stop_voice_session" | "cancel_order" | "disarm_strategy"
-        | "disable_live_strategy" | "bino_veto" | "cancel_splat_job" => ActionCategory::Restraint,
+        "stop_voice_session"
+        | "cancel_order"
+        | "disarm_strategy"
+        | "disable_live_strategy"
+        | "bino_veto"
+        | "cancel_splat_job" => ActionCategory::Restraint,
 
         // Default: treat unknown tools as Execution (most permissive)
         _ => ActionCategory::Execution,
@@ -485,7 +537,10 @@ pub fn evaluate_causal_gate(input: &CausalGateInput<'_>) -> CausalDecision {
         let vessel = ActionVessel::from_index(input.odu_id);
         let is_generative = matches!(
             vessel,
-            ActionVessel::Genesis | ActionVessel::Growth | ActionVessel::Swarm | ActionVessel::Execution
+            ActionVessel::Genesis
+                | ActionVessel::Growth
+                | ActionVessel::Swarm
+                | ActionVessel::Execution
         );
         let category = tool_action_category(input.tool_name);
         if is_generative && matches!(category, ActionCategory::Dissolution) {
@@ -572,7 +627,10 @@ mod tests {
             tool_name: "write_file",
             soul_primary_odu: 0,
         });
-        assert!(!decision.allowed, "zero-Odù execution at tier 2 must be blocked by CauseEffect");
+        assert!(
+            !decision.allowed,
+            "zero-Odù execution at tier 2 must be blocked by CauseEffect"
+        );
     }
 
     #[test]
@@ -584,7 +642,10 @@ mod tests {
             tool_name: "read_file",
             soul_primary_odu: 0,
         });
-        assert!(decision.allowed, "observation with zero Odù at tier 2 should be allowed");
+        assert!(
+            decision.allowed,
+            "observation with zero Odù at tier 2 should be allowed"
+        );
         assert!(decision.warnings > 0, "but Vibration should emit a warning");
     }
 
@@ -598,7 +659,10 @@ mod tests {
             soul_primary_odu: 0x00,
         });
         assert!(decision.allowed, "cross-function is AuditOnly, not a block");
-        assert!(decision.warnings > 0, "Mentalism should note the divergence");
+        assert!(
+            decision.warnings > 0,
+            "Mentalism should note the divergence"
+        );
     }
 
     #[test]
@@ -611,79 +675,124 @@ mod tests {
             soul_primary_odu: 0x00,
         });
         assert!(decision.allowed);
-        assert_eq!(decision.warnings, 0, "resonant soul+action should produce no warnings");
+        assert_eq!(
+            decision.warnings, 0,
+            "resonant soul+action should produce no warnings"
+        );
     }
 
     // ── Vessel dispatch tests ─────────────────────────────────────────────────
 
-    use ActionVessel as AV;
     use ActionCategory as AC;
+    use ActionVessel as AV;
 
     #[test]
     fn genesis_vessel_primary_is_identity() {
-        assert_eq!(vessel_action_alignment(AV::Genesis, AC::Identity), VesselAlignment::Primary);
+        assert_eq!(
+            vessel_action_alignment(AV::Genesis, AC::Identity),
+            VesselAlignment::Primary
+        );
     }
 
     #[test]
     fn genesis_vessel_blocks_dissolution() {
-        assert_eq!(vessel_action_alignment(AV::Genesis, AC::Dissolution), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Genesis, AC::Dissolution),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn receipt_vessel_primary_is_receipt() {
-        assert_eq!(vessel_action_alignment(AV::Receipt, AC::Receipt), VesselAlignment::Primary);
+        assert_eq!(
+            vessel_action_alignment(AV::Receipt, AC::Receipt),
+            VesselAlignment::Primary
+        );
     }
 
     #[test]
     fn receipt_vessel_blocks_execution() {
-        assert_eq!(vessel_action_alignment(AV::Receipt, AC::Execution), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Receipt, AC::Execution),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn execution_vessel_primary_is_execution() {
-        assert_eq!(vessel_action_alignment(AV::Execution, AC::Execution), VesselAlignment::Primary);
+        assert_eq!(
+            vessel_action_alignment(AV::Execution, AC::Execution),
+            VesselAlignment::Primary
+        );
     }
 
     #[test]
     fn execution_vessel_blocks_swarm() {
-        assert_eq!(vessel_action_alignment(AV::Execution, AC::Swarm), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Execution, AC::Swarm),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn seal_vessel_primary_is_cryptographic() {
-        assert_eq!(vessel_action_alignment(AV::Seal, AC::Cryptographic), VesselAlignment::Primary);
+        assert_eq!(
+            vessel_action_alignment(AV::Seal, AC::Cryptographic),
+            VesselAlignment::Primary
+        );
     }
 
     #[test]
     fn seal_vessel_blocks_swarm() {
-        assert_eq!(vessel_action_alignment(AV::Seal, AC::Swarm), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Seal, AC::Swarm),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn vision_vessel_blocks_execution() {
-        assert_eq!(vessel_action_alignment(AV::Vision, AC::Execution), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Vision, AC::Execution),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn consent_vessel_blocks_execution() {
-        assert_eq!(vessel_action_alignment(AV::Consent, AC::Execution), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Consent, AC::Execution),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn swarm_vessel_blocks_privacy() {
-        assert_eq!(vessel_action_alignment(AV::Swarm, AC::Privacy), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Swarm, AC::Privacy),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn restraint_vessel_blocks_execution() {
-        assert_eq!(vessel_action_alignment(AV::Restraint, AC::Execution), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Restraint, AC::Execution),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
     fn blocked_alignment_is_unconditional() {
         // Restraint vessel blocks Execution at every tier (max tier is T5; no override exists)
-        assert_eq!(vessel_action_alignment(AV::Restraint, AC::Execution), VesselAlignment::Blocked);
-        assert_eq!(evaluate_vessel_alignment(AV::Restraint, AC::Execution, 5), VesselAlignment::Blocked);
+        assert_eq!(
+            vessel_action_alignment(AV::Restraint, AC::Execution),
+            VesselAlignment::Blocked
+        );
+        assert_eq!(
+            evaluate_vessel_alignment(AV::Restraint, AC::Execution, 5),
+            VesselAlignment::Blocked
+        );
     }
 
     #[test]
@@ -719,44 +828,98 @@ mod tests {
     #[test]
     fn all_16_vessels_have_at_least_one_primary_category() {
         let vessels = [
-            AV::Genesis, AV::Void, AV::Attention, AV::Loop,
-            AV::Receipt, AV::Mask, AV::Residue, AV::Execution,
-            AV::Swarm, AV::Restraint, AV::Migration, AV::Consent,
-            AV::Vision, AV::Growth, AV::Seal, AV::Rhythm,
+            AV::Genesis,
+            AV::Void,
+            AV::Attention,
+            AV::Loop,
+            AV::Receipt,
+            AV::Mask,
+            AV::Residue,
+            AV::Execution,
+            AV::Swarm,
+            AV::Restraint,
+            AV::Migration,
+            AV::Consent,
+            AV::Vision,
+            AV::Growth,
+            AV::Seal,
+            AV::Rhythm,
         ];
         let categories = [
-            AC::Identity, AC::Dissolution, AC::Focus, AC::Iteration,
-            AC::Receipt, AC::Privacy, AC::Telemetry, AC::Execution,
-            AC::Swarm, AC::Restraint, AC::Migration, AC::Consent,
-            AC::Observation, AC::Learning, AC::Cryptographic, AC::Temporal,
+            AC::Identity,
+            AC::Dissolution,
+            AC::Focus,
+            AC::Iteration,
+            AC::Receipt,
+            AC::Privacy,
+            AC::Telemetry,
+            AC::Execution,
+            AC::Swarm,
+            AC::Restraint,
+            AC::Migration,
+            AC::Consent,
+            AC::Observation,
+            AC::Learning,
+            AC::Cryptographic,
+            AC::Temporal,
         ];
         for vessel in vessels {
-            let has_primary = categories.iter().any(|&cat| {
-                vessel_action_alignment(vessel, cat) == VesselAlignment::Primary
-            });
-            assert!(has_primary, "{vessel:?} must have at least one Primary category");
+            let has_primary = categories
+                .iter()
+                .any(|&cat| vessel_action_alignment(vessel, cat) == VesselAlignment::Primary);
+            assert!(
+                has_primary,
+                "{vessel:?} must have at least one Primary category"
+            );
         }
     }
 
     #[test]
     fn all_16_vessels_have_at_least_one_blocked_category() {
         let vessels = [
-            AV::Genesis, AV::Void, AV::Attention, AV::Loop,
-            AV::Receipt, AV::Mask, AV::Residue, AV::Execution,
-            AV::Swarm, AV::Restraint, AV::Migration, AV::Consent,
-            AV::Vision, AV::Growth, AV::Seal, AV::Rhythm,
+            AV::Genesis,
+            AV::Void,
+            AV::Attention,
+            AV::Loop,
+            AV::Receipt,
+            AV::Mask,
+            AV::Residue,
+            AV::Execution,
+            AV::Swarm,
+            AV::Restraint,
+            AV::Migration,
+            AV::Consent,
+            AV::Vision,
+            AV::Growth,
+            AV::Seal,
+            AV::Rhythm,
         ];
         let categories = [
-            AC::Identity, AC::Dissolution, AC::Focus, AC::Iteration,
-            AC::Receipt, AC::Privacy, AC::Telemetry, AC::Execution,
-            AC::Swarm, AC::Restraint, AC::Migration, AC::Consent,
-            AC::Observation, AC::Learning, AC::Cryptographic, AC::Temporal,
+            AC::Identity,
+            AC::Dissolution,
+            AC::Focus,
+            AC::Iteration,
+            AC::Receipt,
+            AC::Privacy,
+            AC::Telemetry,
+            AC::Execution,
+            AC::Swarm,
+            AC::Restraint,
+            AC::Migration,
+            AC::Consent,
+            AC::Observation,
+            AC::Learning,
+            AC::Cryptographic,
+            AC::Temporal,
         ];
         for vessel in vessels {
-            let has_blocked = categories.iter().any(|&cat| {
-                vessel_action_alignment(vessel, cat) == VesselAlignment::Blocked
-            });
-            assert!(has_blocked, "{vessel:?} must have at least one Blocked category (no vessel is omnipotent)");
+            let has_blocked = categories
+                .iter()
+                .any(|&cat| vessel_action_alignment(vessel, cat) == VesselAlignment::Blocked);
+            assert!(
+                has_blocked,
+                "{vessel:?} must have at least one Blocked category (no vessel is omnipotent)"
+            );
         }
     }
 }

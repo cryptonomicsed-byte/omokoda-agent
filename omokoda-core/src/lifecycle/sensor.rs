@@ -14,7 +14,11 @@ pub struct SensorReading {
 impl SensorReading {
     /// Safe defaults when sensor data is unavailable.
     pub fn default_safe() -> Self {
-        Self { battery_pct: 100, temp_c: 30.0, hour: 12 }
+        Self {
+            battery_pct: 100,
+            temp_c: 30.0,
+            hour: 12,
+        }
     }
 
     /// Read live sensor data. On Termux, shells out to termux-battery-status.
@@ -43,7 +47,11 @@ fn read_termux() -> Option<SensorReading> {
     let battery_pct = v["percentage"].as_f64()? as u8;
     let temp_c = v["temperature"].as_f64().unwrap_or(30.0) as f32;
     let hour = current_hour();
-    Some(SensorReading { battery_pct, temp_c, hour })
+    Some(SensorReading {
+        battery_pct,
+        temp_c,
+        hour,
+    })
 }
 
 fn current_hour() -> u8 {

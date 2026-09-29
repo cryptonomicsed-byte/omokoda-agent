@@ -1,5 +1,5 @@
-use serde_json::Value;
 use super::client::WorkspaceClient;
+use serde_json::Value;
 
 impl WorkspaceClient {
     /// Read a guild memory key scoped to calling agent.
@@ -13,9 +13,15 @@ impl WorkspaceClient {
     }
 
     /// Write a guild memory key.
-    pub async fn memory_write(&self, key: &str, value: &str, visibility: &str) -> Result<(), String> {
+    pub async fn memory_write(
+        &self,
+        key: &str,
+        value: &str,
+        visibility: &str,
+    ) -> Result<(), String> {
         let url = format!("{}/{}", self.memory_base(), key);
-        self.put_form(&url, &[("value", value), ("visibility", visibility)]).await?;
+        self.put_form(&url, &[("value", value), ("visibility", visibility)])
+            .await?;
         Ok(())
     }
 

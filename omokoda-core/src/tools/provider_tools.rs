@@ -12,8 +12,7 @@ use super::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
 fn broker_url() -> String {
-    std::env::var("UCX_BROKER_URL")
-        .unwrap_or_else(|_| "http://localhost:7790".to_string())
+    std::env::var("UCX_BROKER_URL").unwrap_or_else(|_| "http://localhost:7790".to_string())
 }
 
 fn agent_id_from_ctx(ctx: &ExecutionContext) -> String {
@@ -26,10 +25,18 @@ pub struct UcxRegisterProviderTool;
 
 #[async_trait]
 impl Tool for UcxRegisterProviderTool {
-    fn name(&self) -> &str { "ucx_register_provider" }
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
-    fn timeout_secs(&self) -> u64 { 30 }
+    fn name(&self) -> &str {
+        "ucx_register_provider"
+    }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
+    fn timeout_secs(&self) -> u64 {
+        30
+    }
 
     fn description(&self) -> &str {
         "Register this node's GPU or CPU as a UCX compute provider. \
@@ -87,8 +94,11 @@ impl Tool for UcxRegisterProviderTool {
 
         let status = resp.status();
         let val: Value = resp.json().await.unwrap_or(Value::Null);
-        Ok((json!({ "ok": status.is_success(), "status": status.as_u16(), "body": val }).to_string(),
-            TokenUsage::default()))
+        Ok((
+            json!({ "ok": status.is_success(), "status": status.as_u16(), "body": val })
+                .to_string(),
+            TokenUsage::default(),
+        ))
     }
 }
 
@@ -98,10 +108,18 @@ pub struct UcxListProvidersTool;
 
 #[async_trait]
 impl Tool for UcxListProvidersTool {
-    fn name(&self) -> &str { "ucx_list_providers" }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
-    fn timeout_secs(&self) -> u64 { 15 }
+    fn name(&self) -> &str {
+        "ucx_list_providers"
+    }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
+    fn timeout_secs(&self) -> u64 {
+        15
+    }
 
     fn description(&self) -> &str {
         "List compute providers currently registered with the UCX broker, \
@@ -135,10 +153,18 @@ pub struct UcxDeregisterProviderTool;
 
 #[async_trait]
 impl Tool for UcxDeregisterProviderTool {
-    fn name(&self) -> &str { "ucx_deregister_provider" }
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
-    fn timeout_secs(&self) -> u64 { 15 }
+    fn name(&self) -> &str {
+        "ucx_deregister_provider"
+    }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
+    fn timeout_secs(&self) -> u64 {
+        15
+    }
 
     fn description(&self) -> &str {
         "Deregister this agent's compute provider from the UCX broker."
@@ -160,7 +186,8 @@ impl Tool for UcxDeregisterProviderTool {
         _ctx: &ExecutionContext,
     ) -> Result<(String, TokenUsage), String> {
         let params: Value = serde_json::from_str(params).unwrap_or(Value::Null);
-        let provider_id = params["provider_id"].as_str()
+        let provider_id = params["provider_id"]
+            .as_str()
             .ok_or("provider_id required")?;
 
         let resp = reqwest::Client::new()
@@ -170,6 +197,9 @@ impl Tool for UcxDeregisterProviderTool {
             .await
             .map_err(|e| format!("ucx_deregister_provider error: {e}"))?;
 
-        Ok((json!({ "ok": resp.status().is_success() }).to_string(), TokenUsage::default()))
+        Ok((
+            json!({ "ok": resp.status().is_success() }).to_string(),
+            TokenUsage::default(),
+        ))
     }
 }

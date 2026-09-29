@@ -41,15 +41,19 @@ pub enum CapabilityKind {
 
 #[derive(Debug, Clone)]
 pub struct OsCapability {
-    pub kind:       CapabilityKind,
-    pub resource:   String,    // specific resource path/id or "*" for all
-    pub granted_by: String,    // granting agent_id or "kernel"
+    pub kind: CapabilityKind,
+    pub resource: String,   // specific resource path/id or "*" for all
+    pub granted_by: String, // granting agent_id or "kernel"
     pub granted_at: u64,
     pub expires_at: Option<u64>,
 }
 
 impl OsCapability {
-    pub fn new(kind: CapabilityKind, resource: impl Into<String>, granted_by: impl Into<String>) -> Self {
+    pub fn new(
+        kind: CapabilityKind,
+        resource: impl Into<String>,
+        granted_by: impl Into<String>,
+    ) -> Self {
         Self {
             kind,
             resource: resource.into(),
@@ -74,10 +78,10 @@ impl OsCapability {
 
 #[derive(Debug, Clone)]
 pub struct CapabilityGrant {
-    pub pid:         Pid,
-    pub agent_id:    String,
-    pub capability:  OsCapability,
-    pub receipt_id:  Option<String>,
+    pub pid: Pid,
+    pub agent_id: String,
+    pub capability: OsCapability,
+    pub receipt_id: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -85,9 +89,9 @@ pub struct CapabilityPolicy {
     /// Capabilities implicitly granted to all processes at boot
     pub defaults: HashSet<CapabilityKind>,
     /// Capabilities that require T5 tier
-    pub t5_only:  HashSet<CapabilityKind>,
+    pub t5_only: HashSet<CapabilityKind>,
     /// Capabilities that require a signed grant
-    pub gated:    HashSet<CapabilityKind>,
+    pub gated: HashSet<CapabilityKind>,
 }
 
 impl Default for CapabilityPolicy {
@@ -99,13 +103,15 @@ impl Default for CapabilityPolicy {
                 CapabilityKind::NetworkReceive,
                 CapabilityKind::SkillExecute,
                 CapabilityKind::WalletRead,
-            ].into(),
+            ]
+            .into(),
             t5_only: [
                 CapabilityKind::CapabilityGrant,
                 CapabilityKind::CapabilityRevoke,
                 CapabilityKind::KernelInspect,
                 CapabilityKind::KillProcess,
-            ].into(),
+            ]
+            .into(),
             gated: [
                 CapabilityKind::GpuAccess,
                 CapabilityKind::NpuAccess,
@@ -117,7 +123,8 @@ impl Default for CapabilityPolicy {
                 CapabilityKind::EvidenceWrite,
                 CapabilityKind::NetworkTransmit,
                 CapabilityKind::SpawnProcess,
-            ].into(),
+            ]
+            .into(),
         }
     }
 }
@@ -129,11 +136,16 @@ pub struct CapabilityStore {
 
 impl CapabilityStore {
     pub fn new(policy: CapabilityPolicy) -> Arc<Self> {
-        Arc::new(Self { grants: RwLock::new(HashMap::new()), policy })
+        Arc::new(Self {
+            grants: RwLock::new(HashMap::new()),
+            policy,
+        })
     }
 
     pub fn grant(&self, grant: CapabilityGrant) {
-        self.grants.write().unwrap()
+        self.grants
+            .write()
+            .unwrap()
             .entry(grant.pid)
             .or_default()
             .push(grant);
@@ -152,12 +164,18 @@ impl CapabilityStore {
         }
         let map = self.grants.read().unwrap();
         map.get(&pid)
-            .map(|grants| grants.iter().any(|g| &g.capability.kind == kind && g.capability.is_valid()))
+            .map(|grants| {
+                grants
+                    .iter()
+                    .any(|g| &g.capability.kind == kind && g.capability.is_valid())
+            })
             .unwrap_or(false)
     }
 
     pub fn list(&self, pid: Pid) -> Vec<CapabilityGrant> {
-        self.grants.read().unwrap()
+        self.grants
+            .read()
+            .unwrap()
             .get(&pid)
             .cloned()
             .unwrap_or_default()
@@ -169,5 +187,8 @@ impl CapabilityStore {
 }
 
 fn now_secs() -> u64 {
-    SystemTime::now().duration_since(UNIX_EPOCH).unwrap_or_default().as_secs()
+    SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_secs()
 }

@@ -1,30 +1,30 @@
 pub mod ase;
-pub mod credential_index;
-pub mod fork;
-pub mod hive;
 pub mod bipon39;
 pub mod buzz;
-pub mod machine_vault;
-pub mod git_sign;
-pub mod x402;
 pub mod buzz_relay;
 pub mod cloak;
+pub mod credential_index;
 pub mod dna;
-pub mod nip06;
 pub mod duress;
-pub mod poison_radar;
+pub mod fork;
+pub mod git_sign;
+pub mod hive;
+pub mod machine_vault;
 pub mod merkle;
+pub mod nip06;
 pub mod oauth;
 pub mod odu;
 pub mod pet;
+pub mod poison_radar;
 pub mod safety;
 pub mod user;
 pub mod vault;
 pub mod wallet;
+pub mod x402;
 
-pub use vault::{CapabilityToken, IdentityVault, SealVault};
 pub use credential_index::{CredentialEntry, CredentialIndex, CredentialKind};
-pub use fork::{ForkResult, derive_fork_entropy, fork_agent, fork_index_hmac_key};
+pub use fork::{derive_fork_entropy, fork_agent, fork_index_hmac_key, ForkResult};
+pub use vault::{CapabilityToken, IdentityVault, SealVault};
 
 use serde::{Deserialize, Serialize};
 

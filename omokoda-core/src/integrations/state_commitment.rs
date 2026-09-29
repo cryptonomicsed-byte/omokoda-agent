@@ -14,7 +14,6 @@
 /// shells out to the `sui` CLI.  When Phase 15 (Ọ̀ṢỌ́ ABCI L1) is complete,
 /// `submit_to_abci()` becomes the real path and the Sui call becomes the
 /// fallback/migration path.
-
 use serde::{Deserialize, Serialize};
 
 /// A commitment from Ọmọ Kọ́dà to the L1 that an agent's Freenet public
@@ -138,13 +137,19 @@ mod tests {
     #[test]
     fn tier_change_is_significant() {
         let reason = is_significant_transition(1, 2, "active", "active", &[], &[], 5);
-        assert!(matches!(reason, Some(CommitmentReason::TierChange { from: 1, to: 2 })));
+        assert!(matches!(
+            reason,
+            Some(CommitmentReason::TierChange { from: 1, to: 2 })
+        ));
     }
 
     #[test]
     fn lifecycle_change_is_significant() {
         let reason = is_significant_transition(1, 1, "active", "hibernating", &[], &[], 5);
-        assert!(matches!(reason, Some(CommitmentReason::LifecycleChange { .. })));
+        assert!(matches!(
+            reason,
+            Some(CommitmentReason::LifecycleChange { .. })
+        ));
     }
 
     #[test]
@@ -152,13 +157,19 @@ mod tests {
         let old = vec!["think".to_string()];
         let new = vec!["think".to_string(), "forge".to_string()];
         let reason = is_significant_transition(1, 1, "active", "active", &old, &new, 5);
-        assert!(matches!(reason, Some(CommitmentReason::CapabilityAdded { .. })));
+        assert!(matches!(
+            reason,
+            Some(CommitmentReason::CapabilityAdded { .. })
+        ));
     }
 
     #[test]
     fn version_milestone_every_10() {
         let reason = is_significant_transition(1, 1, "active", "active", &[], &[], 10);
-        assert!(matches!(reason, Some(CommitmentReason::VersionMilestone { version: 10 })));
+        assert!(matches!(
+            reason,
+            Some(CommitmentReason::VersionMilestone { version: 10 })
+        ));
     }
 
     #[test]

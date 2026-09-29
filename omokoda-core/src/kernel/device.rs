@@ -23,20 +23,20 @@ pub enum DeviceKind {
 impl std::fmt::Display for DeviceKind {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::Gpu     => write!(f, "gpu"),
-            Self::Npu     => write!(f, "npu"),
-            Self::Cpu     => write!(f, "cpu"),
-            Self::Camera  => write!(f, "camera"),
+            Self::Gpu => write!(f, "gpu"),
+            Self::Npu => write!(f, "npu"),
+            Self::Cpu => write!(f, "cpu"),
+            Self::Camera => write!(f, "camera"),
             Self::Microphone => write!(f, "microphone"),
             Self::Speaker => write!(f, "speaker"),
-            Self::Screen  => write!(f, "screen"),
+            Self::Screen => write!(f, "screen"),
             Self::Network => write!(f, "network"),
-            Self::Drone   => write!(f, "drone"),
-            Self::Robot   => write!(f, "robot"),
-            Self::Sensor  => write!(f, "sensor"),
-            Self::LoRa    => write!(f, "lora"),
-            Self::Nfc     => write!(f, "nfc"),
-            Self::Ble     => write!(f, "ble"),
+            Self::Drone => write!(f, "drone"),
+            Self::Robot => write!(f, "robot"),
+            Self::Sensor => write!(f, "sensor"),
+            Self::LoRa => write!(f, "lora"),
+            Self::Nfc => write!(f, "nfc"),
+            Self::Ble => write!(f, "ble"),
             Self::Custom(s) => write!(f, "{s}"),
         }
     }
@@ -53,29 +53,34 @@ pub enum DeviceStatus {
 
 #[derive(Debug, Clone)]
 pub struct GpuProfile {
-    pub vram_mb:       u64,
+    pub vram_mb: u64,
     pub compute_units: u32,
-    pub current_load:  f32,   // 0.0 – 1.0
-    pub energy_w:      f32,
-    pub temp_c:        f32,
-    pub hardware_id:   String,
-    pub attestation:   Option<String>,
-    pub reputation:    f64,
+    pub current_load: f32, // 0.0 – 1.0
+    pub energy_w: f32,
+    pub temp_c: f32,
+    pub hardware_id: String,
+    pub attestation: Option<String>,
+    pub reputation: f64,
 }
 
 #[derive(Debug, Clone)]
 pub struct DeviceDescriptor {
-    pub device_id:   String,   // canonical path: /devices/gpu/0001
-    pub kind:        DeviceKind,
-    pub owner:       String,   // agent_id that registered this device
-    pub model:       String,
-    pub status:      DeviceStatus,
+    pub device_id: String, // canonical path: /devices/gpu/0001
+    pub kind: DeviceKind,
+    pub owner: String, // agent_id that registered this device
+    pub model: String,
+    pub status: DeviceStatus,
     pub gpu_profile: Option<GpuProfile>,
     pub registered_at: u64,
 }
 
 impl DeviceDescriptor {
-    pub fn new(device_id: impl Into<String>, kind: DeviceKind, owner: impl Into<String>, model: impl Into<String>) -> Self {
+    pub fn new(
+        device_id: impl Into<String>,
+        kind: DeviceKind,
+        owner: impl Into<String>,
+        model: impl Into<String>,
+    ) -> Self {
         Self {
             device_id: device_id.into(),
             kind,
@@ -94,7 +99,7 @@ impl DeviceDescriptor {
 
 pub struct DeviceTree {
     devices: RwLock<HashMap<String, DeviceDescriptor>>,
-    counters: RwLock<HashMap<String, u32>>,  // kind → next id
+    counters: RwLock<HashMap<String, u32>>, // kind → next id
 }
 
 impl DeviceTree {
@@ -113,7 +118,13 @@ impl DeviceTree {
         format!("/devices/{key}/{:04}", n)
     }
 
-    pub fn register(&self, kind: DeviceKind, owner: impl Into<String>, model: impl Into<String>, gpu_profile: Option<GpuProfile>) -> String {
+    pub fn register(
+        &self,
+        kind: DeviceKind,
+        owner: impl Into<String>,
+        model: impl Into<String>,
+        gpu_profile: Option<GpuProfile>,
+    ) -> String {
         let path = self.next_id(&kind);
         let mut dev = DeviceDescriptor::new(path.clone(), kind, owner, model);
         dev.gpu_profile = gpu_profile;
@@ -136,7 +147,9 @@ impl DeviceTree {
     }
 
     pub fn list_by_kind(&self, kind: &DeviceKind) -> Vec<DeviceDescriptor> {
-        self.devices.read().unwrap()
+        self.devices
+            .read()
+            .unwrap()
             .values()
             .filter(|d| &d.kind == kind)
             .cloned()
@@ -159,11 +172,19 @@ pub struct DeviceManager {
 
 impl DeviceManager {
     pub fn new() -> Self {
-        Self { tree: DeviceTree::new() }
+        Self {
+            tree: DeviceTree::new(),
+        }
     }
 
-    pub fn register_gpu(&self, owner: impl Into<String>, model: impl Into<String>, profile: GpuProfile) -> String {
-        self.tree.register(DeviceKind::Gpu, owner, model, Some(profile))
+    pub fn register_gpu(
+        &self,
+        owner: impl Into<String>,
+        model: impl Into<String>,
+        profile: GpuProfile,
+    ) -> String {
+        self.tree
+            .register(DeviceKind::Gpu, owner, model, Some(profile))
     }
 
     pub fn register_drone(&self, owner: impl Into<String>, model: impl Into<String>) -> String {
@@ -175,7 +196,8 @@ impl DeviceManager {
     }
 
     pub fn available_gpus(&self) -> Vec<DeviceDescriptor> {
-        self.tree.list_by_kind(&DeviceKind::Gpu)
+        self.tree
+            .list_by_kind(&DeviceKind::Gpu)
             .into_iter()
             .filter(|d| matches!(d.status, DeviceStatus::Available))
             .collect()
@@ -183,7 +205,9 @@ impl DeviceManager {
 }
 
 impl Default for DeviceManager {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }
 
 fn now_secs() -> u64 {
@@ -201,11 +225,11 @@ fn now_secs() -> u64 {
 /// Active VCP session bound to a kernel device.
 #[derive(Debug, Clone)]
 pub struct VcpBinding {
-    pub device_id:    String,   // kernel device path (e.g. /devices/drone/0001)
-    pub session_id:   String,   // VCP session ID from broker
-    pub device_pubkey: String,  // Ed25519 hex pubkey of the physical device
+    pub device_id: String,     // kernel device path (e.g. /devices/drone/0001)
+    pub session_id: String,    // VCP session ID from broker
+    pub device_pubkey: String, // Ed25519 hex pubkey of the physical device
     pub vcp_broker_url: String,
-    pub bound_at:     u64,
+    pub bound_at: u64,
 }
 
 /// VCP client for device binding operations.
@@ -214,14 +238,14 @@ pub struct VcpBinding {
 /// (default http://localhost:7791) to establish device sessions.
 pub struct VcpClient {
     broker_url: String,
-    agent_id:   String,
-    http:       reqwest::Client,
+    agent_id: String,
+    http: reqwest::Client,
 }
 
 impl VcpClient {
     pub fn new(agent_id: impl Into<String>) -> Self {
-        let broker_url = std::env::var("VCP_BROKER_URL")
-            .unwrap_or_else(|_| "http://localhost:7791".into());
+        let broker_url =
+            std::env::var("VCP_BROKER_URL").unwrap_or_else(|_| "http://localhost:7791".into());
         Self {
             broker_url,
             agent_id: agent_id.into(),
@@ -240,28 +264,32 @@ impl VcpClient {
     pub async fn bind(
         &self,
         kernel_device_id: &str,
-        device_pubkey:    &str,
+        device_pubkey: &str,
     ) -> Result<VcpBinding, String> {
-        let url  = format!("{}/api/sessions", self.broker_url);
+        let url = format!("{}/api/sessions", self.broker_url);
         let body = serde_json::json!({
             "agent_id":      self.agent_id,
             "device_id":     kernel_device_id,
             "device_pubkey": device_pubkey,
         });
 
-        let resp = self.http
+        let resp = self
+            .http
             .post(&url)
             .json(&body)
-            .send().await
+            .send()
+            .await
             .map_err(|e| format!("VCP bind POST {url}: {e}"))?;
 
         if !resp.status().is_success() {
             let status = resp.status();
-            let text   = resp.text().await.unwrap_or_default();
+            let text = resp.text().await.unwrap_or_default();
             return Err(format!("VCP broker {status}: {text}"));
         }
 
-        let json: serde_json::Value = resp.json().await
+        let json: serde_json::Value = resp
+            .json()
+            .await
             .map_err(|e| format!("VCP bind parse: {e}"))?;
 
         let session_id = json["session_id"]
@@ -270,11 +298,11 @@ impl VcpClient {
             .to_string();
 
         Ok(VcpBinding {
-            device_id:       kernel_device_id.to_string(),
+            device_id: kernel_device_id.to_string(),
             session_id,
-            device_pubkey:   device_pubkey.to_string(),
-            vcp_broker_url:  self.broker_url.clone(),
-            bound_at:        now_secs(),
+            device_pubkey: device_pubkey.to_string(),
+            vcp_broker_url: self.broker_url.clone(),
+            bound_at: now_secs(),
         })
     }
 
@@ -283,7 +311,8 @@ impl VcpClient {
         let url = format!("{}/api/sessions/{session_id}", self.broker_url);
         self.http
             .delete(&url)
-            .send().await
+            .send()
+            .await
             .map_err(|e| format!("VCP unbind: {e}"))?
             .error_for_status()
             .map_err(|e| format!("VCP unbind status: {e}"))?;
@@ -292,12 +321,18 @@ impl VcpClient {
 
     /// List active sessions for this agent.
     pub async fn list_sessions(&self) -> Result<Vec<serde_json::Value>, String> {
-        let url = format!("{}/api/sessions?agent_id={}", self.broker_url, self.agent_id);
-        let resp = self.http
+        let url = format!(
+            "{}/api/sessions?agent_id={}",
+            self.broker_url, self.agent_id
+        );
+        let resp = self
+            .http
             .get(&url)
-            .send().await
+            .send()
+            .await
             .map_err(|e| format!("VCP list: {e}"))?
-            .json::<serde_json::Value>().await
+            .json::<serde_json::Value>()
+            .await
             .map_err(|e| format!("VCP list parse: {e}"))?;
         Ok(resp["sessions"].as_array().cloned().unwrap_or_default())
     }

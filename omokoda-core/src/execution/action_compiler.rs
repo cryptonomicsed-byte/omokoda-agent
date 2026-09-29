@@ -11,10 +11,10 @@
 //   If-Script (WHAT to do) → ActionCompiler (HOW to do it)
 //   → ActionTransaction (LET IT HAPPEN, track it, verify it, receipt it)
 
-use serde::{Deserialize, Serialize};
-use crate::gates::ActionIntent;
 use crate::execution::verify::Assertion;
+use crate::gates::ActionIntent;
 use crate::rhythm::ActionCadence;
+use serde::{Deserialize, Serialize};
 
 /// A single compiled task step — tool call + expected evidence.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -53,7 +53,11 @@ pub struct CompileError {
 
 impl std::fmt::Display for CompileError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "ActionCompiler error for '{}': {}", self.opcode, self.reason)
+        write!(
+            f,
+            "ActionCompiler error for '{}': {}",
+            self.opcode, self.reason
+        )
     }
 }
 
@@ -111,7 +115,10 @@ impl ActionCompiler {
     }
 
     /// Add a cross-vessel dependency: this action waits for `dependency_opcode` to COMMITTED.
-    pub fn with_dependency(mut action: CompiledAction, dependency_opcode: impl Into<String>) -> CompiledAction {
+    pub fn with_dependency(
+        mut action: CompiledAction,
+        dependency_opcode: impl Into<String>,
+    ) -> CompiledAction {
         action.depends_on = Some(dependency_opcode.into());
         action
     }
@@ -120,7 +127,7 @@ impl ActionCompiler {
 /// Raw verify spec from the Calabash corpus before compilation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VerifySpec {
-    pub kind: String,  // "file_exists" | "file_contains" | "hash_match" | "git_atomic_commit" | "json_field_equals" | "exit_code"
+    pub kind: String, // "file_exists" | "file_contains" | "hash_match" | "git_atomic_commit" | "json_field_equals" | "exit_code"
     pub path: Option<String>,
     pub expected: Option<String>,
     pub key: Option<String>,
@@ -131,7 +138,7 @@ pub struct VerifySpec {
 /// Raw cadence spec from the Calabash corpus before compilation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CadenceSpec {
-    pub trigger: String,  // "immediate" | "event:<name>" | "state:<condition>" | "cron:<expr>"
+    pub trigger: String, // "immediate" | "event:<name>" | "state:<condition>" | "cron:<expr>"
     pub cooldown_secs: Option<u64>,
     pub max_per_window: Option<u32>,
     pub window_secs: Option<u64>,
@@ -218,7 +225,10 @@ fn compile_assertions(specs: &[VerifySpec], opcode: &str) -> Result<Vec<Assertio
                     opcode: opcode.to_string(),
                     reason: "hash_match assertion requires an expected sha256".to_string(),
                 })?;
-                Assertion::HashMatch { path, expected_sha256 }
+                Assertion::HashMatch {
+                    path,
+                    expected_sha256,
+                }
             }
             "git_atomic_commit" => {
                 let repo_path = spec.path.clone().unwrap_or_else(|| ".".to_string());
@@ -237,7 +247,11 @@ fn compile_assertions(specs: &[VerifySpec], opcode: &str) -> Result<Vec<Assertio
                     opcode: opcode.to_string(),
                     reason: "json_field_equals requires an expected value".to_string(),
                 })?;
-                Assertion::JsonFieldEquals { path, key, expected }
+                Assertion::JsonFieldEquals {
+                    path,
+                    key,
+                    expected,
+                }
             }
             "exit_code" => {
                 let expected = spec.expected_exit_code.ok_or_else(|| CompileError {
@@ -264,11 +278,17 @@ fn compile_cadence(spec: &CadenceSpec) -> ActionCadence {
     let trigger = if spec.trigger == "immediate" {
         TriggerKind::Immediate
     } else if let Some(event) = spec.trigger.strip_prefix("event:") {
-        TriggerKind::EventDriven { event: event.to_string() }
+        TriggerKind::EventDriven {
+            event: event.to_string(),
+        }
     } else if let Some(condition) = spec.trigger.strip_prefix("state:") {
-        TriggerKind::StateDriven { condition: condition.to_string() }
+        TriggerKind::StateDriven {
+            condition: condition.to_string(),
+        }
     } else if let Some(cron) = spec.trigger.strip_prefix("cron:") {
-        TriggerKind::Scheduled { cron: cron.to_string() }
+        TriggerKind::Scheduled {
+            cron: cron.to_string(),
+        }
     } else {
         TriggerKind::Immediate
     };
@@ -294,12 +314,23 @@ fn infer_intent(vessel: u8, opcode: &str, steps: &[CompiledStep]) -> ActionInten
     });
     ActionIntent {
         purpose: opcode.to_string(),
-        target: steps.first().map(|s| s.description.clone()).unwrap_or_default(),
-        mutations: if has_write { vec!["state_write".to_string()] } else { vec![] },
+        target: steps
+            .first()
+            .map(|s| s.description.clone())
+            .unwrap_or_default(),
+        mutations: if has_write {
+            vec!["state_write".to_string()]
+        } else {
+            vec![]
+        },
         data_sensitivity: DataSensitivity::Internal,
         network_access: has_network,
         consent_required: vessel == 11, // Vessel 11 = Consent
-        reversibility: if has_write { Reversibility::PartiallyReversible } else { Reversibility::Reversible },
+        reversibility: if has_write {
+            Reversibility::PartiallyReversible
+        } else {
+            Reversibility::Reversible
+        },
         expected_effects: steps.iter().map(|s| s.description.clone()).collect(),
         receipt_required: has_write || has_network,
     }
@@ -332,7 +363,8 @@ mod tests {
     fn compile_simple_prescription() {
         let (verify, cadence) = simple_spec();
         let prescription = "1. Write output file via write_file\n2. Confirm success via bash";
-        let result = ActionCompiler::compile(7, "execution:write_output", prescription, &verify, &cadence);
+        let result =
+            ActionCompiler::compile(7, "execution:write_output", prescription, &verify, &cadence);
         assert!(result.is_ok());
         let compiled = result.unwrap();
         assert_eq!(compiled.vessel, 7);
@@ -351,7 +383,9 @@ mod tests {
     #[test]
     fn with_dependency_sets_depends_on() {
         let (verify, cadence) = simple_spec();
-        let compiled = ActionCompiler::compile(7, "execution:step2", "1. Run step 2", &verify, &cadence).unwrap();
+        let compiled =
+            ActionCompiler::compile(7, "execution:step2", "1. Run step 2", &verify, &cadence)
+                .unwrap();
         let with_dep = ActionCompiler::with_dependency(compiled, "execution:step1");
         assert_eq!(with_dep.depends_on.as_deref(), Some("execution:step1"));
     }
@@ -361,8 +395,11 @@ mod tests {
         let (_, cadence) = simple_spec();
         let verify = vec![VerifySpec {
             kind: "unknown_check".to_string(),
-            path: None, expected: None, key: None,
-            expected_exit_code: None, actual_exit_code: None,
+            path: None,
+            expected: None,
+            key: None,
+            expected_exit_code: None,
+            actual_exit_code: None,
         }];
         let result = ActionCompiler::compile(7, "execution:test", "1. Do thing", &verify, &cadence);
         assert!(result.is_err());
@@ -372,7 +409,8 @@ mod tests {
     fn network_access_inferred_from_tool_name() {
         let (verify, cadence) = simple_spec();
         let prescription = "1. Fetch remote data via fetch_url";
-        let compiled = ActionCompiler::compile(8, "swarm:fetch", prescription, &verify, &cadence).unwrap();
+        let compiled =
+            ActionCompiler::compile(8, "swarm:fetch", prescription, &verify, &cadence).unwrap();
         assert!(compiled.action_intent.network_access);
         assert!(compiled.action_intent.receipt_required);
     }

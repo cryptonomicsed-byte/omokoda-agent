@@ -20,22 +20,29 @@ pub async fn initiate_session(device_id: &str, agent_id: &str) -> Option<(String
         .await
         .ok()?;
 
-    if !resp.status().is_success() { return None; }
+    if !resp.status().is_success() {
+        return None;
+    }
     let v: Value = resp.json().await.ok()?;
     let session_id = v.get("session_id").and_then(|s| s.as_str())?.to_string();
-    let challenge  = v.get("challenge").and_then(|c| c.as_str()).unwrap_or("").to_string();
+    let challenge = v
+        .get("challenge")
+        .and_then(|c| c.as_str())
+        .unwrap_or("")
+        .to_string();
     Some((session_id, challenge))
 }
 
 /// Authenticate an existing VCP session with a signed response.
-pub async fn authenticate_session(
-    session_id: &str,
-    signed_response: &str,
-) -> bool {
+pub async fn authenticate_session(session_id: &str, signed_response: &str) -> bool {
     let client = reqwest::Client::new();
     let body = json!({ "signed_response": signed_response });
     client
-        .post(format!("{}/api/vcp/sessions/{}/auth", vcp_base(), session_id))
+        .post(format!(
+            "{}/api/vcp/sessions/{}/auth",
+            vcp_base(),
+            session_id
+        ))
         .json(&body)
         .timeout(std::time::Duration::from_secs(5))
         .send()
@@ -60,7 +67,11 @@ pub async fn close_session(session_id: &str) -> bool {
 pub async fn get_capability_grant(session_id: &str) -> Option<Value> {
     let client = reqwest::Client::new();
     client
-        .get(format!("{}/api/vcp/sessions/{}/grant", vcp_base(), session_id))
+        .get(format!(
+            "{}/api/vcp/sessions/{}/grant",
+            vcp_base(),
+            session_id
+        ))
         .timeout(std::time::Duration::from_secs(5))
         .send()
         .await

@@ -1,6 +1,6 @@
+use super::client::WorkspaceClient;
 use std::sync::Arc;
 use tokio::time::{sleep, Duration};
-use super::client::WorkspaceClient;
 
 /// Vantage presence states. Must match backend STATES list in presence.py.
 #[derive(Debug, Clone, PartialEq)]
@@ -16,19 +16,23 @@ pub enum PresenceState {
 impl PresenceState {
     pub fn as_str(&self) -> &'static str {
         match self {
-            PresenceState::Available   => "available",
-            PresenceState::Thinking    => "thinking",
-            PresenceState::Working     => "working",
+            PresenceState::Available => "available",
+            PresenceState::Thinking => "thinking",
+            PresenceState::Working => "working",
             PresenceState::NeedsReview => "needs_review",
-            PresenceState::Blocked     => "blocked",
-            PresenceState::Offline     => "offline",
+            PresenceState::Blocked => "blocked",
+            PresenceState::Offline => "offline",
         }
     }
 }
 
 impl WorkspaceClient {
     /// Update presence for `agent_name` via PATCH /roster/{agent_name}/presence.
-    pub async fn update_presence(&self, agent_name: &str, state: PresenceState) -> Result<(), String> {
+    pub async fn update_presence(
+        &self,
+        agent_name: &str,
+        state: PresenceState,
+    ) -> Result<(), String> {
         let url = self.guild_path(&format!("/roster/{agent_name}/presence"));
         self.put_form(&url, &[("state", state.as_str())]).await?;
         Ok(())

@@ -23,8 +23,15 @@ pub use omokoda_hermetic::seven::{
 /// SevenFunction names indexed by discriminant (0 = Spark … 6 = Ascension).
 /// Used for human-readable system prompt annotations without depending on
 /// the full omokoda_hermetic crate at call sites.
-pub const SEVEN_FUNCTION_NAMES: [&str; 7] =
-    ["Spark", "Mind", "Foundation", "Emotion", "Womb", "Fire", "Ascension"];
+pub const SEVEN_FUNCTION_NAMES: [&str; 7] = [
+    "Spark",
+    "Mind",
+    "Foundation",
+    "Emotion",
+    "Womb",
+    "Fire",
+    "Ascension",
+];
 
 use crate::gates::HermeticPrinciple;
 

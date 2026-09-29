@@ -227,8 +227,8 @@ impl CoordinationClient {
             .await
             .map_err(|e| CoordinationError::Signing(e.to_string()))?;
 
-        let signed = serde_json::to_value(&event)
-            .map_err(|e| CoordinationError::Signing(e.to_string()))?;
+        let signed =
+            serde_json::to_value(&event).map_err(|e| CoordinationError::Signing(e.to_string()))?;
         let response = self
             .http
             .post(self.url("/join-confirm"))

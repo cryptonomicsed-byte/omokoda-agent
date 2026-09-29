@@ -246,7 +246,12 @@ mod tests {
     #[tokio::test]
     async fn view_empty_manifesto() {
         let tool = ManifestoTool;
-        let result = tool.execute(r#"{"action":"view","collective":"test-collective-empty"}"#, &ctx(0)).await;
+        let result = tool
+            .execute(
+                r#"{"action":"view","collective":"test-collective-empty"}"#,
+                &ctx(0),
+            )
+            .await;
         assert!(result.is_ok(), "{:?}", result);
         let (out, _) = result.unwrap();
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();

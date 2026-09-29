@@ -1,32 +1,28 @@
 use super::providers::{GenesisError, SoulProvider};
 use super::receipt::{KooduTimeProof, SoulProof};
 use async_trait::async_trait;
-use ifascript::{
-    get_odu, get_odu_ifa,
-    odu::ActionVessel,
-    seven_bridge::function_for_odu,
-};
+use ifascript::{get_odu, get_odu_ifa, odu::ActionVessel, seven_bridge::function_for_odu};
 use sha2::{Digest, Sha256};
 
 // Map ActionVessel to the Ọrìṣà that governs it — aligned with the 11-lobe Omokoda hive.
 fn vessel_orisha(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "Èṣù",       // opener of the way
-        ActionVessel::Void      => "Oya",        // dissolution and transformation
+        ActionVessel::Genesis => "Èṣù",        // opener of the way
+        ActionVessel::Void => "Oya",           // dissolution and transformation
         ActionVessel::Attention => "Ọ̀rúnmìlà", // foresight, signal clarity
-        ActionVessel::Loop      => "Ògún",       // iron, iterative work
-        ActionVessel::Receipt   => "Ṣàngó",      // accountability and justice
-        ActionVessel::Mask      => "Obàtálá",    // clarity, public/private boundary
-        ActionVessel::Residue   => "Ẹgúngún",   // ancestral echoes and memory
-        ActionVessel::Execution => "Ògún",       // precision action, iron will
-        ActionVessel::Swarm     => "Yemọja",     // collective, ocean of community
-        ActionVessel::Restraint => "Obàtálá",    // ethical limits, calm judgment
-        ActionVessel::Migration => "Oya",        // transition, identity across contexts
-        ActionVessel::Consent   => "Ọṣun",       // relationship, empathy, approval
-        ActionVessel::Vision    => "Ọ̀rúnmìlà", // horizon and direction
-        ActionVessel::Growth    => "Osanyin",    // healing, fractal expansion
-        ActionVessel::Seal      => "Olókun",     // deep secrets, sacred privacy
-        ActionVessel::Rhythm    => "Ṣàngó",      // ritual cadence, cycles of power
+        ActionVessel::Loop => "Ògún",          // iron, iterative work
+        ActionVessel::Receipt => "Ṣàngó",      // accountability and justice
+        ActionVessel::Mask => "Obàtálá",       // clarity, public/private boundary
+        ActionVessel::Residue => "Ẹgúngún",    // ancestral echoes and memory
+        ActionVessel::Execution => "Ògún",     // precision action, iron will
+        ActionVessel::Swarm => "Yemọja",       // collective, ocean of community
+        ActionVessel::Restraint => "Obàtálá",  // ethical limits, calm judgment
+        ActionVessel::Migration => "Oya",      // transition, identity across contexts
+        ActionVessel::Consent => "Ọṣun",       // relationship, empathy, approval
+        ActionVessel::Vision => "Ọ̀rúnmìlà",    // horizon and direction
+        ActionVessel::Growth => "Osanyin",     // healing, fractal expansion
+        ActionVessel::Seal => "Olókun",        // deep secrets, sacred privacy
+        ActionVessel::Rhythm => "Ṣàngó",       // ritual cadence, cycles of power
     }
 }
 
@@ -189,6 +185,9 @@ mod tests {
     fn test_destiny_threads_non_empty() {
         let k = dummy_koodu();
         let proof = cast_soul(&[42u8; 32], &k);
-        assert!(!proof.destiny_threads.is_empty(), "destiny threads must be non-empty at birth");
+        assert!(
+            !proof.destiny_threads.is_empty(),
+            "destiny threads must be non-empty at birth"
+        );
     }
 }

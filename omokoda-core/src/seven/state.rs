@@ -117,8 +117,8 @@ impl Universal7State {
     // ── Internal ──────────────────────────────────────────────────────────────
 
     fn compute(btc_block_height: u64) -> (SevenFunction, HermeticPrinciple, u8, u8) {
-        let active_function = SevenCalendar::from_btc_height(btc_block_height)
-            .unwrap_or(SevenFunction::Spark);
+        let active_function =
+            SevenCalendar::from_btc_height(btc_block_height).unwrap_or(SevenFunction::Spark);
         let active_principle = function_to_principle(active_function);
         let lattice_index = Self::lattice_for(active_function, active_principle);
         let odu_index = Self::odu_for_lattice(lattice_index);
@@ -143,7 +143,11 @@ mod tests {
     fn lattice_index_in_range() {
         for height in [KOODU_GENESIS, KOODU_GENESIS + 144, KOODU_GENESIS + 1000] {
             let state = Universal7State::genesis(height);
-            assert!(state.lattice_index < 49, "lattice_index out of range: {}", state.lattice_index);
+            assert!(
+                state.lattice_index < 49,
+                "lattice_index out of range: {}",
+                state.lattice_index
+            );
         }
     }
 
@@ -159,7 +163,11 @@ mod tests {
     fn odu_spread_no_collisions() {
         use std::collections::HashSet;
         let indices: HashSet<u8> = (0u8..49).map(Universal7State::odu_for_lattice).collect();
-        assert_eq!(indices.len(), 49, "odu_for_lattice must be injective across 0..48");
+        assert_eq!(
+            indices.len(),
+            49,
+            "odu_for_lattice must be injective across 0..48"
+        );
     }
 
     #[test]
@@ -185,7 +193,10 @@ mod tests {
     #[test]
     fn active_vessel_consistent_with_odu() {
         let state = Universal7State::genesis(KOODU_GENESIS + 288);
-        assert_eq!(state.active_vessel(), ActionVessel::from_index(state.odu_index));
+        assert_eq!(
+            state.active_vessel(),
+            ActionVessel::from_index(state.odu_index)
+        );
     }
 
     #[test]

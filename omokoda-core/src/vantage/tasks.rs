@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use super::client::WorkspaceClient;
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VantageTask {
@@ -17,7 +17,9 @@ pub struct VantageTask {
     pub claimed_by_name: Option<String>,
 }
 
-fn default_priority() -> u8 { 50 }
+fn default_priority() -> u8 {
+    50
+}
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum TaskStatus {
@@ -35,15 +37,15 @@ pub enum TaskStatus {
 impl From<&str> for TaskStatus {
     fn from(s: &str) -> Self {
         match s {
-            "proposed"   => TaskStatus::Proposed,
-            "claimed"    => TaskStatus::Claimed,
-            "executing"  => TaskStatus::Executing,
-            "blocked"    => TaskStatus::Blocked,
-            "review"     => TaskStatus::Review,
-            "accepted"   => TaskStatus::Accepted,
-            "rejected"   => TaskStatus::Rejected,
-            "cancelled"  => TaskStatus::Cancelled,
-            other        => TaskStatus::Unknown(other.to_string()),
+            "proposed" => TaskStatus::Proposed,
+            "claimed" => TaskStatus::Claimed,
+            "executing" => TaskStatus::Executing,
+            "blocked" => TaskStatus::Blocked,
+            "review" => TaskStatus::Review,
+            "accepted" => TaskStatus::Accepted,
+            "rejected" => TaskStatus::Rejected,
+            "cancelled" => TaskStatus::Cancelled,
+            other => TaskStatus::Unknown(other.to_string()),
         }
     }
 }
@@ -55,7 +57,11 @@ impl WorkspaceClient {
         let val = self.get(&url).await?;
         let tasks = val["tasks"]
             .as_array()
-            .map(|arr| arr.iter().filter_map(|v| serde_json::from_value(v.clone()).ok()).collect())
+            .map(|arr| {
+                arr.iter()
+                    .filter_map(|v| serde_json::from_value(v.clone()).ok())
+                    .collect()
+            })
             .unwrap_or_default();
         Ok(tasks)
     }
@@ -86,12 +92,17 @@ impl WorkspaceClient {
         content_hash: &str,
     ) -> Result<String, String> {
         let url = format!("{}/{}/submit", self.task_base(), task_id);
-        let val = self.post_form(&url, &[
-            ("artifact_kind",  kind),
-            ("artifact_title", title),
-            ("content_text",   content_text),
-            ("content_hash",   content_hash),
-        ]).await?;
+        let val = self
+            .post_form(
+                &url,
+                &[
+                    ("artifact_kind", kind),
+                    ("artifact_title", title),
+                    ("content_text", content_text),
+                    ("content_hash", content_hash),
+                ],
+            )
+            .await?;
         Ok(val["artifact_id"].as_str().unwrap_or("").to_string())
     }
 
@@ -103,10 +114,14 @@ impl WorkspaceClient {
         omokoda_receipt_id: &str,
     ) -> Result<(), String> {
         let url = format!("{}/{}/receipt", self.task_base(), task_id);
-        self.post_form(&url, &[
-            ("receipt_body",        receipt_body),
-            ("omokoda_receipt_id",  omokoda_receipt_id),
-        ]).await?;
+        self.post_form(
+            &url,
+            &[
+                ("receipt_body", receipt_body),
+                ("omokoda_receipt_id", omokoda_receipt_id),
+            ],
+        )
+        .await?;
         Ok(())
     }
 }

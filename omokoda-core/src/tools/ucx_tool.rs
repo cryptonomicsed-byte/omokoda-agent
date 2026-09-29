@@ -14,8 +14,7 @@ use super::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
 fn broker_url() -> String {
-    std::env::var("UCX_BROKER_URL")
-        .unwrap_or_else(|_| "http://localhost:7790".to_string())
+    std::env::var("UCX_BROKER_URL").unwrap_or_else(|_| "http://localhost:7790".to_string())
 }
 
 fn vantage_url() -> Option<String> {
@@ -32,10 +31,18 @@ pub struct UcxRequestComputeTool;
 
 #[async_trait]
 impl Tool for UcxRequestComputeTool {
-    fn name(&self)         -> &str { "ucx_request_compute" }
-    fn required_tier(&self) -> u8  { 3 }
-    fn is_write_operation(&self) -> bool { true }
-    fn timeout_secs(&self) -> u64 { 120 }
+    fn name(&self) -> &str {
+        "ucx_request_compute"
+    }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
+    fn timeout_secs(&self) -> u64 {
+        120
+    }
 
     fn description(&self) -> &str {
         "Submit a compute job to the UCX broker (Universal Compute Exchange). \
@@ -124,9 +131,15 @@ pub struct UcxOfferComputeTool;
 
 #[async_trait]
 impl Tool for UcxOfferComputeTool {
-    fn name(&self)         -> &str { "ucx_offer_compute" }
-    fn required_tier(&self) -> u8  { 4 }
-    fn is_write_operation(&self) -> bool { true }
+    fn name(&self) -> &str {
+        "ucx_offer_compute"
+    }
+    fn required_tier(&self) -> u8 {
+        4
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
 
     fn description(&self) -> &str {
         "Register this agent's machine as a UCX provider via the Vantage rendezvous. \
@@ -165,8 +178,7 @@ impl Tool for UcxOfferComputeTool {
         params: &str,
         context: &ExecutionContext,
     ) -> Result<(String, TokenUsage), String> {
-        let overrides: Value = serde_json::from_str(params)
-            .unwrap_or(json!({}));
+        let overrides: Value = serde_json::from_str(params).unwrap_or(json!({}));
 
         let vantage = vantage_url()
             .ok_or_else(|| "VANTAGE_URL not set — cannot register UCX provider".to_string())?;
@@ -224,8 +236,12 @@ fn num_cpus() -> usize {
 }
 
 fn current_arch() -> &'static str {
-    if cfg!(target_arch = "x86_64")  { return "X86_64"; }
-    if cfg!(target_arch = "aarch64") { return "Arm64"; }
+    if cfg!(target_arch = "x86_64") {
+        return "X86_64";
+    }
+    if cfg!(target_arch = "aarch64") {
+        return "Arm64";
+    }
     "Other"
 }
 
@@ -234,7 +250,11 @@ fn available_ram_gb() -> f64 {
     {
         if let Ok(info) = std::fs::read_to_string("/proc/meminfo") {
             if let Some(line) = info.lines().find(|l| l.starts_with("MemAvailable:")) {
-                if let Some(kb) = line.split_whitespace().nth(1).and_then(|s| s.parse::<f64>().ok()) {
+                if let Some(kb) = line
+                    .split_whitespace()
+                    .nth(1)
+                    .and_then(|s| s.parse::<f64>().ok())
+                {
                     return kb / (1024.0 * 1024.0);
                 }
             }
@@ -246,8 +266,7 @@ fn available_ram_gb() -> f64 {
 // ── vcp_request_session ───────────────────────────────────────────────────────
 
 fn vcp_broker_url() -> String {
-    std::env::var("VCP_BROKER_URL")
-        .unwrap_or_else(|_| "http://localhost:7791".to_string())
+    std::env::var("VCP_BROKER_URL").unwrap_or_else(|_| "http://localhost:7791".to_string())
 }
 
 /// Request a VCP session — agent inhabits a physical device for a scoped task.
@@ -255,7 +274,9 @@ pub struct VcpRequestSessionTool;
 
 #[async_trait]
 impl Tool for VcpRequestSessionTool {
-    fn name(&self) -> &str { "vcp_request_session" }
+    fn name(&self) -> &str {
+        "vcp_request_session"
+    }
 
     fn description(&self) -> &str {
         "Request a VCP (Vantage Connection Protocol) session to inhabit a physical \
@@ -265,21 +286,35 @@ impl Tool for VcpRequestSessionTool {
          Optional: duration_secs (default 3600), scope (Exclusive/Shared/SingleUse)."
     }
 
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
 
-    fn timeout_secs(&self) -> u64 { 30 }
+    fn timeout_secs(&self) -> u64 {
+        30
+    }
 
-    async fn execute(&self, params: &str, ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let spec: Value = serde_json::from_str(params).unwrap_or(Value::Null);
-        let device_id     = spec["device_id"].as_str().ok_or("device_id required")?;
+        let device_id = spec["device_id"].as_str().ok_or("device_id required")?;
         let required_caps = spec["required_caps"]
             .as_array()
-            .map(|a| a.iter().filter_map(|v| v.as_str().map(str::to_string)).collect::<Vec<_>>())
+            .map(|a| {
+                a.iter()
+                    .filter_map(|v| v.as_str().map(str::to_string))
+                    .collect::<Vec<_>>()
+            })
             .unwrap_or_default();
 
         let agent_did = ctx.agent_id.clone();
-        let url       = format!("{}/api/sessions", vcp_broker_url());
+        let url = format!("{}/api/sessions", vcp_broker_url());
 
         let body = json!({
             "device_id":     device_id,
@@ -288,7 +323,11 @@ impl Tool for VcpRequestSessionTool {
         });
 
         let client = reqwest::Client::new();
-        let resp   = client.post(&url).json(&body).send().await
+        let resp = client
+            .post(&url)
+            .json(&body)
+            .send()
+            .await
             .map_err(|e| format!("VCP broker unreachable: {e}"))?;
         let status = resp.status();
         let val: Value = resp.json().await.unwrap_or(Value::Null);
@@ -307,19 +346,31 @@ pub struct VcpListDevicesTool;
 
 #[async_trait]
 impl Tool for VcpListDevicesTool {
-    fn name(&self) -> &str { "vcp_list_devices" }
+    fn name(&self) -> &str {
+        "vcp_list_devices"
+    }
 
     fn description(&self) -> &str {
         "List physical devices currently available for VCP session inhabitation. \
          Returns device_id, label, class, safety_class for each fresh device."
     }
 
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
 
-    fn timeout_secs(&self) -> u64 { 15 }
+    fn timeout_secs(&self) -> u64 {
+        15
+    }
 
-    async fn execute(&self, _params: &str, _ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        _params: &str,
+        _ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let url = if let Some(vantage) = vantage_url() {
             format!("{vantage}/api/vcp/devices")
         } else {
@@ -332,7 +383,9 @@ impl Tool for VcpListDevicesTool {
             req = req.header("X-Agent-Key", vantage_key());
         }
 
-        let resp  = req.send().await
+        let resp = req
+            .send()
+            .await
             .map_err(|e| format!("VCP device list failed: {e}"))?;
         let val: Value = resp.json().await.unwrap_or(Value::Null);
         Ok((val.to_string(), TokenUsage::default()))
@@ -345,26 +398,42 @@ pub struct VcpRevokeSessionTool;
 
 #[async_trait]
 impl Tool for VcpRevokeSessionTool {
-    fn name(&self) -> &str { "vcp_revoke_session" }
+    fn name(&self) -> &str {
+        "vcp_revoke_session"
+    }
 
     fn description(&self) -> &str {
         "Revoke an active VCP session. Required params: session_id."
     }
 
-    fn required_tier(&self) -> u8 { 3 }
-    fn is_write_operation(&self) -> bool { true }
+    fn required_tier(&self) -> u8 {
+        3
+    }
+    fn is_write_operation(&self) -> bool {
+        true
+    }
 
-    fn timeout_secs(&self) -> u64 { 15 }
+    fn timeout_secs(&self) -> u64 {
+        15
+    }
 
-    async fn execute(&self, params: &str, ctx: &ExecutionContext) -> Result<(String, TokenUsage), String> {
+    async fn execute(
+        &self,
+        params: &str,
+        ctx: &ExecutionContext,
+    ) -> Result<(String, TokenUsage), String> {
         let spec: Value = serde_json::from_str(params).unwrap_or(Value::Null);
         let session_id = spec["session_id"].as_str().ok_or("session_id required")?;
-        let url        = format!("{}/api/sessions/{session_id}", vcp_broker_url());
+        let url = format!("{}/api/sessions/{session_id}", vcp_broker_url());
 
         let body = json!({ "revoker_did": ctx.agent_id });
 
         let client = reqwest::Client::new();
-        let resp   = client.delete(&url).json(&body).send().await
+        let resp = client
+            .delete(&url)
+            .json(&body)
+            .send()
+            .await
             .map_err(|e| format!("VCP revoke failed: {e}"))?;
         let val: Value = resp.json().await.unwrap_or(Value::Null);
         Ok((val.to_string(), TokenUsage::default()))

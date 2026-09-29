@@ -3,8 +3,12 @@
 /// A single entry-point that routes storage / seal / compute calls to the
 /// right backend based on a preference policy.  Agents call `OsoRouter`,
 /// never the individual providers directly.
-use super::oso_compute::{ComputeError, OsoComputeJob, OsoComputeProvider, OsoJobStatus, OsoWorkload};
-use super::oso_seal::{AccessGrant, AccessPolicy, AccessProvider, EncryptedBlob, GrantId, SealError};
+use super::oso_compute::{
+    ComputeError, OsoComputeJob, OsoComputeProvider, OsoJobStatus, OsoWorkload,
+};
+use super::oso_seal::{
+    AccessGrant, AccessPolicy, AccessProvider, EncryptedBlob, GrantId, SealError,
+};
 use super::oso_storage::{StorageCommitment, StorageError, StorageProvider};
 use std::sync::Arc;
 use std::time::Duration;
@@ -77,7 +81,9 @@ impl OsoRouter {
                 return local.put(data);
             }
         }
-        Err(StorageError::Unavailable("no storage backend available".into()))
+        Err(StorageError::Unavailable(
+            "no storage backend available".into(),
+        ))
     }
 
     pub fn retrieve(&self, commitment: &StorageCommitment) -> Result<Vec<u8>, StorageError> {
@@ -96,8 +102,14 @@ impl OsoRouter {
         Err(StorageError::NotFound(commitment.provider_ref.clone()))
     }
 
-    pub fn pin_storage(&self, commitment: &StorageCommitment, duration: Duration) -> Result<(), StorageError> {
-        if let Some(backend) = self.find_storage(&format!("{:?}", commitment.provider_hint).to_lowercase()) {
+    pub fn pin_storage(
+        &self,
+        commitment: &StorageCommitment,
+        duration: Duration,
+    ) -> Result<(), StorageError> {
+        if let Some(backend) =
+            self.find_storage(&format!("{:?}", commitment.provider_hint).to_lowercase())
+        {
             return backend.pin(commitment, duration);
         }
         Err(StorageError::NotFound(commitment.provider_ref.clone()))
@@ -105,23 +117,38 @@ impl OsoRouter {
 
     // ── Seal routing ──────────────────────────────────────────────────────────
 
-    pub fn seal_encrypt(&self, data: &[u8], policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
-        let backend = self.find_seal(self.policy.preferred_seal)
+    pub fn seal_encrypt(
+        &self,
+        data: &[u8],
+        policy: &AccessPolicy,
+    ) -> Result<EncryptedBlob, SealError> {
+        let backend = self
+            .find_seal(self.policy.preferred_seal)
             .ok_or_else(|| SealError::Unavailable("no seal backend configured".into()))?;
         backend.encrypt(data, policy)
     }
 
-    pub fn seal_authorize(&self, blob: &EncryptedBlob, identity: &str) -> Result<AccessGrant, SealError> {
+    pub fn seal_authorize(
+        &self,
+        blob: &EncryptedBlob,
+        identity: &str,
+    ) -> Result<AccessGrant, SealError> {
         let hint = format!("{:?}", blob.backend).to_lowercase();
-        let backend = self.find_seal(&hint)
+        let backend = self
+            .find_seal(&hint)
             .or_else(|| self.find_seal(self.policy.preferred_seal))
             .ok_or_else(|| SealError::Unavailable("no seal backend for blob".into()))?;
         backend.authorize(blob, identity)
     }
 
-    pub fn seal_decrypt(&self, blob: &EncryptedBlob, grant: &AccessGrant) -> Result<Vec<u8>, SealError> {
+    pub fn seal_decrypt(
+        &self,
+        blob: &EncryptedBlob,
+        grant: &AccessGrant,
+    ) -> Result<Vec<u8>, SealError> {
         let hint = format!("{:?}", blob.backend).to_lowercase();
-        let backend = self.find_seal(&hint)
+        let backend = self
+            .find_seal(&hint)
             .or_else(|| self.find_seal(self.policy.preferred_seal))
             .ok_or_else(|| SealError::Unavailable("no seal backend for blob".into()))?;
         backend.decrypt(blob, grant)
@@ -144,10 +171,17 @@ impl OsoRouter {
                 return backend.submit(workload);
             }
         }
-        Err(ComputeError::NoProvider(format!("image={}", workload.image)))
+        Err(ComputeError::NoProvider(format!(
+            "image={}",
+            workload.image
+        )))
     }
 
-    pub fn compute_status(&self, provider: &str, job_id: &str) -> Result<OsoJobStatus, ComputeError> {
+    pub fn compute_status(
+        &self,
+        provider: &str,
+        job_id: &str,
+    ) -> Result<OsoJobStatus, ComputeError> {
         for backend in &self.compute_backends {
             if backend.name() == provider {
                 return backend.status(job_id);
@@ -159,11 +193,17 @@ impl OsoRouter {
     // ── Helpers ───────────────────────────────────────────────────────────────
 
     fn find_storage(&self, name: &str) -> Option<&Arc<dyn StorageProvider>> {
-        self.storage_backends.iter().find(|(n, _)| n == name).map(|(_, p)| p)
+        self.storage_backends
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, p)| p)
     }
 
     fn find_seal(&self, name: &str) -> Option<&Arc<dyn AccessProvider>> {
-        self.seal_backends.iter().find(|(n, _)| n == name).map(|(_, p)| p)
+        self.seal_backends
+            .iter()
+            .find(|(n, _)| n == name)
+            .map(|(_, p)| p)
     }
 }
 
@@ -200,7 +240,9 @@ mod tests {
         let policy = AccessPolicy::default();
 
         let blob = router.seal_encrypt(plaintext, &policy).expect("encrypt ok");
-        let grant = router.seal_authorize(&blob, "agent-abc").expect("authorize ok");
+        let grant = router
+            .seal_authorize(&blob, "agent-abc")
+            .expect("authorize ok");
         let decrypted = router.seal_decrypt(&blob, &grant).expect("decrypt ok");
         assert_eq!(decrypted, plaintext);
 
@@ -221,6 +263,9 @@ mod tests {
             timeout_secs: 60,
             require_attestation: false,
         };
-        assert!(matches!(router.compute_submit(workload), Err(ComputeError::NoProvider(_))));
+        assert!(matches!(
+            router.compute_submit(workload),
+            Err(ComputeError::NoProvider(_))
+        ));
     }
 }

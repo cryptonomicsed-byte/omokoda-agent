@@ -250,7 +250,12 @@ mod tests {
     fn verify_entity_passes_when_present() {
         let dir = dir_with(&[("e1", "we discussed Vantage today", "think/simplequery")]);
         let q = parse_query(r#"VERIFY WHERE entity = "Vantage""#).unwrap();
-        let answer = execute(&q, &dir, &CausalMemoryDag::default(), &ReflectionLedger::default());
+        let answer = execute(
+            &q,
+            &dir,
+            &CausalMemoryDag::default(),
+            &ReflectionLedger::default(),
+        );
         assert_eq!(answer.passed, Some(true));
     }
 
@@ -258,7 +263,12 @@ mod tests {
     fn verify_entity_fails_when_absent() {
         let dir = dir_with(&[("e1", "we discussed lunch today", "think/simplequery")]);
         let q = parse_query(r#"VERIFY WHERE entity = "Vantage""#).unwrap();
-        let answer = execute(&q, &dir, &CausalMemoryDag::default(), &ReflectionLedger::default());
+        let answer = execute(
+            &q,
+            &dir,
+            &CausalMemoryDag::default(),
+            &ReflectionLedger::default(),
+        );
         assert_eq!(answer.passed, Some(false));
     }
 
@@ -266,7 +276,12 @@ mod tests {
     fn verify_path_contains() {
         let dir = dir_with(&[("e1", "hello", "think/complextask")]);
         let q = parse_query(r#"VERIFY WHERE path CONTAINS "complextask""#).unwrap();
-        let answer = execute(&q, &dir, &CausalMemoryDag::default(), &ReflectionLedger::default());
+        let answer = execute(
+            &q,
+            &dir,
+            &CausalMemoryDag::default(),
+            &ReflectionLedger::default(),
+        );
         assert_eq!(answer.passed, Some(true));
     }
 
@@ -274,7 +289,12 @@ mod tests {
     fn describe_entities_lists_known_entities() {
         let dir = dir_with(&[("e1", "we discussed Vantage and Zangbeto", "think/x")]);
         let q = parse_query("DESCRIBE entities").unwrap();
-        let answer = execute(&q, &dir, &CausalMemoryDag::default(), &ReflectionLedger::default());
+        let answer = execute(
+            &q,
+            &dir,
+            &CausalMemoryDag::default(),
+            &ReflectionLedger::default(),
+        );
         // known_entities returns the lowercased index key, not display casing.
         assert!(answer.summary.iter().any(|s| s == "vantage"));
         assert!(answer.summary.iter().any(|s| s == "zangbeto"));
@@ -286,7 +306,12 @@ mod tests {
         dir.insert(OduEntry::new("a", "identical content here", "p1"));
         dir.insert(OduEntry::new("b", "identical content here", "p2"));
         let q = parse_query("DESCRIBE duplicates").unwrap();
-        let answer = execute(&q, &dir, &CausalMemoryDag::default(), &ReflectionLedger::default());
+        let answer = execute(
+            &q,
+            &dir,
+            &CausalMemoryDag::default(),
+            &ReflectionLedger::default(),
+        );
         assert_eq!(answer.summary.len(), 1);
     }
 

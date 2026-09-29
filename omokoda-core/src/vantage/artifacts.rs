@@ -14,13 +14,13 @@ pub enum ArtifactKind {
 impl ArtifactKind {
     pub fn as_str(&self) -> &'static str {
         match self {
-            ArtifactKind::Code      => "code",
-            ArtifactKind::Doc       => "doc",
-            ArtifactKind::Data      => "data",
-            ArtifactKind::Media     => "media",
-            ArtifactKind::Eval      => "eval",
+            ArtifactKind::Code => "code",
+            ArtifactKind::Doc => "doc",
+            ArtifactKind::Data => "data",
+            ArtifactKind::Media => "media",
+            ArtifactKind::Eval => "eval",
             ArtifactKind::ToolOutput => "tool_output",
-            ArtifactKind::Other     => "other",
+            ArtifactKind::Other => "other",
         }
     }
 }

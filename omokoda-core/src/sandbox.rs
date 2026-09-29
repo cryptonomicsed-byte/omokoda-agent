@@ -1,7 +1,7 @@
 use std::path::Path;
 use wasmtime::{Engine, Linker, Module, Store};
-use wasmtime_wasi::WasiCtxBuilder;
 use wasmtime_wasi::p1::{self, WasiP1Ctx};
+use wasmtime_wasi::WasiCtxBuilder;
 
 /// Filesystem isolation mode for tool execution
 #[derive(Debug, Clone, PartialEq, Eq, serde::Serialize, serde::Deserialize)]

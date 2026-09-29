@@ -12,14 +12,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::time::Duration;
 
-use crate::parser::Statement;
-use crate::interpreter::Steward;
 use super::runtime::AgentRuntime;
+use crate::interpreter::Steward;
+use crate::parser::Statement;
 
 /// Spawn the job daemon.  Fire-and-forget; a crash logs and restarts.
 pub fn spawn_job_daemon(
-    steward:  Arc<Mutex<Steward>>,
-    runtime:  Arc<Mutex<AgentRuntime>>,
+    steward: Arc<Mutex<Steward>>,
+    runtime: Arc<Mutex<AgentRuntime>>,
     poll_secs: u64,
 ) {
     if poll_secs == 0 {
@@ -41,7 +41,7 @@ pub fn spawn_job_daemon(
             // Pull agent identity and Vantage client; skip if not configured.
             let (agent_id, agent_name) = {
                 let g = steward.lock().await;
-                let id   = g.agent_core().map(|a| a.id().as_str().to_string());
+                let id = g.agent_core().map(|a| a.id().as_str().to_string());
                 let name = g.agent_core().map(|a| a.name().to_string());
                 (id, name)
             };
@@ -76,9 +76,9 @@ pub fn spawn_job_daemon(
             tracing::info!(count = task_list.len(), "[job-daemon] executing tasks");
 
             for task in task_list {
-                let task_id   = task["id"].as_u64().unwrap_or(0);
+                let task_id = task["id"].as_u64().unwrap_or(0);
                 let task_desc = task["description"].as_str().unwrap_or("").to_string();
-                let task_url  = format!(
+                let task_url = format!(
                     "{}/api/guilds/{}/tasks/{}",
                     client.base_url, client.guild_slug, task_id
                 );
@@ -91,12 +91,24 @@ pub fn spawn_job_daemon(
 
                 let result = {
                     let mut g = steward.lock().await;
-                    g.dispatch(Statement::Think { prompt, private: false, modifiers: Default::default() }).await
+                    g.dispatch(Statement::Think {
+                        prompt,
+                        private: false,
+                        modifiers: Default::default(),
+                    })
+                    .await
                 };
 
                 let (new_status, result_text) = match result {
-                    Ok(resp)  => ("completed", resp.tool_output.unwrap_or_default().chars().take(1000).collect::<String>()),
-                    Err(e)    => ("failed",    format!("Error: {e}")),
+                    Ok(resp) => (
+                        "completed",
+                        resp.tool_output
+                            .unwrap_or_default()
+                            .chars()
+                            .take(1000)
+                            .collect::<String>(),
+                    ),
+                    Err(e) => ("failed", format!("Error: {e}")),
                 };
 
                 // Patch task status back to Vantage.

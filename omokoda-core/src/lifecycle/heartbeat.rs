@@ -8,7 +8,7 @@
 //! `warn!` is emitted. The chain is still valid without signatures; signatures add
 //! an extra layer of tamper-evidence on top of the SHA-256 chain.
 
-use base64::{Engine, engine::general_purpose::URL_SAFE_NO_PAD};
+use base64::{engine::general_purpose::URL_SAFE_NO_PAD, Engine};
 use ed25519_dalek::{Signer, SigningKey};
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
@@ -27,20 +27,20 @@ pub struct SomaVector {
 /// One heartbeat record. Serialises to canonical JSON for hashing.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentHeartbeat {
-    pub agent_id:               String,
-    pub boot_id:                String,
-    pub sequence:               u64,
-    pub timestamp:              u64,
-    pub state:                  HeartbeatState,
-    pub tier:                   String,
-    pub active_daemons:         Vec<String>,
-    pub current_work:           Option<String>,
+    pub agent_id: String,
+    pub boot_id: String,
+    pub sequence: u64,
+    pub timestamp: u64,
+    pub state: HeartbeatState,
+    pub tier: String,
+    pub active_daemons: Vec<String>,
+    pub current_work: Option<String>,
     pub previous_heartbeat_hash: Option<String>,
-    pub signature:              Option<String>,  // ed25519, future
+    pub signature: Option<String>, // ed25519, future
     /// Emotion snapshot at beat time
-    pub soma_vector:            Option<SomaVector>,
+    pub soma_vector: Option<SomaVector>,
     /// Total messages processed since boot
-    pub message_count:          u64,
+    pub message_count: u64,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
@@ -49,7 +49,7 @@ pub enum HeartbeatState {
     Alive,
     Thinking,
     Working,
-    Resting,  // Sabbath
+    Resting, // Sabbath
     Offline,
 }
 
@@ -77,11 +77,11 @@ impl AgentHeartbeat {
     pub fn genesis(agent_id: impl Into<String>, tier: impl Into<String>) -> Self {
         Self {
             agent_id: agent_id.into(),
-            boot_id:  Uuid::new_v4().to_string(),
+            boot_id: Uuid::new_v4().to_string(),
             sequence: 0,
             timestamp: now_secs(),
-            state:    HeartbeatState::Alive,
-            tier:     tier.into(),
+            state: HeartbeatState::Alive,
+            tier: tier.into(),
             active_daemons: vec![],
             current_work: None,
             previous_heartbeat_hash: None,
@@ -99,12 +99,12 @@ impl AgentHeartbeat {
         current_work: Option<String>,
     ) -> Self {
         Self {
-            agent_id:  prev.agent_id.clone(),
-            boot_id:   prev.boot_id.clone(),
-            sequence:  prev.sequence + 1,
+            agent_id: prev.agent_id.clone(),
+            boot_id: prev.boot_id.clone(),
+            sequence: prev.sequence + 1,
             timestamp: now_secs(),
             state,
-            tier:      prev.tier.clone(),
+            tier: prev.tier.clone(),
             active_daemons,
             current_work,
             previous_heartbeat_hash: Some(prev.hash()),
@@ -239,7 +239,10 @@ mod tests {
         let g_hash = g.hash();
         let next = AgentHeartbeat::next_from(&g, HeartbeatState::Thinking, vec![], None);
         assert_eq!(next.sequence, 1);
-        assert_eq!(next.previous_heartbeat_hash.as_deref(), Some(g_hash.as_str()));
+        assert_eq!(
+            next.previous_heartbeat_hash.as_deref(),
+            Some(g_hash.as_str())
+        );
         assert!(AgentHeartbeat::verify_chain(&g, &next));
     }
 
@@ -281,8 +284,14 @@ mod tests {
         let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
         assert!(beat.signature.is_none());
         beat.sign_with_key(&priv_b64);
-        assert!(beat.signature.is_some(), "signature should be set after signing");
-        assert!(beat.verify_signature(&pub_b64), "signature should verify with matching pubkey");
+        assert!(
+            beat.signature.is_some(),
+            "signature should be set after signing"
+        );
+        assert!(
+            beat.verify_signature(&pub_b64),
+            "signature should verify with matching pubkey"
+        );
     }
 
     #[test]
@@ -291,7 +300,10 @@ mod tests {
         let (_, wrong_pub) = test_keypair();
         let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
         beat.sign_with_key(&priv_b64);
-        assert!(!beat.verify_signature(&wrong_pub), "wrong pubkey should not verify");
+        assert!(
+            !beat.verify_signature(&wrong_pub),
+            "wrong pubkey should not verify"
+        );
     }
 
     #[test]
@@ -299,14 +311,20 @@ mod tests {
         let mut beat = AgentHeartbeat::genesis("agent:sig-test", "resident");
         // Pass garbage — should not panic, signature stays None.
         beat.sign_with_key("not-a-valid-key!!");
-        assert!(beat.signature.is_none(), "fail-open: signature should be None on bad key");
+        assert!(
+            beat.signature.is_none(),
+            "fail-open: signature should be None on bad key"
+        );
     }
 
     #[test]
     fn unsigned_beat_verify_returns_false_not_panic() {
         let (_, pub_b64) = test_keypair();
         let beat = AgentHeartbeat::genesis("agent:1", "resident");
-        assert!(!beat.verify_signature(&pub_b64), "unsigned beat should return false, not panic");
+        assert!(
+            !beat.verify_signature(&pub_b64),
+            "unsigned beat should return false, not panic"
+        );
     }
 
     #[test]
@@ -316,6 +334,9 @@ mod tests {
         beat.sign_with_key(&priv_b64);
         // Tamper the agent_id AFTER signing — hash will differ, sig won't match.
         beat.agent_id = "agent:evil".into();
-        assert!(!beat.verify_signature(&pub_b64), "tampered beat should fail signature check");
+        assert!(
+            !beat.verify_signature(&pub_b64),
+            "tampered beat should fail signature check"
+        );
     }
 }

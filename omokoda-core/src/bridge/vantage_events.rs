@@ -22,10 +22,10 @@ pub enum VantageEventKind {
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct VantageEvent {
-    pub event_id:  String,
-    pub kind:      VantageEventKind,
-    pub agent_id:  Option<String>,
-    pub payload:   Value,
+    pub event_id: String,
+    pub kind: VantageEventKind,
+    pub agent_id: Option<String>,
+    pub payload: Value,
     pub timestamp: i64,
 }
 
@@ -38,9 +38,7 @@ pub async fn poll_events(agent_id: &str, since_ts: Option<i64>) -> Vec<VantageEv
     if let Some(ts) = since_ts {
         url.push_str(&format!("&since={}", ts));
     }
-    let mut req = client
-        .get(&url)
-        .timeout(std::time::Duration::from_secs(5));
+    let mut req = client.get(&url).timeout(std::time::Duration::from_secs(5));
     if !key.is_empty() {
         req = req.header("X-Agent-Key", &key);
     }
@@ -53,10 +51,10 @@ pub async fn poll_events(agent_id: &str, since_ts: Option<i64>) -> Vec<VantageEv
 /// Normalized event — all event kinds collapsed to a common envelope.
 #[derive(Debug, Clone)]
 pub struct NormalizedEvent {
-    pub event_id:  String,
-    pub category:  EventCategory,
-    pub agent_id:  Option<String>,
-    pub payload:   Value,
+    pub event_id: String,
+    pub category: EventCategory,
+    pub agent_id: Option<String>,
+    pub payload: Value,
     pub timestamp: i64,
 }
 
@@ -81,14 +79,16 @@ fn normalize(ev: VantageEvent) -> NormalizedEvent {
     let category = match &ev.kind {
         VantageEventKind::TradeExecuted => EventCategory::Economic,
         VantageEventKind::AgentJoined | VantageEventKind::AgentLeft => EventCategory::Social,
-        VantageEventKind::ProposalCreated | VantageEventKind::ProposalResolved => EventCategory::Governance,
+        VantageEventKind::ProposalCreated | VantageEventKind::ProposalResolved => {
+            EventCategory::Governance
+        }
         VantageEventKind::Other { .. } => EventCategory::Other,
     };
     NormalizedEvent {
-        event_id:  ev.event_id,
+        event_id: ev.event_id,
         category,
-        agent_id:  ev.agent_id,
-        payload:   ev.payload,
+        agent_id: ev.agent_id,
+        payload: ev.payload,
         timestamp: ev.timestamp,
     }
 }

@@ -7,7 +7,9 @@
 // FUSION: pass score = ctx.dna.cause_effect.
 // High cause_effect DNA → agent naturally produces rich causal trails → higher score.
 
-use crate::gates::{GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation, Reversibility};
+use crate::gates::{
+    GateContext, GateResult, HermeticGate, HermeticPrinciple, Operation, Reversibility,
+};
 
 pub struct CauseEffectGate;
 

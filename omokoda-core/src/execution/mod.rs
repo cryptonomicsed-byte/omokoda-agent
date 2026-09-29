@@ -1,10 +1,9 @@
-pub mod action_transaction;
 pub mod action_compiler;
-pub mod action_schema;
 pub mod action_interpreter;
-pub mod calabash_dispatch;
-pub mod verify;
+pub mod action_schema;
+pub mod action_transaction;
 pub mod bash_validation;
+pub mod calabash_dispatch;
 pub mod deny_list;
 pub mod hook_registry;
 pub mod hooks;
@@ -13,3 +12,4 @@ pub mod permission_enforcer;
 pub mod prompter;
 pub mod python_hook;
 pub mod risk_classifier;
+pub mod verify;

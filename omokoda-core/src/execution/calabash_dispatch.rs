@@ -28,7 +28,9 @@
 use ifascript::odu::{get_odu, ActionVessel};
 use serde::{Deserialize, Serialize};
 
-use crate::execution::action_compiler::{ActionCompiler, CadenceSpec, CompiledAction, CompileError, VerifySpec};
+use crate::execution::action_compiler::{
+    ActionCompiler, CadenceSpec, CompileError, CompiledAction, VerifySpec,
+};
 use crate::execution::action_schema::{build_schema, ActionSchema};
 
 /// A fully-specified agent directive derived from one of the 256 base Odù.
@@ -295,22 +297,22 @@ const VESSEL_PROFILES: [VesselProfile; 16] = [
 /// A short phrase appended to step 1 based on the bottom modifier vessel.
 /// These refine the top vessel's primary action with the modifier's intent.
 const MODIFIER_REFINEMENTS: [&str; 16] = [
-    "with covenant and witness",                   // 0 Genesis mod
-    "clearing all prior residue",                  // 1 Void mod
-    "focused on signal clarity",                   // 2 Attention mod
-    "repeating until stable pattern emerges",      // 3 Loop mod
-    "and write receipt to ledger",                 // 4 Receipt mod
-    "under privacy mask",                          // 5 Mask mod
-    "leaving minimal residue",                     // 6 Residue mod
-    "with direct execution authority",             // 7 Execution mod
-    "coordinating with peer agents",               // 8 Swarm mod
-    "with deliberate restraint",                   // 9 Restraint mod
-    "triggering downstream migration",             // 10 Migration mod
-    "with explicit consent check",                 // 11 Consent mod
-    "expanding field of vision",                   // 12 Vision mod
-    "seeding growth in memory",                    // 13 Growth mod
-    "sealing with cryptographic proof",            // 14 Seal mod
-    "aligned to cosmic rhythm",                    // 15 Rhythm mod
+    "with covenant and witness",              // 0 Genesis mod
+    "clearing all prior residue",             // 1 Void mod
+    "focused on signal clarity",              // 2 Attention mod
+    "repeating until stable pattern emerges", // 3 Loop mod
+    "and write receipt to ledger",            // 4 Receipt mod
+    "under privacy mask",                     // 5 Mask mod
+    "leaving minimal residue",                // 6 Residue mod
+    "with direct execution authority",        // 7 Execution mod
+    "coordinating with peer agents",          // 8 Swarm mod
+    "with deliberate restraint",              // 9 Restraint mod
+    "triggering downstream migration",        // 10 Migration mod
+    "with explicit consent check",            // 11 Consent mod
+    "expanding field of vision",              // 12 Vision mod
+    "seeding growth in memory",               // 13 Growth mod
+    "sealing with cryptographic proof",       // 14 Seal mod
+    "aligned to cosmic rhythm",               // 15 Rhythm mod
 ];
 
 // ─── CalabashDispatcher ───────────────────────────────────────────────────────
@@ -339,12 +341,15 @@ impl CalabashDispatcher {
             // Structural fallback only — should never fire given all 256 have prescriptions
             format!(
                 "1. {} {} via {}\n2. Confirm outcome and record state via {}",
-                vp.action_verb, MODIFIER_REFINEMENTS[modifier_idx],
-                vp.primary_tool, mp.secondary_tool,
+                vp.action_verb,
+                MODIFIER_REFINEMENTS[modifier_idx],
+                vp.primary_tool,
+                mp.secondary_tool,
             )
         } else {
             // Use the actual corpus-derived operational steps
-            schema.operational_steps
+            schema
+                .operational_steps
                 .iter()
                 .enumerate()
                 .map(|(i, step)| format!("{}. {} via {}", i + 1, step.description, step.tool))
@@ -463,7 +468,11 @@ impl CalabashDispatcher {
     fn build_cadence(vp: &VesselProfile) -> CadenceSpec {
         CadenceSpec {
             trigger: vp.trigger.to_string(),
-            cooldown_secs: if vp.cooldown_secs > 0 { Some(vp.cooldown_secs) } else { None },
+            cooldown_secs: if vp.cooldown_secs > 0 {
+                Some(vp.cooldown_secs)
+            } else {
+                None
+            },
             max_per_window: vp.max_per_window,
             window_secs: vp.window_secs,
             deadline_secs: vp.deadline_secs,
@@ -476,22 +485,22 @@ impl CalabashDispatcher {
 /// Get the operational description for an ActionVessel.
 pub fn vessel_description(vessel: ActionVessel) -> &'static str {
     match vessel {
-        ActionVessel::Genesis   => "Initialize identity, covenant, and foundational state",
-        ActionVessel::Void      => "Clear, release, and dissolve what no longer serves",
+        ActionVessel::Genesis => "Initialize identity, covenant, and foundational state",
+        ActionVessel::Void => "Clear, release, and dissolve what no longer serves",
         ActionVessel::Attention => "Focus signal from noise; observe and classify",
-        ActionVessel::Loop      => "Iterate recurring patterns; scheduled execution",
-        ActionVessel::Receipt   => "Record, account, audit — create the tamper-evident trail",
-        ActionVessel::Mask      => "Apply privacy boundaries; seal sensitive state",
-        ActionVessel::Residue   => "Emit quiet telemetry; maintain the baseline",
+        ActionVessel::Loop => "Iterate recurring patterns; scheduled execution",
+        ActionVessel::Receipt => "Record, account, audit — create the tamper-evident trail",
+        ActionVessel::Mask => "Apply privacy boundaries; seal sensitive state",
+        ActionVessel::Residue => "Emit quiet telemetry; maintain the baseline",
         ActionVessel::Execution => "Execute the primary directive with full authority",
-        ActionVessel::Swarm     => "Coordinate peer agents; distribute and converge",
+        ActionVessel::Swarm => "Coordinate peer agents; distribute and converge",
         ActionVessel::Restraint => "Evaluate before acting; deliberate, measured hold",
         ActionVessel::Migration => "Transform and move state; adapt structure",
-        ActionVessel::Consent   => "Request and record ratified permission",
-        ActionVessel::Vision    => "Survey the environment; compile the full picture",
-        ActionVessel::Growth    => "Integrate new knowledge; expand capability",
-        ActionVessel::Seal      => "Cryptographically finalize; anchor proof on-chain",
-        ActionVessel::Rhythm    => "Synchronize with system cadence; align cycles",
+        ActionVessel::Consent => "Request and record ratified permission",
+        ActionVessel::Vision => "Survey the environment; compile the full picture",
+        ActionVessel::Growth => "Integrate new knowledge; expand capability",
+        ActionVessel::Seal => "Cryptographically finalize; anchor proof on-chain",
+        ActionVessel::Rhythm => "Synchronize with system cadence; align cycles",
     }
 }
 
@@ -536,7 +545,11 @@ mod tests {
     fn compile_for_all_256_odu_succeeds() {
         for i in 0u8..=255 {
             let result = CalabashDispatcher::compile_for_odu(i);
-            assert!(result.is_ok(), "failed to compile Odù {i}: {:?}", result.err());
+            assert!(
+                result.is_ok(),
+                "failed to compile Odù {i}: {:?}",
+                result.err()
+            );
         }
     }
 
@@ -544,7 +557,10 @@ mod tests {
     fn opcode_format_is_vessel_colon_modifier() {
         for i in [0u8, 16, 128, 255] {
             let opcode = CalabashDispatcher::opcode_for(i);
-            assert!(opcode.contains(':'), "opcode '{opcode}' for odu {i} missing ':'");
+            assert!(
+                opcode.contains(':'),
+                "opcode '{opcode}' for odu {i} missing ':'"
+            );
         }
     }
 
@@ -559,9 +575,18 @@ mod tests {
     #[test]
     fn odu_prompt_context_includes_vessel_and_prescription() {
         let ctx = odu_prompt_context(7);
-        assert!(ctx.contains("Context"), "context block must include 'Context' heading");
-        assert!(ctx.contains("Vessel:"), "context block must include Vessel field");
-        assert!(ctx.contains("Operational Steps:"), "context block must include steps section");
+        assert!(
+            ctx.contains("Context"),
+            "context block must include 'Context' heading"
+        );
+        assert!(
+            ctx.contains("Vessel:"),
+            "context block must include Vessel field"
+        );
+        assert!(
+            ctx.contains("Operational Steps:"),
+            "context block must include steps section"
+        );
     }
 
     #[test]

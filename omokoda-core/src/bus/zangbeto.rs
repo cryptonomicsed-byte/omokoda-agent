@@ -194,10 +194,7 @@ pub fn render_incident_notice(trip: &serde_json::Value) -> Option<String> {
         .and_then(|v| v.as_str())
         .filter(|s| !s.is_empty())
         .unwrap_or("unknown source");
-    let memo = detail
-        .get("memo")
-        .and_then(|v| v.as_str())
-        .unwrap_or("");
+    let memo = detail.get("memo").and_then(|v| v.as_str()).unwrap_or("");
     let mut notice = format!(
         "## Security Notice\nA canary mousetrap tripped ({token_type}) from {src_ip}. \
          This host may be compromised — treat this session and any recent actions as \
@@ -267,9 +264,18 @@ mod tests {
         assert!(notice.contains("aws_keys"), "token_type rendered");
         assert!(notice.contains("203.0.113.7"), "src_ip rendered");
         assert!(notice.contains("decoy creds on contabo"), "memo rendered");
-        assert!(!notice.contains("SUPERSECRET"), "raw token must never be rendered");
-        assert!(!notice.contains("manage_url"), "unrelated fields must not leak");
-        assert!(!notice.contains("canarytokens.org"), "manage_url content must not leak");
+        assert!(
+            !notice.contains("SUPERSECRET"),
+            "raw token must never be rendered"
+        );
+        assert!(
+            !notice.contains("manage_url"),
+            "unrelated fields must not leak"
+        );
+        assert!(
+            !notice.contains("canarytokens.org"),
+            "manage_url content must not leak"
+        );
     }
 
     #[test]
@@ -284,7 +290,10 @@ mod tests {
         let trip = json!({ "subject": "ms_word", "detail": {} });
         let notice = render_incident_notice(&trip).unwrap();
         assert!(notice.contains("ms_word"));
-        assert!(notice.contains("unknown source"), "empty src_ip → fallback label");
+        assert!(
+            notice.contains("unknown source"),
+            "empty src_ip → fallback label"
+        );
     }
 
     #[test]

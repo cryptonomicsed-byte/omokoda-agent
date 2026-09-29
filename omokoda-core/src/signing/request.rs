@@ -2,7 +2,6 @@
 ///
 /// NIP-46 compatible format: client sends a SigningRequest, identity daemon
 /// responds with SigningResponse. Raw private key is never included in either.
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
@@ -24,12 +23,12 @@ pub enum SigningPayload {
     /// Sign a DIP envelope canonical_hash (hex string).
     DipEnvelope {
         canonical_hash: String,
-        envelope_id:    String,
+        envelope_id: String,
     },
     /// Sign an Ọ̀ṢỌ́ L1 transaction payload (hex-encoded bytes).
     L1Tx {
         tx_bytes_hex: String,
-        tx_kind:      String,
+        tx_kind: String,
     },
     /// Sign an ARP receipt hash.
     ArpReceipt {
@@ -37,15 +36,10 @@ pub enum SigningPayload {
         receipt_kind: String,
     },
     /// Sign a StateCommitmentTx (Phase 17.2).
-    StateCommitment {
-        tx_json: String,
-    },
+    StateCommitment { tx_json: String },
     /// Sign arbitrary bytes — for internal daemon use only.
     /// External callers should use a specific variant above.
-    Raw {
-        bytes_hex: String,
-        context:   String,
-    },
+    Raw { bytes_hex: String, context: String },
 }
 
 /// A request to sign a payload, submitted by an agent application.
@@ -58,20 +52,20 @@ pub struct SigningRequest {
     /// Unique request id (UUID v4).
     pub request_id: String,
     /// The agent whose vault signing key should be used.
-    pub agent_id:   String,
+    pub agent_id: String,
     /// What to sign.
-    pub payload:    SigningPayload,
+    pub payload: SigningPayload,
     /// Optional nonce for replay protection (caller-generated random hex).
-    pub nonce:      Option<String>,
+    pub nonce: Option<String>,
 }
 
 impl SigningRequest {
     pub fn new(agent_id: impl Into<String>, payload: SigningPayload) -> Self {
         Self {
             request_id: Uuid::new_v4().to_string(),
-            agent_id:   agent_id.into(),
+            agent_id: agent_id.into(),
             payload,
-            nonce:      Some(Uuid::new_v4().to_string()),
+            nonce: Some(Uuid::new_v4().to_string()),
         }
     }
 }
@@ -82,37 +76,37 @@ pub struct SigningResponse {
     /// Echoed from the request.
     pub request_id: String,
     /// Whether signing succeeded.
-    pub success:    bool,
+    pub success: bool,
     /// Hex-encoded Ed25519 signature (128 hex chars = 64 bytes), or empty on error.
-    pub signature:  String,
+    pub signature: String,
     /// For Nostr events: the canonical event id (sha256 of serialized event).
-    pub event_id:   Option<String>,
+    pub event_id: Option<String>,
     /// For Nostr events: the signer's npub (hex).
-    pub pubkey:     Option<String>,
+    pub pubkey: Option<String>,
     /// Error message if success == false.
-    pub error:      Option<String>,
+    pub error: Option<String>,
 }
 
 impl SigningResponse {
     pub fn ok(request_id: &str, signature: &str) -> Self {
         Self {
             request_id: request_id.to_string(),
-            success:    true,
-            signature:  signature.to_string(),
-            event_id:   None,
-            pubkey:     None,
-            error:      None,
+            success: true,
+            signature: signature.to_string(),
+            event_id: None,
+            pubkey: None,
+            error: None,
         }
     }
 
     pub fn err(request_id: &str, msg: impl Into<String>) -> Self {
         Self {
             request_id: request_id.to_string(),
-            success:    false,
-            signature:  String::new(),
-            event_id:   None,
-            pubkey:     None,
-            error:      Some(msg.into()),
+            success: false,
+            signature: String::new(),
+            event_id: None,
+            pubkey: None,
+            error: Some(msg.into()),
         }
     }
 }
@@ -123,14 +117,20 @@ mod tests {
 
     #[test]
     fn signing_request_generates_unique_ids() {
-        let r1 = SigningRequest::new("agent-1", SigningPayload::Raw {
-            bytes_hex: "deadbeef".to_string(),
-            context:   "test".to_string(),
-        });
-        let r2 = SigningRequest::new("agent-1", SigningPayload::Raw {
-            bytes_hex: "deadbeef".to_string(),
-            context:   "test".to_string(),
-        });
+        let r1 = SigningRequest::new(
+            "agent-1",
+            SigningPayload::Raw {
+                bytes_hex: "deadbeef".to_string(),
+                context: "test".to_string(),
+            },
+        );
+        let r2 = SigningRequest::new(
+            "agent-1",
+            SigningPayload::Raw {
+                bytes_hex: "deadbeef".to_string(),
+                context: "test".to_string(),
+            },
+        );
         assert_ne!(r1.request_id, r2.request_id, "request ids must be unique");
         assert!(r1.nonce.is_some());
     }
@@ -140,17 +140,17 @@ mod tests {
         let variants: Vec<SigningPayload> = vec![
             SigningPayload::NostrEvent {
                 event_kind: 30100,
-                content:    "{}".to_string(),
-                tags:       vec![],
+                content: "{}".to_string(),
+                tags: vec![],
                 created_at: Some(1_700_000_000),
             },
             SigningPayload::DipEnvelope {
                 canonical_hash: "abc123".to_string(),
-                envelope_id:    "env-1".to_string(),
+                envelope_id: "env-1".to_string(),
             },
             SigningPayload::L1Tx {
                 tx_bytes_hex: "deadbeef".to_string(),
-                tx_kind:      "work_completion".to_string(),
+                tx_kind: "work_completion".to_string(),
             },
             SigningPayload::ArpReceipt {
                 receipt_hash: "def456".to_string(),
@@ -161,7 +161,7 @@ mod tests {
             },
             SigningPayload::Raw {
                 bytes_hex: "ff00".to_string(),
-                context:   "internal".to_string(),
+                context: "internal".to_string(),
             },
         ];
 

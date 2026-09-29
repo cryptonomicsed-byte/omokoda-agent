@@ -122,13 +122,13 @@ impl Receipt {
 
 #[derive(Debug, Default, Clone, Serialize, Deserialize, PartialEq, Eq)]
 pub struct ReceiptStore {
-    receipts:    HashMap<String, Receipt>,
-    last_hash:   String,
-    chain:       Vec<String>,
+    receipts: HashMap<String, Receipt>,
+    last_hash: String,
+    chain: Vec<String>,
     merkle_tree: SimpleMerkleTree,
     /// GIX1 Merkle-auditable index — one envelope per recorded receipt.
     #[serde(default)]
-    gix1_index:  Gix1Index,
+    gix1_index: Gix1Index,
 }
 
 pub type ReceiptEngine = ReceiptStore;
@@ -146,11 +146,11 @@ impl ReceiptStore {
 
     pub fn new() -> Self {
         Self {
-            receipts:    HashMap::new(),
-            last_hash:   "0".repeat(64),
-            chain:       Vec::new(),
+            receipts: HashMap::new(),
+            last_hash: "0".repeat(64),
+            chain: Vec::new(),
             merkle_tree: SimpleMerkleTree::new(),
-            gix1_index:  Gix1Index::new(),
+            gix1_index: Gix1Index::new(),
         }
     }
 
@@ -380,7 +380,11 @@ mod gix_tests {
         let store = make_store_with_receipts(2);
         for entry in store.gix1_index().entries() {
             let resolved = store.gix1_index().resolve(&entry.canonical_id);
-            assert!(resolved.is_some(), "envelope not found for {}", entry.canonical_id);
+            assert!(
+                resolved.is_some(),
+                "envelope not found for {}",
+                entry.canonical_id
+            );
         }
     }
 }

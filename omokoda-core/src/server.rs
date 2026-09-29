@@ -684,9 +684,7 @@ async fn health_handler() -> Json<HealthResponse> {
     Json(HealthResponse { ok: true })
 }
 
-async fn kernel_status_handler(
-    State(state): State<AppState>,
-) -> Json<serde_json::Value> {
+async fn kernel_status_handler(State(state): State<AppState>) -> Json<serde_json::Value> {
     let status = state.os_kernel.status();
     Json(serde_json::to_value(status).unwrap_or_default())
 }
@@ -790,8 +788,8 @@ async fn capability_handler(
     State(state): State<AppState>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
-    use axum::http::StatusCode;
     use crate::genesis::capability::{CapabilityRegistry, CapabilityScope};
+    use axum::http::StatusCode;
 
     let requested_id = headers.get("x-agent-id").and_then(|v| v.to_str().ok());
     let receipt_opt = match requested_id {
@@ -1611,7 +1609,10 @@ fn spawn_heartbeat(
                     Err(e) => println!("[heartbeat] vantage ping failed (non-fatal): {e}"),
                 }
                 match client.send_heartbeat(&canonical_beat).await {
-                    Ok(_) => println!("[heartbeat] canonical chain beat #{} sent to vantage", canonical_beat.sequence),
+                    Ok(_) => println!(
+                        "[heartbeat] canonical chain beat #{} sent to vantage",
+                        canonical_beat.sequence
+                    ),
                     Err(e) => println!("[heartbeat] canonical beat deferred (non-fatal): {e}"),
                 }
                 match client.mesh_heartbeat().await {
@@ -1849,7 +1850,10 @@ mod keystore_tests {
         let resp = birth_handler(
             State(state.clone()),
             HeaderMap::new(),
-            Json(BirthRequest { name: "ks-owner".to_string(), meta }),
+            Json(BirthRequest {
+                name: "ks-owner".to_string(),
+                meta,
+            }),
         )
         .await
         .into_response();
@@ -1868,7 +1872,10 @@ mod keystore_tests {
         let resp = birth_handler(
             State(state.clone()),
             HeaderMap::new(),
-            Json(BirthRequest { name: "ks-guest".to_string(), meta }),
+            Json(BirthRequest {
+                name: "ks-guest".to_string(),
+                meta,
+            }),
         )
         .await
         .into_response();
@@ -1897,15 +1904,27 @@ mod keystore_tests {
 
         assert_eq!(resp.status(), StatusCode::OK);
         let body = body_json(resp).await;
-        let ks_str = body["keystore"].as_str().expect("keystore field must be a string");
+        let ks_str = body["keystore"]
+            .as_str()
+            .expect("keystore field must be a string");
 
         // The value must itself be valid JSON containing EIP-2307 v3 fields.
-        let ks: serde_json::Value = serde_json::from_str(ks_str)
-            .expect("keystore field must contain valid JSON");
-        assert_eq!(ks["version"].as_u64(), Some(3), "keystore version must be 3");
-        assert!(ks["crypto"].is_object(), "keystore must have a crypto object");
+        let ks: serde_json::Value =
+            serde_json::from_str(ks_str).expect("keystore field must contain valid JSON");
+        assert_eq!(
+            ks["version"].as_u64(),
+            Some(3),
+            "keystore version must be 3"
+        );
+        assert!(
+            ks["crypto"].is_object(),
+            "keystore must have a crypto object"
+        );
         assert!(ks["id"].is_string(), "keystore must have a uuid id");
-        assert!(ks["address"].is_string(), "keystore must include the ETH address");
+        assert!(
+            ks["address"].is_string(),
+            "keystore must include the ETH address"
+        );
     }
 
     #[tokio::test]
@@ -1920,7 +1939,10 @@ mod keystore_tests {
         assert_eq!(resp.status(), StatusCode::NOT_FOUND);
         let body = body_json(resp).await;
         assert!(
-            body["error"].as_str().unwrap_or("").contains("keystore_password"),
+            body["error"]
+                .as_str()
+                .unwrap_or("")
+                .contains("keystore_password"),
             "error message must guide user to supply keystore_password at birth"
         );
     }
@@ -1939,7 +1961,11 @@ mod keystore_tests {
             .into_response();
 
         assert_eq!(r1.status(), StatusCode::OK, "first retrieval must succeed");
-        assert_eq!(r2.status(), StatusCode::OK, "second retrieval must also succeed (no latch)");
+        assert_eq!(
+            r2.status(),
+            StatusCode::OK,
+            "second retrieval must also succeed (no latch)"
+        );
     }
 
     // ── guest (X-Agent-Id + X-Agent-Key required) ────────────────────────

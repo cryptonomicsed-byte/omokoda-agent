@@ -11,8 +11,7 @@ use super::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
 fn broker_url() -> String {
-    std::env::var("UCX_BROKER_URL")
-        .unwrap_or_else(|_| "http://localhost:7790".to_string())
+    std::env::var("UCX_BROKER_URL").unwrap_or_else(|_| "http://localhost:7790".to_string())
 }
 
 // ── ucx_job_status ────────────────────────────────────────────────────────────
@@ -21,10 +20,18 @@ pub struct UcxJobStatusTool;
 
 #[async_trait]
 impl Tool for UcxJobStatusTool {
-    fn name(&self) -> &str { "ucx_job_status" }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
-    fn timeout_secs(&self) -> u64 { 15 }
+    fn name(&self) -> &str {
+        "ucx_job_status"
+    }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
+    fn timeout_secs(&self) -> u64 {
+        15
+    }
 
     fn description(&self) -> &str {
         "Poll the status of a UCX compute job. Returns: Pending | Running | Completed | Failed | Cancelled."
@@ -46,8 +53,7 @@ impl Tool for UcxJobStatusTool {
         _ctx: &ExecutionContext,
     ) -> Result<(String, TokenUsage), String> {
         let params: Value = serde_json::from_str(params).unwrap_or(Value::Null);
-        let job_id = params["job_id"].as_str()
-            .ok_or("job_id required")?;
+        let job_id = params["job_id"].as_str().ok_or("job_id required")?;
 
         let resp = reqwest::Client::new()
             .get(format!("{}/api/jobs/{}/status", broker_url(), job_id))
@@ -67,10 +73,18 @@ pub struct UcxJobReceiptTool;
 
 #[async_trait]
 impl Tool for UcxJobReceiptTool {
-    fn name(&self) -> &str { "ucx_job_receipt" }
-    fn required_tier(&self) -> u8 { 2 }
-    fn is_write_operation(&self) -> bool { false }
-    fn timeout_secs(&self) -> u64 { 20 }
+    fn name(&self) -> &str {
+        "ucx_job_receipt"
+    }
+    fn required_tier(&self) -> u8 {
+        2
+    }
+    fn is_write_operation(&self) -> bool {
+        false
+    }
+    fn timeout_secs(&self) -> u64 {
+        20
+    }
 
     fn description(&self) -> &str {
         "Retrieve the final ComputeReceipt for a completed UCX job. \
@@ -93,8 +107,7 @@ impl Tool for UcxJobReceiptTool {
         _ctx: &ExecutionContext,
     ) -> Result<(String, TokenUsage), String> {
         let params: Value = serde_json::from_str(params).unwrap_or(Value::Null);
-        let job_id = params["job_id"].as_str()
-            .ok_or("job_id required")?;
+        let job_id = params["job_id"].as_str().ok_or("job_id required")?;
 
         let resp = reqwest::Client::new()
             .get(format!("{}/api/jobs/{}/receipt", broker_url(), job_id))

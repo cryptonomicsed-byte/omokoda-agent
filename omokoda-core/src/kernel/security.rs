@@ -21,19 +21,23 @@ use serde::{Deserialize, Serialize};
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentTier {
-    T0 = 0,  // Unverified seed — minimal capabilities
-    T1 = 1,  // Active participant — mesh + compute access
-    T2 = 2,  // Trusted contributor — skill publishing
-    T3 = 3,  // Verified producer — governance proposals
-    T4 = 4,  // Ranked operator — treasury access
-    T5 = 5,  // Sovereign node — full capabilities
+    T0 = 0, // Unverified seed — minimal capabilities
+    T1 = 1, // Active participant — mesh + compute access
+    T2 = 2, // Trusted contributor — skill publishing
+    T3 = 3, // Verified producer — governance proposals
+    T4 = 4, // Ranked operator — treasury access
+    T5 = 5, // Sovereign node — full capabilities
 }
 
 impl AgentTier {
     pub fn from_u8(v: u8) -> Self {
         match v {
-            0 => Self::T0, 1 => Self::T1, 2 => Self::T2,
-            3 => Self::T3, 4 => Self::T4, _ => Self::T5,
+            0 => Self::T0,
+            1 => Self::T1,
+            2 => Self::T2,
+            3 => Self::T3,
+            4 => Self::T4,
+            _ => Self::T5,
         }
     }
 }
@@ -60,11 +64,11 @@ pub struct SecurityPolicy {
 impl Default for SecurityPolicy {
     fn default() -> Self {
         Self {
-            min_tier:          AgentTier::T0,
-            capability_tiers:  HashMap::new(),
-            deny_list:         vec![],
-            allow_list:        vec![],
-            rate_limit_rpm:    120,
+            min_tier: AgentTier::T0,
+            capability_tiers: HashMap::new(),
+            deny_list: vec![],
+            allow_list: vec![],
+            rate_limit_rpm: 120,
             require_signature: false,
         }
     }
@@ -88,7 +92,11 @@ impl SecurityPolicy {
             p.require_signature = v == "1" || v.eq_ignore_ascii_case("true");
         }
         if let Ok(v) = std::env::var("SECURITY_DENY_LIST") {
-            p.deny_list = v.split(',').filter(|s| !s.is_empty()).map(str::to_string).collect();
+            p.deny_list = v
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .map(str::to_string)
+                .collect();
         }
         p
     }
@@ -121,9 +129,9 @@ impl Enforcement {
 // ── Rate limiter (token-bucket, per agent_id) ─────────────────────────────────
 
 struct TokenBucket {
-    tokens:    f64,
-    capacity:  f64,
-    refill_ps: f64,  // tokens per second
+    tokens: f64,
+    capacity: f64,
+    refill_ps: f64, // tokens per second
     last_tick: Instant,
 }
 
@@ -131,8 +139,8 @@ impl TokenBucket {
     fn new(rpm: u32) -> Self {
         let rps = rpm as f64 / 60.0;
         Self {
-            tokens:    rps * 60.0,
-            capacity:  rps * 60.0,
+            tokens: rps * 60.0,
+            capacity: rps * 60.0,
             refill_ps: rps,
             last_tick: Instant::now(),
         }
@@ -154,8 +162,8 @@ impl TokenBucket {
 // ── PolicyEnforcer ────────────────────────────────────────────────────────────
 
 pub struct PolicyEnforcer {
-    policy:   SecurityPolicy,
-    buckets:  Arc<Mutex<HashMap<String, TokenBucket>>>,
+    policy: SecurityPolicy,
+    buckets: Arc<Mutex<HashMap<String, TokenBucket>>>,
 }
 
 impl PolicyEnforcer {
@@ -190,7 +198,9 @@ impl PolicyEnforcer {
         let trusted = self.policy.allow_list.iter().any(|a| a == agent_id);
 
         // 2. Tier gate
-        let required_tier = self.policy.capability_tiers
+        let required_tier = self
+            .policy
+            .capability_tiers
             .get(capability)
             .copied()
             .unwrap_or(self.policy.min_tier);
@@ -198,17 +208,21 @@ impl PolicyEnforcer {
         if tier < required_tier {
             return Enforcement::Deny {
                 reason: DenyReason::TierInsufficient,
-                detail: format!("capability '{capability}' requires tier {required_tier:?}, agent is {tier:?}"),
+                detail: format!(
+                    "capability '{capability}' requires tier {required_tier:?}, agent is {tier:?}"
+                ),
             };
         }
 
         // 3. Signature check
         if self.policy.require_signature {
             match signature {
-                None => return Enforcement::Deny {
-                    reason: DenyReason::SignatureMissing,
-                    detail: "signature required but not provided".into(),
-                },
+                None => {
+                    return Enforcement::Deny {
+                        reason: DenyReason::SignatureMissing,
+                        detail: "signature required but not provided".into(),
+                    }
+                }
                 Some((sig_hex, msg)) => {
                     if !verify_ed25519(agent_id, sig_hex, msg) {
                         return Enforcement::Deny {
@@ -229,7 +243,10 @@ impl PolicyEnforcer {
             if !bucket.try_consume() {
                 return Enforcement::Deny {
                     reason: DenyReason::RateLimitExceeded,
-                    detail: format!("agent {agent_id} exceeded {}/rpm", self.policy.rate_limit_rpm),
+                    detail: format!(
+                        "agent {agent_id} exceeded {}/rpm",
+                        self.policy.rate_limit_rpm
+                    ),
                 };
             }
         }
@@ -269,7 +286,7 @@ fn verify_ed25519(pubkey_hex: &str, sig_hex: &str, message: &[u8]) -> bool {
     // verification requires the caller to supply a pre-verified flag or the
     // kernel to be built with the `verify-sig` feature.
     let _ = (pk_bytes, sig_bytes, message);
-    true  // structural checks passed; full crypto wired via VCP Ed25519
+    true // structural checks passed; full crypto wired via VCP Ed25519
 }
 
 #[cfg(test)]
@@ -279,11 +296,17 @@ mod tests {
     #[test]
     fn tier_gate() {
         let mut policy = SecurityPolicy::default();
-        policy.capability_tiers.insert("wallet.sign".into(), AgentTier::T3);
+        policy
+            .capability_tiers
+            .insert("wallet.sign".into(), AgentTier::T3);
         let enforcer = PolicyEnforcer::new(policy);
 
-        assert!(enforcer.evaluate("alice", AgentTier::T4, "wallet.sign", None).is_allowed());
-        assert!(!enforcer.evaluate("alice", AgentTier::T2, "wallet.sign", None).is_allowed());
+        assert!(enforcer
+            .evaluate("alice", AgentTier::T4, "wallet.sign", None)
+            .is_allowed());
+        assert!(!enforcer
+            .evaluate("alice", AgentTier::T2, "wallet.sign", None)
+            .is_allowed());
     }
 
     #[test]
@@ -293,21 +316,37 @@ mod tests {
         let enforcer = PolicyEnforcer::new(policy);
         let result = enforcer.evaluate("bad-agent", AgentTier::T5, "any", None);
         assert!(!result.is_allowed());
-        assert!(matches!(result, Enforcement::Deny { reason: DenyReason::Banned, .. }));
+        assert!(matches!(
+            result,
+            Enforcement::Deny {
+                reason: DenyReason::Banned,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn rate_limit() {
         let mut policy = SecurityPolicy::default();
-        policy.rate_limit_rpm = 2;  // very low for test
+        policy.rate_limit_rpm = 2; // very low for test
         let enforcer = PolicyEnforcer::new(policy);
         // First two calls should pass (2 tokens)
-        assert!(enforcer.evaluate("agent-x", AgentTier::T0, "any", None).is_allowed());
-        assert!(enforcer.evaluate("agent-x", AgentTier::T0, "any", None).is_allowed());
+        assert!(enforcer
+            .evaluate("agent-x", AgentTier::T0, "any", None)
+            .is_allowed());
+        assert!(enforcer
+            .evaluate("agent-x", AgentTier::T0, "any", None)
+            .is_allowed());
         // Third call should be rate-limited
         let r = enforcer.evaluate("agent-x", AgentTier::T0, "any", None);
         assert!(!r.is_allowed());
-        assert!(matches!(r, Enforcement::Deny { reason: DenyReason::RateLimitExceeded, .. }));
+        assert!(matches!(
+            r,
+            Enforcement::Deny {
+                reason: DenyReason::RateLimitExceeded,
+                ..
+            }
+        ));
     }
 
     #[test]
@@ -317,7 +356,9 @@ mod tests {
         policy.allow_list.push("trusted".into());
         let enforcer = PolicyEnforcer::new(policy);
         for _ in 0..5 {
-            assert!(enforcer.evaluate("trusted", AgentTier::T0, "any", None).is_allowed());
+            assert!(enforcer
+                .evaluate("trusted", AgentTier::T0, "any", None)
+                .is_allowed());
         }
     }
 }

@@ -20,7 +20,10 @@ pub async fn self_join(relay_url: &str, keys: Keys, group_id: &str) -> Result<()
     client.connect().await;
 
     let join_event = EventBuilder::new(Kind::Custom(9021), "")
-        .tag(Tag::custom(TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)), [group_id]))
+        .tag(Tag::custom(
+            TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)),
+            [group_id],
+        ))
         .sign(&keys)
         .await
         .map_err(|e| format!("join event signing failed: {e}"))?;
@@ -81,7 +84,10 @@ pub async fn join_and_chat_mentioning(
 
     // NIP-29 self-join: kind 9021, tag #h = group_id.
     let join_event = EventBuilder::new(Kind::Custom(9021), "")
-        .tag(Tag::custom(TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)), [group_id]))
+        .tag(Tag::custom(
+            TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)),
+            [group_id],
+        ))
         .sign(&keys)
         .await
         .map_err(|e| format!("join event signing failed: {e}"))?;
@@ -92,15 +98,21 @@ pub async fn join_and_chat_mentioning(
 
     // Live subscription so we catch anything posted concurrently.
     client
-        .subscribe(history_filter.since(Timestamp::now() - Duration::from_secs(5)), None)
+        .subscribe(
+            history_filter.since(Timestamp::now() - Duration::from_secs(5)),
+            None,
+        )
         .await
         .map_err(|e| format!("subscribe failed: {e}"))?;
 
     // Post our own kind:9 chat message into the group.
-    let mut builder = EventBuilder::new(Kind::Custom(9), message)
-        .tag(Tag::custom(TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)), [group_id]));
+    let mut builder = EventBuilder::new(Kind::Custom(9), message).tag(Tag::custom(
+        TagKind::SingleLetter(SingleLetterTag::lowercase(Alphabet::H)),
+        [group_id],
+    ));
     if let Some(pk_hex) = mention_pubkey_hex {
-        let mentioned = PublicKey::from_hex(pk_hex).map_err(|e| format!("bad mention pubkey: {e}"))?;
+        let mentioned =
+            PublicKey::from_hex(pk_hex).map_err(|e| format!("bad mention pubkey: {e}"))?;
         builder = builder.tag(Tag::public_key(mentioned));
     }
     let chat_event = builder

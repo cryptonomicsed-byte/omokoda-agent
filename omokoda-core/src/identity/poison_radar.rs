@@ -29,10 +29,10 @@ pub enum RiskLevel {
 impl std::fmt::Display for RiskLevel {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            Self::None    => write!(f, "none"),
-            Self::Low     => write!(f, "low"),
-            Self::Medium  => write!(f, "medium"),
-            Self::High    => write!(f, "high"),
+            Self::None => write!(f, "none"),
+            Self::Low => write!(f, "low"),
+            Self::Medium => write!(f, "medium"),
+            Self::High => write!(f, "high"),
             Self::Unknown => write!(f, "unknown"),
         }
     }
@@ -204,12 +204,20 @@ pub fn analyze_static(address: &str, chain: &str) -> PoisonReport {
         warnings.join(", ")
     };
 
-    PoisonReport { status, risk, risk_score, patterns, warnings, message }
+    PoisonReport {
+        status,
+        risk,
+        risk_score,
+        patterns,
+        warnings,
+        message,
+    }
 }
 
 /// Scan a slice of (chain, address) pairs and return one `PoisonReport` each.
 pub fn scan_wallet_addresses(wallets: &[(&str, &str)]) -> Vec<(String, PoisonReport)> {
-    wallets.iter()
+    wallets
+        .iter()
         .map(|(chain, addr)| (chain.to_string(), analyze_static(addr, chain)))
         .collect()
 }
@@ -242,7 +250,11 @@ mod tests {
     #[test]
     fn burn_address_flagged() {
         let r = analyze_static("0x0000000000000000000000000000000000000000", "eth");
-        assert!(r.risk_score >= 20, "burn address should be high risk, got {}", r.risk_score);
+        assert!(
+            r.risk_score >= 20,
+            "burn address should be high risk, got {}",
+            r.risk_score
+        );
         assert_eq!(r.risk, RiskLevel::High);
         assert_eq!(r.status, "suspicious");
     }
@@ -251,7 +263,11 @@ mod tests {
     fn repeated_char_run_flagged() {
         // 8 consecutive 'a' chars → max_run = 8 → risk_score += 2
         let r = analyze_static("0xaaaaaaaabb71C7656EC7ab88b098defB751B7401", "eth");
-        assert!(r.patterns.repeated_chars >= 8, "got {}", r.patterns.repeated_chars);
+        assert!(
+            r.patterns.repeated_chars >= 8,
+            "got {}",
+            r.patterns.repeated_chars
+        );
         assert!(r.risk_score > 0);
     }
 

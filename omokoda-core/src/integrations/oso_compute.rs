@@ -115,19 +115,20 @@ pub struct VeilSimProvider {
 
 impl VeilSimProvider {
     pub fn new(url: impl Into<String>) -> Self {
-        Self { osovm_url: url.into() }
+        Self {
+            osovm_url: url.into(),
+        }
     }
 
     pub fn from_env() -> Self {
-        Self::new(
-            std::env::var("OSOVM_URL")
-                .unwrap_or_else(|_| "http://127.0.0.1:7800".into()),
-        )
+        Self::new(std::env::var("OSOVM_URL").unwrap_or_else(|_| "http://127.0.0.1:7800".into()))
     }
 }
 
 impl OsoComputeProvider for VeilSimProvider {
-    fn name(&self) -> &str { "veilsim" }
+    fn name(&self) -> &str {
+        "veilsim"
+    }
 
     fn can_handle(&self, workload: &OsoWorkload) -> bool {
         workload.min_vram_gb == 0 || workload.image.starts_with("osovm:")
@@ -136,20 +137,27 @@ impl OsoComputeProvider for VeilSimProvider {
     fn submit(&self, workload: OsoWorkload) -> Result<OsoComputeJob, ComputeError> {
         // Phase 16.3 stub: real impl POSTs to OSOVM /api/veilsim endpoint.
         Err(ComputeError::SubmitFailed(format!(
-            "VeilSim submit not yet implemented (osovm_url={})", self.osovm_url
+            "VeilSim submit not yet implemented (osovm_url={})",
+            self.osovm_url
         )))
     }
 
     fn status(&self, _job_id: &str) -> Result<OsoJobStatus, ComputeError> {
-        Err(ComputeError::Provider("VeilSim status not yet implemented".into()))
+        Err(ComputeError::Provider(
+            "VeilSim status not yet implemented".into(),
+        ))
     }
 
     fn result(&self, _job_id: &str) -> Result<OsoComputeResult, ComputeError> {
-        Err(ComputeError::Provider("VeilSim result not yet implemented".into()))
+        Err(ComputeError::Provider(
+            "VeilSim result not yet implemented".into(),
+        ))
     }
 
     fn cancel(&self, _job_id: &str) -> Result<(), ComputeError> {
-        Err(ComputeError::Provider("VeilSim cancel not yet implemented".into()))
+        Err(ComputeError::Provider(
+            "VeilSim cancel not yet implemented".into(),
+        ))
     }
 }
 
@@ -181,7 +189,9 @@ impl UcxBackedProvider {
 }
 
 impl OsoComputeProvider for UcxBackedProvider {
-    fn name(&self) -> &str { &self.provider_name }
+    fn name(&self) -> &str {
+        &self.provider_name
+    }
 
     fn can_handle(&self, workload: &OsoWorkload) -> bool {
         workload.min_vram_gb > 0 || !workload.image.starts_with("osovm:")
@@ -196,15 +206,24 @@ impl OsoComputeProvider for UcxBackedProvider {
     }
 
     fn status(&self, _job_id: &str) -> Result<OsoJobStatus, ComputeError> {
-        Err(ComputeError::Provider(format!("UCX/{} status not yet implemented", self.provider_name)))
+        Err(ComputeError::Provider(format!(
+            "UCX/{} status not yet implemented",
+            self.provider_name
+        )))
     }
 
     fn result(&self, _job_id: &str) -> Result<OsoComputeResult, ComputeError> {
-        Err(ComputeError::Provider(format!("UCX/{} result not yet implemented", self.provider_name)))
+        Err(ComputeError::Provider(format!(
+            "UCX/{} result not yet implemented",
+            self.provider_name
+        )))
     }
 
     fn cancel(&self, _job_id: &str) -> Result<(), ComputeError> {
-        Err(ComputeError::Provider(format!("UCX/{} cancel not yet implemented", self.provider_name)))
+        Err(ComputeError::Provider(format!(
+            "UCX/{} cancel not yet implemented",
+            self.provider_name
+        )))
     }
 }
 
@@ -251,6 +270,9 @@ mod tests {
     }
 
     fn workload_gpu(image: &str) -> OsoWorkload {
-        OsoWorkload { min_vram_gb: 8, ..workload(image) }
+        OsoWorkload {
+            min_vram_gb: 8,
+            ..workload(image)
+        }
     }
 }

@@ -10,9 +10,8 @@
 ///   - L1Tx         — signs an Ọ̀ṢỌ́ L1 transaction
 ///   - ArpReceipt   — signs an ARP receipt hash
 ///   - Raw          — signs arbitrary bytes (for internal use only)
-
 pub mod request;
 pub mod vault_signer;
 
-pub use request::{SigningRequest, SigningPayload, SigningResponse};
+pub use request::{SigningPayload, SigningRequest, SigningResponse};
 pub use vault_signer::VaultSigner;

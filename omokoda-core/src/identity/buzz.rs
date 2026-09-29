@@ -59,7 +59,10 @@ mod tests {
         let seed = [7u8; 32];
         let a = derive_buzz_keys(&seed).unwrap();
         let b = derive_buzz_keys(&seed).unwrap();
-        assert_eq!(a.secret_key().to_secret_bytes(), b.secret_key().to_secret_bytes());
+        assert_eq!(
+            a.secret_key().to_secret_bytes(),
+            b.secret_key().to_secret_bytes()
+        );
         assert_eq!(a.public_key(), b.public_key());
     }
 
@@ -89,7 +92,10 @@ mod tests {
         let seed = [5u8; 32];
         let sk_hex = buzz_privkey_hex(&seed).unwrap();
         let reparsed = Keys::parse(&sk_hex).unwrap();
-        assert_eq!(reparsed.public_key(), derive_buzz_keys(&seed).unwrap().public_key());
+        assert_eq!(
+            reparsed.public_key(),
+            derive_buzz_keys(&seed).unwrap().public_key()
+        );
     }
 
     #[test]
@@ -104,6 +110,9 @@ mod tests {
         let hk = Hkdf::<Sha256>::new(None, &seed);
         let mut other = [0u8; 32];
         hk.expand(b"omokoda-native-wallet-v1", &mut other).unwrap();
-        assert_ne!(buzz.secret_key().to_secret_bytes().as_ref() as &[u8], other.as_ref() as &[u8]);
+        assert_ne!(
+            buzz.secret_key().to_secret_bytes().as_ref() as &[u8],
+            other.as_ref() as &[u8]
+        );
     }
 }

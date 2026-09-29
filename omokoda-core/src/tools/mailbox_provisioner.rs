@@ -6,7 +6,6 @@
 /// propagate to the birth path.
 ///
 /// Phase 9.3 — Agent email provisioning.
-
 use rand::Rng;
 use serde::{Deserialize, Serialize};
 
@@ -175,8 +174,7 @@ pub async fn try_provision_mailbox(
 /// Generate a 32-character alphanumeric password using a cryptographically
 /// secure RNG (`rand::thread_rng` backed by OS entropy via getrandom).
 fn generate_secure_password() -> String {
-    const CHARSET: &[u8] =
-        b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+    const CHARSET: &[u8] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
     let mut rng = rand::thread_rng();
     (0..32)
         .map(|_| {
@@ -222,7 +220,10 @@ mod tests {
 
     #[test]
     fn extract_host_strips_scheme_and_path() {
-        assert_eq!(extract_host("https://mail.local:8080/api"), "mail.local:8080");
+        assert_eq!(
+            extract_host("https://mail.local:8080/api"),
+            "mail.local:8080"
+        );
         assert_eq!(extract_host("http://mail.example.com"), "mail.example.com");
     }
 

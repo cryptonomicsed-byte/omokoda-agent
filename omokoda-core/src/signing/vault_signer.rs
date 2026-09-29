@@ -8,7 +8,6 @@
 ///   - The raw k_root is stored in memory only (not re-derived per request)
 ///   - Signing key is derived once with domain separation from k_root
 ///   - Raw k_root is never included in any SigningResponse
-
 use super::request::{SigningPayload, SigningRequest, SigningResponse};
 
 /// Domain-separated key derivation label for the NIP-46 signing key.
@@ -35,10 +34,7 @@ impl VaultSigner {
     /// double-use harder.
     pub fn from_k_root(k_root: &[u8; 32], agent_id: impl Into<String>) -> Self {
         // Derive a 32-byte signing seed with domain separation.
-        let derived = blake3::derive_key(
-            std::str::from_utf8(SIGNING_KEY_LABEL).unwrap(),
-            k_root,
-        );
+        let derived = blake3::derive_key(std::str::from_utf8(SIGNING_KEY_LABEL).unwrap(), k_root);
         let signing_key = ed25519_dalek::SigningKey::from_bytes(&derived);
         let pubkey_hex = hex::encode(signing_key.verifying_key().to_bytes());
         Self {
@@ -83,15 +79,15 @@ impl VaultSigner {
         resp.pubkey = Some(self.pubkey_hex.clone());
 
         // For Nostr events, compute the event_id (sha256 of canonical event JSON)
-        if let SigningPayload::NostrEvent { event_kind, content, tags, created_at } = &request.payload {
+        if let SigningPayload::NostrEvent {
+            event_kind,
+            content,
+            tags,
+            created_at,
+        } = &request.payload
+        {
             let ts = created_at.unwrap_or_else(current_unix_ts);
-            let event_id = compute_nostr_event_id(
-                &self.pubkey_hex,
-                ts,
-                *event_kind,
-                tags,
-                content,
-            );
+            let event_id = compute_nostr_event_id(&self.pubkey_hex, ts, *event_kind, tags, content);
             resp.event_id = Some(event_id);
         }
 
@@ -101,35 +97,30 @@ impl VaultSigner {
     /// Convert a SigningPayload to the canonical bytes that will be signed.
     fn payload_to_bytes(&self, payload: &SigningPayload) -> Result<Vec<u8>, String> {
         match payload {
-            SigningPayload::NostrEvent { event_kind, content, tags, created_at } => {
+            SigningPayload::NostrEvent {
+                event_kind,
+                content,
+                tags,
+                created_at,
+            } => {
                 let ts = created_at.unwrap_or_else(current_unix_ts);
                 // NIP-01: sign sha256 of JSON array [0, pubkey, created_at, kind, tags, content]
-                let commitment = serde_json::json!([
-                    0,
-                    &self.pubkey_hex,
-                    ts,
-                    event_kind,
-                    tags,
-                    content,
-                ]);
+                let commitment =
+                    serde_json::json!([0, &self.pubkey_hex, ts, event_kind, tags, content,]);
                 let json = serde_json::to_string(&commitment)
                     .map_err(|e| format!("nostr serialise: {e}"))?;
                 Ok(sha256_bytes(json.as_bytes()))
             }
 
-            SigningPayload::DipEnvelope { canonical_hash, .. } => {
-                hex::decode(canonical_hash)
-                    .map_err(|e| format!("dip canonical_hash hex decode: {e}"))
-            }
+            SigningPayload::DipEnvelope { canonical_hash, .. } => hex::decode(canonical_hash)
+                .map_err(|e| format!("dip canonical_hash hex decode: {e}")),
 
             SigningPayload::L1Tx { tx_bytes_hex, .. } => {
-                hex::decode(tx_bytes_hex)
-                    .map_err(|e| format!("L1Tx hex decode: {e}"))
+                hex::decode(tx_bytes_hex).map_err(|e| format!("L1Tx hex decode: {e}"))
             }
 
             SigningPayload::ArpReceipt { receipt_hash, .. } => {
-                hex::decode(receipt_hash)
-                    .map_err(|e| format!("ARP receipt hash hex decode: {e}"))
+                hex::decode(receipt_hash).map_err(|e| format!("ARP receipt hash hex decode: {e}"))
             }
 
             SigningPayload::StateCommitment { tx_json } => {
@@ -138,8 +129,7 @@ impl VaultSigner {
             }
 
             SigningPayload::Raw { bytes_hex, .. } => {
-                hex::decode(bytes_hex)
-                    .map_err(|e| format!("raw bytes hex decode: {e}"))
+                hex::decode(bytes_hex).map_err(|e| format!("raw bytes hex decode: {e}"))
             }
         }
     }
@@ -159,7 +149,7 @@ fn compute_nostr_event_id(
 }
 
 fn sha256_bytes(input: &[u8]) -> Vec<u8> {
-    use sha2::{Sha256, Digest};
+    use sha2::{Digest, Sha256};
     Sha256::digest(input).to_vec()
 }
 
@@ -184,14 +174,22 @@ mod tests {
     #[test]
     fn pubkey_hex_is_64_chars() {
         let s = signer();
-        assert_eq!(s.pubkey_hex().len(), 64, "Ed25519 pubkey = 32 bytes = 64 hex chars");
+        assert_eq!(
+            s.pubkey_hex().len(),
+            64,
+            "Ed25519 pubkey = 32 bytes = 64 hex chars"
+        );
     }
 
     #[test]
     fn same_k_root_same_pubkey() {
         let s1 = VaultSigner::from_k_root(TEST_K_ROOT, "agent-1");
         let s2 = VaultSigner::from_k_root(TEST_K_ROOT, "agent-1");
-        assert_eq!(s1.pubkey_hex(), s2.pubkey_hex(), "deterministic key derivation");
+        assert_eq!(
+            s1.pubkey_hex(),
+            s2.pubkey_hex(),
+            "deterministic key derivation"
+        );
     }
 
     #[test]
@@ -205,36 +203,53 @@ mod tests {
     #[test]
     fn sign_raw_succeeds() {
         let s = signer();
-        let req = SigningRequest::new("agent-test-123", SigningPayload::Raw {
-            bytes_hex: hex::encode(b"hello sovereign"),
-            context:   "test".to_string(),
-        });
+        let req = SigningRequest::new(
+            "agent-test-123",
+            SigningPayload::Raw {
+                bytes_hex: hex::encode(b"hello sovereign"),
+                context: "test".to_string(),
+            },
+        );
         let resp = s.sign(&req);
         assert!(resp.success);
-        assert_eq!(resp.signature.len(), 128, "Ed25519 sig = 64 bytes = 128 hex chars");
+        assert_eq!(
+            resp.signature.len(),
+            128,
+            "Ed25519 sig = 64 bytes = 128 hex chars"
+        );
     }
 
     #[test]
     fn sign_rejects_wrong_agent_id() {
         let s = signer();
-        let req = SigningRequest::new("agent-other", SigningPayload::Raw {
-            bytes_hex: hex::encode(b"test"),
-            context:   "test".to_string(),
-        });
+        let req = SigningRequest::new(
+            "agent-other",
+            SigningPayload::Raw {
+                bytes_hex: hex::encode(b"test"),
+                context: "test".to_string(),
+            },
+        );
         let resp = s.sign(&req);
         assert!(!resp.success);
-        assert!(resp.error.as_deref().unwrap_or("").contains("agent_id mismatch"));
+        assert!(resp
+            .error
+            .as_deref()
+            .unwrap_or("")
+            .contains("agent_id mismatch"));
     }
 
     #[test]
     fn sign_nostr_event_produces_event_id() {
         let s = signer();
-        let req = SigningRequest::new("agent-test-123", SigningPayload::NostrEvent {
-            event_kind: 30100,
-            content:    "{}".to_string(),
-            tags:       vec![vec!["d".to_string(), "agent-1".to_string()]],
-            created_at: Some(1_700_000_000),
-        });
+        let req = SigningRequest::new(
+            "agent-test-123",
+            SigningPayload::NostrEvent {
+                event_kind: 30100,
+                content: "{}".to_string(),
+                tags: vec![vec!["d".to_string(), "agent-1".to_string()]],
+                created_at: Some(1_700_000_000),
+            },
+        );
         let resp = s.sign(&req);
         assert!(resp.success);
         let event_id = resp.event_id.expect("nostr signing must produce event_id");
@@ -246,10 +261,13 @@ mod tests {
     fn sign_dip_envelope_produces_signature() {
         let s = signer();
         let hash_hex = hex::encode([0xab_u8; 32]);
-        let req = SigningRequest::new("agent-test-123", SigningPayload::DipEnvelope {
-            canonical_hash: hash_hex.clone(),
-            envelope_id:    "env-abc".to_string(),
-        });
+        let req = SigningRequest::new(
+            "agent-test-123",
+            SigningPayload::DipEnvelope {
+                canonical_hash: hash_hex.clone(),
+                envelope_id: "env-abc".to_string(),
+            },
+        );
         let resp = s.sign(&req);
         assert!(resp.success);
         assert_eq!(resp.signature.len(), 128);
@@ -260,10 +278,13 @@ mod tests {
         use ed25519_dalek::{Verifier, VerifyingKey};
         let s = signer();
         let payload_bytes = b"payload to sign";
-        let req = SigningRequest::new("agent-test-123", SigningPayload::Raw {
-            bytes_hex: hex::encode(payload_bytes),
-            context:   "verify_test".to_string(),
-        });
+        let req = SigningRequest::new(
+            "agent-test-123",
+            SigningPayload::Raw {
+                bytes_hex: hex::encode(payload_bytes),
+                context: "verify_test".to_string(),
+            },
+        );
         let resp = s.sign(&req);
         assert!(resp.success);
 
@@ -274,6 +295,9 @@ mod tests {
         let sig_bytes = hex::decode(&resp.signature).unwrap();
         let sig_arr: [u8; 64] = sig_bytes.try_into().unwrap();
         let sig = ed25519_dalek::Signature::from_bytes(&sig_arr);
-        assert!(vk.verify(payload_bytes, &sig).is_ok(), "signature must verify with pubkey");
+        assert!(
+            vk.verify(payload_bytes, &sig).is_ok(),
+            "signature must verify with pubkey"
+        );
     }
 }

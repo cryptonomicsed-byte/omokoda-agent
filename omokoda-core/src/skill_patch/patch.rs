@@ -7,11 +7,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 const ALLOWED_PREFIXES: &[&str] = &["skills/", "plugins/", "lifecycle/", "skill_patch/"];
 
 /// Files requiring extra confirmation before apply.
-const SENSITIVE_PATHS: &[&str] = &[
-    "steward/soul.rs",
-    "steward/iris.rs",
-    "main_loop.rs",
-];
+const SENSITIVE_PATHS: &[&str] = &["steward/soul.rs", "steward/iris.rs", "main_loop.rs"];
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct SkillPatch {
@@ -61,11 +57,15 @@ impl PatchGate {
     }
 
     fn is_allowed(file: &str) -> bool {
-        ALLOWED_PREFIXES.iter().any(|prefix| file.starts_with(prefix))
+        ALLOWED_PREFIXES
+            .iter()
+            .any(|prefix| file.starts_with(prefix))
     }
 
     fn is_sensitive(file: &str) -> bool {
-        SENSITIVE_PATHS.iter().any(|s| file.ends_with(s) || file == *s)
+        SENSITIVE_PATHS
+            .iter()
+            .any(|s| file.ends_with(s) || file == *s)
     }
 
     /// Propose a patch. Reads the current file content, computes a simple diff.
@@ -96,10 +96,13 @@ impl PatchGate {
             timestamp: now_secs(),
             sensitive,
         };
-        self.pending.insert(proposal_id.clone(), PatchProposal {
-            patch,
-            status: ProposalStatus::Pending,
-        });
+        self.pending.insert(
+            proposal_id.clone(),
+            PatchProposal {
+                patch,
+                status: ProposalStatus::Pending,
+            },
+        );
         Ok(proposal_id)
     }
 
@@ -158,7 +161,11 @@ impl PatchGate {
     /// Restore a file from its .backup file.
     pub fn restore(&self, workspace_root: &Path, file: &str) -> Result<(), PatchError> {
         let full_path = workspace_root.join(file);
-        let ext = full_path.extension().unwrap_or_default().to_string_lossy().to_string();
+        let ext = full_path
+            .extension()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .to_string();
         let backup_path = full_path.with_extension(format!("{}.backup", ext));
         fs::copy(&backup_path, &full_path)?;
         Ok(())
@@ -233,7 +240,9 @@ mod tests {
         let dir = tmp();
         fs::create_dir_all(dir.path().join("skills")).unwrap();
         fs::write(dir.path().join("skills/test.rs"), "fn old() {}").unwrap();
-        let id = gate.propose(dir.path(), "skills/test.rs", "refactor", "fn new() {}").unwrap();
+        let id = gate
+            .propose(dir.path(), "skills/test.rs", "refactor", "fn new() {}")
+            .unwrap();
         assert!(!id.is_empty());
         assert_eq!(gate.get(&id).unwrap().status, ProposalStatus::Pending);
     }
@@ -244,7 +253,9 @@ mod tests {
         let dir = tmp();
         fs::create_dir_all(dir.path().join("skills")).unwrap();
         fs::write(dir.path().join("skills/test.rs"), "fn old() {}").unwrap();
-        let id = gate.propose(dir.path(), "skills/test.rs", "refactor", "fn new() {}").unwrap();
+        let id = gate
+            .propose(dir.path(), "skills/test.rs", "refactor", "fn new() {}")
+            .unwrap();
         let receipt = gate.apply(dir.path(), &id).unwrap();
         assert_eq!(receipt["kind"], "skill_patch_applied");
         let content = fs::read_to_string(dir.path().join("skills/test.rs")).unwrap();
@@ -258,7 +269,9 @@ mod tests {
         fs::create_dir_all(dir.path().join("lifecycle")).unwrap();
         // lifecycle/ is allowed; steward/soul.rs would not be allowed at all
         fs::write(dir.path().join("lifecycle/test.rs"), "").unwrap();
-        let id = gate.propose(dir.path(), "lifecycle/test.rs", "test", "x").unwrap();
+        let id = gate
+            .propose(dir.path(), "lifecycle/test.rs", "test", "x")
+            .unwrap();
         let proposal = gate.get(&id).unwrap();
         assert!(!proposal.patch.sensitive); // lifecycle/test.rs not in SENSITIVE_PATHS
     }

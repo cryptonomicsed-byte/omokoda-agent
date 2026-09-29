@@ -4,8 +4,8 @@
 // This engine evaluates those assertions after tool execution.
 // Every assertion type returns AssertionResult (Pass/Fail with evidence).
 
-use std::path::Path;
 use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// The outcome of a single assertion evaluation.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,11 +33,18 @@ pub enum Assertion {
     /// A file must contain a specific string.
     FileContains { path: String, expected: String },
     /// A file must match a given SHA-256 hex digest.
-    HashMatch { path: String, expected_sha256: String },
+    HashMatch {
+        path: String,
+        expected_sha256: String,
+    },
     /// A git repository at `repo_path` must be at a clean commit (no dirty working tree).
     GitAtomicCommit { repo_path: String },
     /// An arbitrary key-value must be present in a JSON file.
-    JsonFieldEquals { path: String, key: String, expected: String },
+    JsonFieldEquals {
+        path: String,
+        key: String,
+        expected: String,
+    },
     /// The most recent process exit code must equal `expected`.
     ExitCode { expected: i32, actual: i32 },
 }
@@ -49,18 +56,25 @@ impl Assertion {
             Assertion::FileExists { path } => {
                 let name = format!("file_exists:{}", path);
                 if Path::new(path).exists() {
-                    AssertionResult::Pass { name, evidence: format!("{path} exists") }
+                    AssertionResult::Pass {
+                        name,
+                        evidence: format!("{path} exists"),
+                    }
                 } else {
-                    AssertionResult::Fail { name, reason: format!("{path} not found") }
+                    AssertionResult::Fail {
+                        name,
+                        reason: format!("{path} not found"),
+                    }
                 }
             }
 
             Assertion::FileContains { path, expected } => {
                 let name = format!("file_contains:{path}");
                 match std::fs::read_to_string(path) {
-                    Ok(content) if content.contains(expected.as_str()) => {
-                        AssertionResult::Pass { name, evidence: format!("{path} contains expected string") }
-                    }
+                    Ok(content) if content.contains(expected.as_str()) => AssertionResult::Pass {
+                        name,
+                        evidence: format!("{path} contains expected string"),
+                    },
                     Ok(_) => AssertionResult::Fail {
                         name,
                         reason: format!("{path} does not contain: {expected}"),
@@ -72,17 +86,25 @@ impl Assertion {
                 }
             }
 
-            Assertion::HashMatch { path, expected_sha256 } => {
+            Assertion::HashMatch {
+                path,
+                expected_sha256,
+            } => {
                 let name = format!("hash_match:{path}");
                 match std::fs::read(path) {
                     Ok(bytes) => {
                         let digest = sha256_hex(&bytes);
                         if digest == *expected_sha256 {
-                            AssertionResult::Pass { name, evidence: format!("sha256 matched: {digest}") }
+                            AssertionResult::Pass {
+                                name,
+                                evidence: format!("sha256 matched: {digest}"),
+                            }
                         } else {
                             AssertionResult::Fail {
                                 name,
-                                reason: format!("sha256 mismatch: got {digest}, expected {expected_sha256}"),
+                                reason: format!(
+                                    "sha256 mismatch: got {digest}, expected {expected_sha256}"
+                                ),
                             }
                         }
                     }
@@ -115,7 +137,10 @@ impl Assertion {
                     }
                     Ok(o) => AssertionResult::Fail {
                         name,
-                        reason: format!("git status failed: {}", String::from_utf8_lossy(&o.stderr)),
+                        reason: format!(
+                            "git status failed: {}",
+                            String::from_utf8_lossy(&o.stderr)
+                        ),
                     },
                     Err(e) => AssertionResult::Fail {
                         name,
@@ -124,7 +149,11 @@ impl Assertion {
                 }
             }
 
-            Assertion::JsonFieldEquals { path, key, expected } => {
+            Assertion::JsonFieldEquals {
+                path,
+                key,
+                expected,
+            } => {
                 let name = format!("json_field:{path}:{key}");
                 match std::fs::read_to_string(path) {
                     Ok(content) => {
@@ -148,11 +177,16 @@ impl Assertion {
                                     other => other.to_string(),
                                 };
                                 if actual == *expected {
-                                    AssertionResult::Pass { name, evidence: format!("{key}={actual}") }
+                                    AssertionResult::Pass {
+                                        name,
+                                        evidence: format!("{key}={actual}"),
+                                    }
                                 } else {
                                     AssertionResult::Fail {
                                         name,
-                                        reason: format!("{key}: expected '{expected}', got '{actual}'"),
+                                        reason: format!(
+                                            "{key}: expected '{expected}', got '{actual}'"
+                                        ),
                                     }
                                 }
                             }
@@ -172,7 +206,10 @@ impl Assertion {
             Assertion::ExitCode { expected, actual } => {
                 let name = format!("exit_code:{expected}");
                 if actual == expected {
-                    AssertionResult::Pass { name, evidence: format!("exit code {actual}") }
+                    AssertionResult::Pass {
+                        name,
+                        evidence: format!("exit code {actual}"),
+                    }
                 } else {
                     AssertionResult::Fail {
                         name,
@@ -213,7 +250,13 @@ fn sha256_hex(bytes: &[u8]) -> String {
             h ^= u64::from(b);
             h = h.wrapping_mul(0x0000_0100_0000_01b3);
         }
-        format!("{:016x}{:016x}{:016x}{:016x}", h, h ^ 0xdead, h ^ 0xbeef, h ^ 0xcafe)
+        format!(
+            "{:016x}{:016x}{:016x}{:016x}",
+            h,
+            h ^ 0xdead,
+            h ^ 0xbeef,
+            h ^ 0xcafe
+        )
     }
 }
 
@@ -226,13 +269,17 @@ mod tests {
     #[test]
     fn file_exists_passes_for_existing_file() {
         let f = NamedTempFile::new().unwrap();
-        let a = Assertion::FileExists { path: f.path().to_string_lossy().to_string() };
+        let a = Assertion::FileExists {
+            path: f.path().to_string_lossy().to_string(),
+        };
         assert!(a.evaluate().is_pass());
     }
 
     #[test]
     fn file_exists_fails_for_missing_file() {
-        let a = Assertion::FileExists { path: "/tmp/no-such-file-omokoda-test".to_string() };
+        let a = Assertion::FileExists {
+            path: "/tmp/no-such-file-omokoda-test".to_string(),
+        };
         assert!(!a.evaluate().is_pass());
     }
 
@@ -260,16 +307,31 @@ mod tests {
 
     #[test]
     fn exit_code_assertion() {
-        assert!(Assertion::ExitCode { expected: 0, actual: 0 }.evaluate().is_pass());
-        assert!(!Assertion::ExitCode { expected: 0, actual: 1 }.evaluate().is_pass());
+        assert!(Assertion::ExitCode {
+            expected: 0,
+            actual: 0
+        }
+        .evaluate()
+        .is_pass());
+        assert!(!Assertion::ExitCode {
+            expected: 0,
+            actual: 1
+        }
+        .evaluate()
+        .is_pass());
     }
 
     #[test]
     fn run_assertions_all_pass() {
         let f = NamedTempFile::new().unwrap();
         let assertions = vec![
-            Assertion::FileExists { path: f.path().to_string_lossy().to_string() },
-            Assertion::ExitCode { expected: 0, actual: 0 },
+            Assertion::FileExists {
+                path: f.path().to_string_lossy().to_string(),
+            },
+            Assertion::ExitCode {
+                expected: 0,
+                actual: 0,
+            },
         ];
         let results = run_assertions(&assertions);
         assert!(all_pass(&results));
