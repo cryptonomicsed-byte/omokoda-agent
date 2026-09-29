@@ -7,9 +7,10 @@
 use std::collections::{HashSet, HashMap};
 use crate::{Diagnostic, IrInstruction};
 
+#[allow(clippy::ptr_arg)]
 pub fn check(
     instructions: &[IrInstruction],
-    warnings: &mut Vec<Diagnostic>,
+    _warnings: &mut Vec<Diagnostic>,
     errors: &mut Vec<Diagnostic>,
 ) {
     check_self_escalation(instructions, errors);
