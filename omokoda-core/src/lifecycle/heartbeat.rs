@@ -155,10 +155,7 @@ impl AgentHeartbeat {
             }
             Err(e) => {
                 // Fail-open: chain integrity is maintained by SHA-256 even without sig.
-                #[cfg(feature = "tracing")]
                 tracing::warn!("heartbeat Ed25519 sign failed (fail-open): {e}");
-                #[cfg(not(feature = "tracing"))]
-                eprintln!("WARN heartbeat Ed25519 sign failed (fail-open): {e}");
                 self.signature = None;
             }
         }
@@ -195,9 +192,7 @@ impl AgentHeartbeat {
             Ok(a) => a,
             Err(_) => return false,
         };
-        let sig = match ed25519_dalek::Signature::from_bytes(&sig_arr) {
-            sig => sig,
-        };
+        let sig = ed25519_dalek::Signature::from_bytes(&sig_arr);
         let pub_bytes = match URL_SAFE_NO_PAD.decode(pub_b64url) {
             Ok(b) => b,
             Err(_) => return false,

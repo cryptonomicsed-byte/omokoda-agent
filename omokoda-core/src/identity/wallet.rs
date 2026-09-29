@@ -133,7 +133,7 @@ pub fn derive_cosmos(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Strin
 /// hardened, as SLIP-0010 ed25519 requires). Address = base58(pubkey).
 pub fn derive_solana(mnemonic: &str, passphrase: &str) -> Result<ChainKey, String> {
     let seed = mnemonic_to_seed(mnemonic, passphrase);
-    let path = [44 | HARDENED, 501 | HARDENED, 0 | HARDENED, 0 | HARDENED];
+    let path = [44 | HARDENED, 501 | HARDENED, HARDENED, HARDENED];
     let signing_key = Wallet::derive_ed25519_slip10(&seed, &path)?;
     let pubkey = signing_key.verifying_key().to_bytes();
     Ok(ChainKey {
@@ -147,7 +147,7 @@ pub fn derive_solana(mnemonic: &str, passphrase: &str) -> Result<ChainKey, Strin
 /// sha3-256(pubkey || 0x00) -- Aptos's single-signer Ed25519 scheme.
 pub fn derive_aptos(mnemonic: &str, passphrase: &str) -> Result<ChainKey, String> {
     let seed = mnemonic_to_seed(mnemonic, passphrase);
-    let path = [44 | HARDENED, 637 | HARDENED, 0 | HARDENED, 0 | HARDENED];
+    let path = [44 | HARDENED, 637 | HARDENED, HARDENED, HARDENED];
     let signing_key = Wallet::derive_ed25519_slip10(&seed, &path)?;
     let pubkey = signing_key.verifying_key().to_bytes();
     let mut hasher = Sha3_256::new();
@@ -564,7 +564,7 @@ pub fn create2_address(
 
     // Hash the preimage; take last 20 bytes.
     let mut hasher2 = Keccak256::new();
-    hasher2.update(&preimage);
+    hasher2.update(preimage);
     let digest = hasher2.finalize();
     let addr_hex = hex::encode(&digest[12..]);
 
@@ -624,7 +624,7 @@ pub fn mine_create2_vanity(
         preimage[53..85].copy_from_slice(&init_code_hash);
 
         let mut hasher = Keccak256::new();
-        hasher.update(&preimage);
+        hasher.update(preimage);
         let digest = hasher.finalize();
         let addr_hex = hex::encode(&digest[12..]);
 

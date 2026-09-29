@@ -117,12 +117,10 @@ pub fn analyze_static(address: &str, chain: &str) -> PoisonReport {
     let addr_lower = address.to_lowercase();
 
     // 1. Known-bad address check (Ethereum only — chain-specific).
-    if matches!(chain, "eth" | "ethereum") {
-        if KNOWN_BAD_ETH.iter().any(|bad| addr_lower == **bad) {
-            patterns.known_bad += 1;
-            risk_score += 30;
-            warnings.push("Known burn or zero address".into());
-        }
+    if matches!(chain, "eth" | "ethereum") && KNOWN_BAD_ETH.iter().any(|bad| addr_lower == **bad) {
+        patterns.known_bad += 1;
+        risk_score += 30;
+        warnings.push("Known burn or zero address".into());
     }
 
     // 2. Repeated-character analysis — longest hex-digit run.

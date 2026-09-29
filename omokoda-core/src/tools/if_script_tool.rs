@@ -148,13 +148,12 @@ impl Tool for IfScriptTool {
                 let receipt = ifascript::CastReceipt::from_cast(&vm_result, gates_passed);
 
                 // Derive NostrIdentity deterministically from mnemonic
-                let identity_result: Result<ifascript::NostrIdentity, String> = (|| {
+                let identity_result: Result<ifascript::NostrIdentity, String> = {
                     use sha2::{Digest, Sha256};
                     let seed: [u8; 32] = Sha256::digest(mnemonic.as_bytes()).into();
                     ifascript::NostrIdentity::from_secret_bytes(&seed)
                         .map_err(|e| format!("NostrIdentity: {e}"))
-                })(
-                );
+                };
 
                 match identity_result {
                     Ok(identity) => {

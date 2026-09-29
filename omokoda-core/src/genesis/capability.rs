@@ -147,7 +147,7 @@ impl CapabilityGrant {
             let mut h = Sha256::new();
             h.update(agent_id.as_bytes());
             h.update(ecosystem.as_bytes());
-            h.update(&granted_at.to_le_bytes());
+            h.update(granted_at.to_le_bytes());
             hex::encode(&h.finalize()[..8])
         };
         Self {
@@ -193,8 +193,8 @@ impl CapabilityGrant {
         let mut h = Sha256::new();
         h.update(agent_id.as_bytes());
         h.update(ecosystem.as_bytes());
-        h.update(&flags.to_le_bytes());
-        h.update(&granted_at.to_le_bytes());
+        h.update(flags.to_le_bytes());
+        h.update(granted_at.to_le_bytes());
         h.update(b"capability-grant-v1");
         hex::encode(h.finalize())
     }

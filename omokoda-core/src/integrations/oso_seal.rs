@@ -136,7 +136,7 @@ impl AccessProvider for LocalSealProvider {
         SealBackend::Local
     }
 
-    fn encrypt(&self, data: &[u8], policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
+    fn encrypt(&self, data: &[u8], _policy: &AccessPolicy) -> Result<EncryptedBlob, SealError> {
         let cipher = ChaCha20Poly1305::new_from_slice(&self.key)
             .map_err(|e| SealError::Backend(e.to_string()))?;
         let nonce = ChaCha20Poly1305::generate_nonce(&mut AeadRng);

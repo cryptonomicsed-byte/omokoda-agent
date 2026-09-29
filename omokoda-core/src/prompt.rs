@@ -10,6 +10,7 @@ use std::path::PathBuf;
 const V_ATTENTION: usize = 2;
 const V_LOOP: usize = 3;
 const V_EXECUTION: usize = 7;
+#[allow(dead_code)]
 const V_SWARM: usize = 8;
 const V_RESTRAINT: usize = 9;
 const V_CONSENT: usize = 11;

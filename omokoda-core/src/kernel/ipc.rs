@@ -62,6 +62,7 @@ impl MessageChannel {
         self.sender.clone()
     }
 
+    #[allow(clippy::await_holding_lock)]
     pub async fn recv(&self) -> Option<IpcMessage> {
         self.receiver.lock().unwrap().recv().await
     }

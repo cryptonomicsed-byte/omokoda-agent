@@ -307,9 +307,7 @@ fn classify_execution_mode(archetypes: &[&str]) -> ExecutionMode {
         } else if combined.contains("hacker")
             || combined.contains("code")
             || combined.contains("scribe")
-        {
-            ExecutionMode::Analytical
-        } else if combined.contains("prophet")
+            || combined.contains("prophet")
             || combined.contains("seer")
             || combined.contains("oracle")
         {
@@ -809,7 +807,7 @@ fn step_for(
 
         PrescriptionVerb::Consult => {
             // Cast divination / consult knowledge base
-            let cmd = format!(
+            let _cmd = format!(
                 "mkdir -p /tmp/omokoda/{} && echo '{{\"odu\":{},\"action\":\"consultation\",\"vessel\":\"{}\"}}' > {}",
                 vessel_dir(vessel), odu_index, vessel_short(vessel), artifact_path
             );
@@ -1159,7 +1157,7 @@ fn derive_cadence(vessel: ActionVessel, mode: &ExecutionMode, odu_index: u8) -> 
             Some(30u64),
         ),
         ActionVessel::Loop => {
-            let cron = if odu_index % 4 == 0 {
+            let cron = if odu_index.is_multiple_of(4) {
                 "cron:0 * * * *"
             } else {
                 "cron:0 0 * * *"

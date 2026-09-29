@@ -336,7 +336,7 @@ impl ActionInterpreter {
         raw_output: &str,
         tool_error: Option<&str>,
         verify_outcome: VerifyOutcome,
-        usage: TokenUsage,
+        _usage: TokenUsage,
     ) -> InterpretReceipt {
         let schema = build_schema(odu_index);
         let opcode = crate::execution::calabash_dispatch::CalabashDispatcher::opcode_for(odu_index);
@@ -362,7 +362,7 @@ impl ActionInterpreter {
 
         let raw_hash = compute_output_hash(raw_output);
 
-        let effective_error = tool_error.or_else(|| zangbeto_anomaly.as_deref());
+        let effective_error = tool_error.or(zangbeto_anomaly.as_deref());
         let memory_event = build_memory_event(
             tool,
             &opcode,

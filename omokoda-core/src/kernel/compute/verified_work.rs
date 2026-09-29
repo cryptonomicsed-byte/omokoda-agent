@@ -71,6 +71,7 @@ impl std::fmt::Display for WorkloadKind {
 }
 
 impl VerifiedGPUWork {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         contributor_id: impl Into<String>,
         device_id: impl Into<String>,
@@ -234,6 +235,7 @@ pub enum PrintFailureMode {
 }
 
 impl VerifiedPrintJob {
+    #[allow(clippy::too_many_arguments)]
     pub fn new(
         contributor_id: impl Into<String>,
         device_id: impl Into<String>,

@@ -286,7 +286,7 @@ impl BiponProvider for DefaultBiponProvider {
         // Mnemonic from entropy
         let mnemonic = Bipon39::entropy_to_mnemonic(&request.entropy);
         let indices =
-            Bipon39::mnemonic_to_indices(&mnemonic).map_err(|e| GenesisError::Bipon(e))?;
+            Bipon39::mnemonic_to_indices(&mnemonic).map_err(GenesisError::Bipon)?;
 
         // Derive master seed
         let born_at_ms = std::time::SystemTime::now()
@@ -311,14 +311,14 @@ impl BiponProvider for DefaultBiponProvider {
 
         // Agent ID: first 16 hex chars of SHA-256(harmonic_signature || name)
         let mut h = Sha256::new();
-        h.update(&hs);
+        h.update(hs);
         h.update(request.name.as_bytes());
         let id_hash = hex::encode(h.finalize());
         let agent_id = format!("agent-{}", &id_hash[..16]);
 
         // Entropy commitment
         let mut ec = Sha256::new();
-        ec.update(&request.entropy);
+        ec.update(request.entropy.as_slice());
         let entropy_commitment = hex::encode(ec.finalize());
 
         // Sigil hash: SHA-256(mnemonic[:3 words])

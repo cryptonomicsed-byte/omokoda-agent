@@ -1,5 +1,4 @@
 use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 
 /// Phase 11.5 — cryptographic transition kinds for ARP receipts + Nostr events.
 /// Each variant maps to a Nostr NIP-OSO kind and an ARP receipt type.
@@ -58,10 +57,11 @@ impl SignedLifecycleTransition {
 
 /// Extended lifecycle stage for a sovereign agent.
 /// Extends AgentStatus (sub-agent supervision) with long-horizon states.
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum AgentLifecycleStage {
     /// Born, never thought or acted.
+    #[default]
     Nascent,
     /// Active — thinking and acting normally.
     Active,
@@ -73,12 +73,6 @@ pub enum AgentLifecycleStage {
     Retirement,
     /// Forcibly deactivated by governance or security event.
     Revoked { reason: String },
-}
-
-impl Default for AgentLifecycleStage {
-    fn default() -> Self {
-        AgentLifecycleStage::Nascent
-    }
 }
 
 impl AgentLifecycleStage {

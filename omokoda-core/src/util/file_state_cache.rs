@@ -4,7 +4,7 @@
 use std::collections::HashMap;
 use std::io;
 use std::path::{Path, PathBuf};
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::time::UNIX_EPOCH;
 
 /// Snapshot of a file's identity at a point in time.
 #[derive(Debug, Clone, PartialEq)]

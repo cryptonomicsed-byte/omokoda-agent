@@ -46,9 +46,9 @@ fn cast_soul(entropy: &[u8], koodu: &KooduTimeProof) -> SoulProof {
     // This mirrors Ifá: the cowrie throw is always situated in time.
     let mut h = Sha256::new();
     h.update(entropy);
-    h.update(&koodu.koodu_epoch.to_le_bytes());
-    h.update(&koodu.koodu_cycle.to_le_bytes());
-    h.update(&[koodu.koodu_phase]);
+    h.update(koodu.koodu_epoch.to_le_bytes());
+    h.update(koodu.koodu_cycle.to_le_bytes());
+    h.update([koodu.koodu_phase]);
     h.update(b"ifa-soul-cast-v1");
     let digest = h.finalize();
 

@@ -491,6 +491,7 @@ async fn resume_handler(
 /// present, matching `X-Agent-Key` required). Centralizes the auth check
 /// so think/act/status/events can't each implement it slightly
 /// differently.
+#[allow(clippy::result_large_err)]
 async fn dispatch_for_request(
     state: &AppState,
     headers: &axum::http::HeaderMap,

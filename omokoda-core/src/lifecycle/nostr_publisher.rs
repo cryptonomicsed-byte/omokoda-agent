@@ -92,7 +92,7 @@ impl PublisherState {
 /// - `agent_id`  — agent identifier string (used in log context only).
 /// - `npub`      — agent's bech32 npub (Nostr public key).
 /// - `nsec`      — agent's Nostr private key hex (`nostr_private_key_hex`
-///                 from `IdentityVaultData`).
+///   from `IdentityVaultData`).
 /// - `config`    — rate-limit + relay configuration.
 pub fn spawn_nostr_publisher(
     agent_id: String,

@@ -1201,7 +1201,7 @@ impl Steward {
 
         let odu_bytes = odu_seed.as_bytes();
         let day = (birth_timestamp % 7) as u8;
-        let planet = (odu_bytes[0] % 7) as u8;
+        let planet = odu_bytes[0] % 7;
         let dimension = 0u8; // Time dimension at birth
         let resonance = Some(
             omokoda_hermetic::fractal::ResonanceSignature::new(day, planet, dimension).ok_or_else(
@@ -1468,7 +1468,7 @@ impl Steward {
 
             // Minipae pubkey (matches DefaultMemoryProvider derivation)
             let mut h = Sha256::new();
-            h.update(&entropy);
+            h.update(entropy);
             h.update(agent_id_str.as_bytes());
             h.update(b"minipae-pubkey-v1");
             let minipae_pubkey = hex::encode(h.finalize());
@@ -1492,7 +1492,7 @@ impl Steward {
 
             // Entropy commitment
             let mut he = Sha256::new();
-            he.update(&entropy);
+            he.update(entropy);
             let entropy_commitment = hex::encode(he.finalize());
 
             // Harmonic signature + derivation root
@@ -4918,7 +4918,7 @@ impl Steward {
                     .unwrap_or(0.0);
                 let goal_input = crate::goal_genesis::GoalGenesisInput {
                     odu_id: twin_vector[0], // identity Odù as primary
-                    tier: agent.tier().min(3).max(1),
+                    tier: agent.tier().clamp(1, 3),
                     glyph_count: memory_graph.len(),
                     rem_cluster_ids: vec![], // REM cluster IDs not yet threaded through here
                     calabash_state_hash: format!(
@@ -5703,6 +5703,7 @@ impl Steward {
 
     /// Persist the GIX store alongside agent.json.
     /// Called after `auto_save()` in `&mut self` contexts.
+    #[allow(dead_code)]
     fn save_gix_store(&mut self) {
         if let Some(agent) = &self.agent {
             let agent_id = agent.id().clone();
@@ -6405,17 +6406,16 @@ impl Steward {
             .tools
             .execute(tool_name, params, context, &self.permission_policy, None)
             .await
-            .map_err(|e| {
+            .inspect_err(|e| {
                 // Produce a failure receipt on tool error before propagating
                 let receipt = crate::execution::action_interpreter::ActionInterpreter::commit_failed(
-                    interpret_odu, tool_name, &e,
+                    interpret_odu, tool_name, e,
                 );
                 tracing::debug!(
                     odu = interpret_odu,
                     summary = %crate::execution::action_interpreter::ActionInterpreter::receipt_summary(&receipt),
                     "ActionInterpreter: tool execution failed"
                 );
-                e
             })?;
 
         // Ọya (Go) rhythm tracking: record this completed primitive.
@@ -6449,7 +6449,7 @@ impl Steward {
                 &output,
                 None,
                 verify_outcome,
-                tool_usage.clone(),
+                tool_usage,
             );
             let summary = ActionInterpreter::receipt_summary(&receipt);
             match receipt.outcome {
@@ -6475,6 +6475,7 @@ impl Steward {
         // then ingest it into the GIX store as GixKind::Receipt so the receipt
         // chain lives in the same graph as action memory.
         // gate_alignment: 1.0 clean pass, −0.1 per Hermetic warning, floor 0.5.
+        #[allow(unused_assignments)]
         let mut attest_receipt_id = String::new();
         let mut attest_merkle_root = String::new();
         let mut attest_gate_align = 0.0_f64;
@@ -6601,11 +6602,11 @@ impl Steward {
             let intensity = if kind == "gold" { 2.0_f64 } else { 0.5 };
             let note = format!("act: {} (tier {})", tool_name, tier);
             // Spawn best-effort — failure is logged by the waggle crate itself.
-            let _ = tokio::spawn(async move {
+            drop(tokio::spawn(async move {
                 field
                     .deposit(&resource, kind, intensity, &note, serde_json::json!({}))
                     .await
-            });
+            }));
         }
 
         Ok(output)

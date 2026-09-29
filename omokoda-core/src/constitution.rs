@@ -3,8 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-#[cfg(feature = "seven")]
-use crate::seven::Universal7State;
 
 /// All birth parameters compiled into one canonical, signable document.
 /// Immutable once created — represents the agent's permanent identity.

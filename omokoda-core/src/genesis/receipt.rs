@@ -96,10 +96,10 @@ impl AgentGenesisReceipt {
         let mut h = Sha256::new();
         h.update(agent_id.as_bytes());
         h.update(harmonic_sig.as_bytes());
-        h.update(&koodu_epoch.to_le_bytes());
-        h.update(&[primary_odu]);
+        h.update(koodu_epoch.to_le_bytes());
+        h.update([primary_odu]);
         h.update(memory_root.as_bytes());
-        h.update(&born_at.to_le_bytes());
+        h.update(born_at.to_le_bytes());
         hex::encode(h.finalize())
     }
 }

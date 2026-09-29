@@ -134,7 +134,7 @@ impl OsoComputeProvider for VeilSimProvider {
         workload.min_vram_gb == 0 || workload.image.starts_with("osovm:")
     }
 
-    fn submit(&self, workload: OsoWorkload) -> Result<OsoComputeJob, ComputeError> {
+    fn submit(&self, _workload: OsoWorkload) -> Result<OsoComputeJob, ComputeError> {
         // Phase 16.3 stub: real impl POSTs to OSOVM /api/veilsim endpoint.
         Err(ComputeError::SubmitFailed(format!(
             "VeilSim submit not yet implemented (osovm_url={})",
@@ -197,7 +197,7 @@ impl OsoComputeProvider for UcxBackedProvider {
         workload.min_vram_gb > 0 || !workload.image.starts_with("osovm:")
     }
 
-    fn submit(&self, workload: OsoWorkload) -> Result<OsoComputeJob, ComputeError> {
+    fn submit(&self, _workload: OsoWorkload) -> Result<OsoComputeJob, ComputeError> {
         // Phase 16.3 stub: real impl forwards to UCX broker HTTP API.
         Err(ComputeError::SubmitFailed(format!(
             "UCX/{} submit not yet implemented (endpoint={})",

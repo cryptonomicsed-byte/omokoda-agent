@@ -254,13 +254,13 @@ impl NetworkRouter {
         h.update(msg.from_agent_id.as_bytes());
         h.update(msg.to_agent_id.as_bytes());
         h.update(transport.transport_id().as_bytes());
-        h.update(&sent_at.to_le_bytes());
-        h.update(&(msg.payload.len() as u64).to_le_bytes());
+        h.update(sent_at.to_le_bytes());
+        h.update((msg.payload.len() as u64).to_le_bytes());
         let integrity_hash = hex::encode(h.finalize());
 
         let receipt_id = {
             let mut h2 = Sha256::new();
-            h2.update(&integrity_hash.as_bytes());
+            h2.update(integrity_hash.as_bytes());
             h2.update(b"route-receipt-v1");
             hex::encode(&h2.finalize()[..8])
         };

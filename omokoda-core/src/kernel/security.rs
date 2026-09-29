@@ -12,7 +12,7 @@
 
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
-use std::time::{Duration, Instant};
+use std::time::Instant;
 
 use serde::{Deserialize, Serialize};
 
@@ -265,8 +265,6 @@ impl PolicyEnforcer {
 /// `agent_id` is treated as the 32-byte hex public key.
 /// Returns true if the signature is valid; false if key/sig is malformed or fails.
 fn verify_ed25519(pubkey_hex: &str, sig_hex: &str, message: &[u8]) -> bool {
-    use std::convert::TryInto;
-
     let pk_bytes = match hex::decode(pubkey_hex) {
         Ok(b) if b.len() == 32 => b,
         _ => return false,

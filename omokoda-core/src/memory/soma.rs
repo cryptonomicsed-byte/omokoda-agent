@@ -123,7 +123,7 @@ impl MemScene {
 // ──────────────────────────────── helpers ────────────────────────────────────
 
 /// Retrieval: return top-n MemCells scored by the full Droidclaw formula.
-pub fn top_memories<'a>(cells: &'a [MemCell], now_secs: u64, n: usize) -> Vec<&'a MemCell> {
+pub fn top_memories(cells: &[MemCell], now_secs: u64, n: usize) -> Vec<&MemCell> {
     let mut scored: Vec<(&MemCell, f32)> = cells.iter().map(|c| (c, c.score(now_secs))).collect();
     scored.sort_unstable_by(|a, b| b.1.partial_cmp(&a.1).unwrap_or(std::cmp::Ordering::Equal));
     scored.into_iter().take(n).map(|(c, _)| c).collect()

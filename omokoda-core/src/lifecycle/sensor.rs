@@ -54,6 +54,7 @@ fn read_termux() -> Option<SensorReading> {
     })
 }
 
+#[allow(dead_code)]
 fn current_hour() -> u8 {
     use std::time::{SystemTime, UNIX_EPOCH};
     let secs = SystemTime::now()

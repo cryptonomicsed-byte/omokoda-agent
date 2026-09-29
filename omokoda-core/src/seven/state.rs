@@ -100,7 +100,7 @@ impl Universal7State {
     /// Whether this state is at a Thunder Lattice resonance position.
     /// Resonance: lattice_index is a multiple of 7 (SevenFunction × 7 + 0).
     pub fn is_resonance(&self) -> bool {
-        self.lattice_index % 7 == 0
+        self.lattice_index.is_multiple_of(7)
     }
 
     /// Thunder Lattice index from function and principle.

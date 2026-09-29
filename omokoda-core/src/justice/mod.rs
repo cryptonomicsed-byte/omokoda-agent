@@ -267,6 +267,7 @@ impl JusticeEngine {
         }
     }
 
+    #[allow(clippy::too_many_arguments)]
     pub fn evaluate_action(
         &self,
         current_reputation: f64,

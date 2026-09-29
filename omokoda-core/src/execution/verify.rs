@@ -232,32 +232,10 @@ pub fn all_pass(results: &[AssertionResult]) -> bool {
 }
 
 fn sha256_hex(bytes: &[u8]) -> String {
-    // Simple SHA-256 without external crate dependency — uses std + ring if available,
-    // falls back to a placeholder that still exercises the contract in tests.
-    // Production deployments wire this to the sha2 crate via the existing Cargo.toml.
-    #[cfg(feature = "sha2")]
-    {
-        use sha2::{Digest, Sha256};
-        let mut hasher = Sha256::new();
-        hasher.update(bytes);
-        format!("{:x}", hasher.finalize())
-    }
-    #[cfg(not(feature = "sha2"))]
-    {
-        // Fallback: deterministic but NOT cryptographic — for test scaffolding only.
-        let mut h: u64 = 0xcbf2_9ce4_8422_2325;
-        for &b in bytes {
-            h ^= u64::from(b);
-            h = h.wrapping_mul(0x0000_0100_0000_01b3);
-        }
-        format!(
-            "{:016x}{:016x}{:016x}{:016x}",
-            h,
-            h ^ 0xdead,
-            h ^ 0xbeef,
-            h ^ 0xcafe
-        )
-    }
+    use sha2::{Digest, Sha256};
+    let mut hasher = Sha256::new();
+    hasher.update(bytes);
+    format!("{:x}", hasher.finalize())
 }
 
 #[cfg(test)]

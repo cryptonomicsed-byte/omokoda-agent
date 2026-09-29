@@ -87,7 +87,6 @@ impl SessionHandle {
 
     /// Immediate shutdown — sends SIGKILL.
     pub fn force_kill(&mut self) {
-        use std::os::unix::process::CommandExt;
         let pid = self.child.id();
         unsafe {
             libc::kill(pid as i32, libc::SIGKILL);
@@ -125,7 +124,7 @@ impl SessionSpawner {
         if let Some(stderr) = child.stderr.take() {
             std::thread::spawn(move || {
                 let reader = BufReader::new(stderr);
-                for line in reader.lines().flatten() {
+                for line in reader.lines().map_while(|l| l.ok()) {
                     let mut ring = ring_clone.lock().unwrap();
                     if ring.len() >= 10 {
                         ring.pop_front();

@@ -48,8 +48,7 @@ impl SomaLifecycle {
         self.emotion = self.emotion.after_think(message);
         self.message_count += 1;
         // Significant = distress or high vitality change
-        let significant = self.emotion.is_tense() || self.emotion.is_connected();
-        significant
+        self.emotion.is_tense() || self.emotion.is_connected()
     }
 
     /// Sleep: consolidate session learning, reset for next session.

@@ -714,6 +714,7 @@ fn parse_settlement_receipt(json: &serde_json::Value) -> Option<SettlementReceip
 /// Required env vars:
 ///   OMOKODA_SOUL_PACKAGE   — deployed soul.move package id
 ///   OMOKODA_SUI_CLOCK      — Sui clock object id (0x6 on mainnet/testnet)
+#[allow(clippy::too_many_arguments)]
 pub async fn forge_soul_onchain(
     agent_id: &str,
     odu_index: u8,

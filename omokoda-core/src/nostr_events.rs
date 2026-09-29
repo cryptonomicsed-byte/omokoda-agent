@@ -410,7 +410,7 @@ pub async fn publish_event(
     nsec_hex: &str,
     relay_list: &[String],
 ) -> Result<(), String> {
-    use nostr::{EventBuilder, Keys, Kind, SecretKey, Tag, Timestamp};
+    use nostr::{EventBuilder, Keys, Kind, SecretKey, Tag};
     use nostr_sdk::Client;
 
     // Resolve relay list: if caller passes an empty slice, fall back to env var.
@@ -577,6 +577,7 @@ pub fn build_lifecycle_transition_event(
 
 /// Fire-and-forget lifecycle transition Nostr publish (tokio::spawn).
 /// Relay/signing failures are warn-logged and never block the caller.
+#[allow(clippy::too_many_arguments)]
 pub fn publish_lifecycle_transition(
     npub: String,
     nsec_hex: String,
@@ -612,6 +613,7 @@ pub fn publish_lifecycle_transition(
 /// Replaces kind 0 for sovereign agents.  `d` tag = agent_id so relays keep
 /// only the latest identity per agent.  Carries BIPON39, Odù index, tier, and
 /// optional L1 anchor (Sui object id or ABCI address).
+#[allow(clippy::too_many_arguments)]
 pub fn build_agent_identity_event(
     npub: &str,
     agent_id: &str,

@@ -174,6 +174,7 @@ impl HiveMindClient {
         Some(Self::new(base, key))
     }
 
+    #[allow(dead_code)]
     fn auth(&self) -> (&'static str, String) {
         ("x-agent-key", self.api_key.clone())
     }

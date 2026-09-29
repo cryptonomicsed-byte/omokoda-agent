@@ -274,9 +274,9 @@ pub fn query_select(
     index
         .entries()
         .iter()
-        .filter(|e| kind.map_or(true, |k| &e.kind == k))
-        .filter(|e| since_ts.map_or(true, |t| e.ts >= t))
-        .filter(|e| until_ts.map_or(true, |t| e.ts <= t))
+        .filter(|e| kind.is_none_or(|k| &e.kind == k))
+        .filter(|e| since_ts.is_none_or(|t| e.ts >= t))
+        .filter(|e| until_ts.is_none_or(|t| e.ts <= t))
         .map(GixSelectResult::from_entry)
         .collect()
 }
@@ -398,7 +398,7 @@ pub fn merkle_proof(index: &Gix1Index, id: &str) -> Result<(String, String, Vec<
         siblings.push(hex::encode(layer[sibling_pos]));
 
         // Reduce layer.
-        let mut next: Vec<[u8; 32]> = Vec::with_capacity((layer.len() + 1) / 2);
+        let mut next: Vec<[u8; 32]> = Vec::with_capacity(layer.len().div_ceil(2));
         let mut i = 0;
         while i < layer.len() {
             let left = layer[i];
@@ -408,8 +408,8 @@ pub fn merkle_proof(index: &Gix1Index, id: &str) -> Result<(String, String, Vec<
                 left
             };
             let mut h = Sha256::new();
-            h.update(&left);
-            h.update(&right);
+            h.update(left);
+            h.update(right);
             next.push(h.finalize().into());
             i += 2;
         }

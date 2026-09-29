@@ -100,9 +100,9 @@ impl AgentCapsule {
         h.update(agent_id.as_bytes());
         h.update(genesis_id.as_bytes());
         h.update(identity_commitment.as_bytes());
-        h.update(&koodu_epoch.to_le_bytes());
+        h.update(koodu_epoch.to_le_bytes());
         h.update(memory_root.as_bytes());
-        h.update(&capsule_timestamp.to_le_bytes());
+        h.update(capsule_timestamp.to_le_bytes());
         h.update(b"omokoda-capsule-v1");
         hex::encode(h.finalize())
     }

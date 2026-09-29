@@ -138,7 +138,7 @@ pub enum EncounterOutcome {
 }
 
 /// Tier the agent assigns to an entity in the ecosystem.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "snake_case")]
 pub enum EntityTier {
     Founder,
@@ -149,15 +149,10 @@ pub enum EntityTier {
     Developer,
     User,
     Observer,
+    #[default]
     Unknown,
     Suspicious,
     Enemy,
-}
-
-impl Default for EntityTier {
-    fn default() -> Self {
-        Self::Unknown
-    }
 }
 
 /// What kind of identifier this is.

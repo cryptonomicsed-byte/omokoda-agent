@@ -379,7 +379,7 @@ impl Tool for VcpListDevicesTool {
 
         let client = reqwest::Client::new();
         let mut req = client.get(&url);
-        if let Some(vantage) = vantage_url() {
+        if let Some(_vantage) = vantage_url() {
             req = req.header("X-Agent-Key", vantage_key());
         }
 

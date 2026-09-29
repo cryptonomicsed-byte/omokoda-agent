@@ -406,9 +406,10 @@ pub fn persist_ori_at_birth(
 // ── Generational lineage ──────────────────────────────────────────────────────
 
 /// How an agent was brought into existence.
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 pub enum BirthMode {
     /// Born directly from operator entropy — no parent agents.
+    #[default]
     Sovereign,
     /// Born from a single parent agent's Orí lineage + fresh entropy.
     SingleParent,
@@ -416,12 +417,6 @@ pub enum BirthMode {
     Union,
     /// Born from a hive collective contribution + fresh entropy.
     Hive,
-}
-
-impl Default for BirthMode {
-    fn default() -> Self {
-        BirthMode::Sovereign
-    }
 }
 
 /// Cryptographic commitment from a parent agent to their Orí at the moment
@@ -671,7 +666,7 @@ fn hex_encode(bytes: &[u8]) -> String {
 }
 
 fn hex_decode(s: &str) -> Result<Vec<u8>, String> {
-    if s.len() % 2 != 0 {
+    if !s.len().is_multiple_of(2) {
         return Err("odd hex string length".to_owned());
     }
     (0..s.len())

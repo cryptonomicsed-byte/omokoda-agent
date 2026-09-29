@@ -280,8 +280,7 @@ impl ActionTransaction {
                 assertions_failed: failed,
             }
         };
-        let closed = self.close_with_receipt(receipt_id.clone(), outcome.clone(), traces_to);
-        closed
+        self.close_with_receipt(receipt_id.clone(), outcome.clone(), traces_to)
     }
 
     /// Close with a failure outcome.

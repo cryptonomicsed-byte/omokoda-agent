@@ -96,12 +96,7 @@ fn apply_repairs(s: &str) -> String {
 
     // Remove trailing comma before close (common LLM truncation artifact)
     let trimmed = out.trim_end();
-    let without_trailing_comma = if trimmed.ends_with(',') {
-        trimmed[..trimmed.len() - 1].to_string()
-    } else {
-        trimmed.to_string()
-    };
-    out = without_trailing_comma;
+    out = trimmed.strip_suffix(',').unwrap_or(trimmed).to_string();
 
     // Close open brackets first (LIFO — last opened, first closed)
     for _ in 0..bracket_depth.max(0) {

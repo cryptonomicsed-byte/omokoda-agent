@@ -59,6 +59,7 @@ pub struct CalabashDirective {
 // ─── Vessel profiles ──────────────────────────────────────────────────────────
 
 /// Operational profile for one of the 16 Action Vessels.
+#[allow(dead_code)]
 struct VesselProfile {
     name: &'static str,
     /// Primary tool for step 1.
@@ -465,6 +466,7 @@ impl CalabashDispatcher {
         }
     }
 
+    #[allow(dead_code)]
     fn build_cadence(vp: &VesselProfile) -> CadenceSpec {
         CadenceSpec {
             trigger: vp.trigger.to_string(),

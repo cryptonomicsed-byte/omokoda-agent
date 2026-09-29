@@ -225,32 +225,17 @@ impl Default for HiveSection {
 }
 
 /// Generic external service block used for Vantage, Zàngbétò, OSOVM, UCX, Waggle.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct ServiceSection {
     pub enabled: bool,
     pub url: String,
 }
 
-impl Default for ServiceSection {
-    fn default() -> Self {
-        Self {
-            enabled: false,
-            url: String::new(),
-        }
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct TelemetrySection {
     pub enabled: bool,
-}
-
-impl Default for TelemetrySection {
-    fn default() -> Self {
-        Self { enabled: false }
-    }
 }
 
 // ---------------------------------------------------------------------------
@@ -260,7 +245,7 @@ impl Default for TelemetrySection {
 /// Top-level operator configuration.  All sections are optional; missing
 /// sections fall back to their `Default` implementations so the agent starts
 /// successfully with an empty or partially-filled config.toml.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
 #[serde(default)]
 pub struct OmokodaConfig {
     pub agent: AgentSection,
@@ -280,29 +265,6 @@ pub struct OmokodaConfig {
     pub ucx: ServiceSection,
     pub waggle: ServiceSection,
     pub telemetry: TelemetrySection,
-}
-
-impl Default for OmokodaConfig {
-    fn default() -> Self {
-        Self {
-            agent: AgentSection::default(),
-            model: ModelSection::default(),
-            memory: MemorySection::default(),
-            ifascript: IfaScriptSection::default(),
-            hermetic: HermeticSection::default(),
-            security: SecuritySection::default(),
-            tools: ToolsSection::default(),
-            skills: SkillsSection::default(),
-            heartbeat: HeartbeatSection::default(),
-            hive: HiveSection::default(),
-            vantage: ServiceSection::default(),
-            zangbeto: ServiceSection::default(),
-            osovm: ServiceSection::default(),
-            ucx: ServiceSection::default(),
-            waggle: ServiceSection::default(),
-            telemetry: TelemetrySection::default(),
-        }
-    }
 }
 
 // ---------------------------------------------------------------------------

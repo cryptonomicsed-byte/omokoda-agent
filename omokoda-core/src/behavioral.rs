@@ -202,7 +202,7 @@ impl BehavioralMemory {
     /// this method just returns the raw material and flags when it's time.
     #[must_use]
     pub fn consolidation_due(&self) -> bool {
-        self.session_count > 0 && self.session_count % 5 == 0
+        self.session_count > 0 && self.session_count.is_multiple_of(5)
     }
 
     /// Stub consolidation: promote top do_more items as core rules.

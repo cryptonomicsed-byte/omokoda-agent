@@ -93,7 +93,7 @@ pub fn is_significant_transition(
             capability: cap.to_string(),
         });
     }
-    if new_version > 0 && new_version % 10 == 0 {
+    if new_version > 0 && new_version.is_multiple_of(10) {
         return Some(CommitmentReason::VersionMilestone {
             version: new_version,
         });
