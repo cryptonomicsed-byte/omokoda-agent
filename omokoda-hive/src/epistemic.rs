@@ -86,10 +86,8 @@ impl EpistemicState {
         self.beliefs.retain(|_, belief| {
             let age = current_tick.saturating_sub(belief.tick_born);
             // Archive unwitnessed beliefs older than 100 ticks
-            if age > 100 {
-                if matches!(belief.source, BeliefSource::Simulation { .. }) {
-                    return false;
-                }
+            if age > 100 && matches!(belief.source, BeliefSource::Simulation { .. }) {
+                return false;
             }
             true
         });
@@ -149,9 +147,13 @@ mod tests {
     #[test]
     fn belief_update_accumulates_delta() {
         let mut state = EpistemicState::new();
-        let delta = state.update_belief("agent_count", 0.8, BeliefSource::Simulation {
-            run_id: "run-1".into(),
-        });
+        let delta = state.update_belief(
+            "agent_count",
+            0.8,
+            BeliefSource::Simulation {
+                run_id: "run-1".into(),
+            },
+        );
         assert!(delta > 0.0);
         assert!(state.cumulative_delta > 0.0);
     }
@@ -159,7 +161,11 @@ mod tests {
     #[test]
     fn witnessing_reduces_delta() {
         let mut state = EpistemicState::new();
-        state.update_belief("agent_count", 0.5, BeliefSource::Simulation { run_id: "r".into() });
+        state.update_belief(
+            "agent_count",
+            0.5,
+            BeliefSource::Simulation { run_id: "r".into() },
+        );
         let before = state.cumulative_delta;
         state.witness_belief("agent_count", "receipt-001");
         assert!(state.cumulative_delta <= before);

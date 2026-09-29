@@ -11,10 +11,9 @@
 //
 // Health = 0.35 × recency + 0.25 × diversity + 0.25 × coherence + 0.15 × coverage
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::epistemic::EpistemicState;
 use crate::lobe::OrisaLobe;
+use serde::{Deserialize, Serialize};
 
 pub const RECENCY_WEIGHT: f64 = 0.35;
 pub const DIVERSITY_WEIGHT: f64 = 0.25;
@@ -47,7 +46,9 @@ pub struct MemoryHealthMonitor {
 
 impl MemoryHealthMonitor {
     pub fn new(recency_window_ticks: u64) -> Self {
-        Self { recency_window_ticks }
+        Self {
+            recency_window_ticks,
+        }
     }
 
     pub fn compute(
@@ -93,7 +94,11 @@ impl MemoryHealthMonitor {
     /// Shannon entropy over belief topics (normalized to [0, 1]).
     fn compute_diversity(&self, epistemic: &EpistemicState) -> f64 {
         if epistemic.beliefs.len() <= 1 {
-            return if epistemic.beliefs.is_empty() { 0.0 } else { 1.0 };
+            return if epistemic.beliefs.is_empty() {
+                0.0
+            } else {
+                1.0
+            };
         }
         let n = epistemic.beliefs.len() as f64;
         // Confidence as proxy for probability mass
@@ -106,16 +111,24 @@ impl MemoryHealthMonitor {
             .values()
             .map(|b| {
                 let p = b.confidence / total_conf;
-                if p > 0.0 { -p * p.ln() } else { 0.0 }
+                if p > 0.0 {
+                    -p * p.ln()
+                } else {
+                    0.0
+                }
             })
             .sum();
         let max_entropy = n.ln();
-        if max_entropy == 0.0 { 1.0 } else { (entropy / max_entropy).min(1.0) }
+        if max_entropy == 0.0 {
+            1.0
+        } else {
+            (entropy / max_entropy).min(1.0)
+        }
     }
 
     /// 1.0 - normalized cumulative_delta.
     fn compute_coherence(&self, epistemic: &EpistemicState) -> f64 {
-        (1.0 - epistemic.cumulative_delta).max(0.0).min(1.0)
+        (1.0 - epistemic.cumulative_delta).clamp(0.0, 1.0)
     }
 
     /// Fraction of 11 Ọrìṣà lobes with recent activity.

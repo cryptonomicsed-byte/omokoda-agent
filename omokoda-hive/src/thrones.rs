@@ -8,6 +8,7 @@
 // Fail-open: when THRONES_URL is unset, returns an empty verdict set.
 
 use serde::{Deserialize, Serialize};
+use std::cmp::Reverse;
 
 /// The 12 throne identities (matching Twelve-thrones/server.ts)
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
@@ -62,8 +63,7 @@ pub struct ThronesClient {
 impl ThronesClient {
     /// Construct from THRONES_URL env var; fail-open if unset.
     pub fn from_env() -> Self {
-        let base_url = std::env::var("THRONES_URL")
-            .unwrap_or_else(|_| String::new());
+        let base_url = std::env::var("THRONES_URL").unwrap_or_else(|_| String::new());
         Self { base_url }
     }
 
@@ -111,10 +111,8 @@ impl ThronesClient {
     /// Borda count aggregation over verdicts (used locally when server unavailable).
     pub fn borda_aggregate(verdicts: &[ThroneVerdict], proposals: &[String]) -> Vec<String> {
         let n = proposals.len();
-        let mut scores: std::collections::HashMap<&str, usize> = proposals
-            .iter()
-            .map(|p| (p.as_str(), 0))
-            .collect();
+        let mut scores: std::collections::HashMap<&str, usize> =
+            proposals.iter().map(|p| (p.as_str(), 0)).collect();
 
         for verdict in verdicts {
             for (rank, proposal) in verdict.ranking.iter().enumerate() {
@@ -124,7 +122,7 @@ impl ThronesClient {
         }
 
         let mut ranked: Vec<(&str, usize)> = scores.into_iter().collect();
-        ranked.sort_by(|a, b| b.1.cmp(&a.1));
+        ranked.sort_by_key(|&(_, s)| Reverse(s));
         ranked.into_iter().map(|(p, _)| p.to_string()).collect()
     }
 }
