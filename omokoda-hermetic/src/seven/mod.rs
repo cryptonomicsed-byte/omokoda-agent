@@ -417,7 +417,7 @@ impl SevenCalendar {
         }
         // Èṣù² node: veil position (day % 350) divisible by 12
         let veil = (days % 350) + 1;
-        if veil % 12 == 0 {
+        if veil.is_multiple_of(12) {
             return KooduRitualGate::EshuSquared;
         }
         // Minor jubilee: every 49 days (7×7)
