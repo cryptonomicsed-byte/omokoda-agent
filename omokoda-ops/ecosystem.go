@@ -225,7 +225,7 @@ func ecoOpenIntel() (*sql.DB, error) {
 
 // ecoWalletIntelStats aggregates wallet_intel.db into a compact JSON blob.
 func ecoWalletIntelStats(ctx context.Context) (json.RawMessage, error) {
-	db, err := ecoOpenIntel(ctx)
+	db, err := ecoOpenIntel()
 	if err != nil {
 		return nil, err
 	}
@@ -300,12 +300,17 @@ func ecoWalletIntelToken(ctx context.Context, db *sql.DB, mint string) (
 		return "", nil, nil, err
 	}
 
-	holders, err = ecoQueryRows(ctx, db,
+	holderRows, err := ecoQueryRows(ctx, db,
 		`SELECT w.address, w.tags, w.buys, w.sells, w.volume_usd, w.edge, w.last_seen, wt.first_buy_ts
 		 FROM wallet_tokens wt JOIN wallets w ON w.address = wt.wallet
 		 WHERE wt.mint = ? COLLATE NOCASE
-		 ORDER BY w.volume_usd DESC LIMIT 20`, mint,
-		[]string{"address", "tags", "buys", "sells", "volume_usd", "edge", "last_seen", "first_buy_ts"})
+		 ORDER BY w.volume_usd DESC LIMIT 20`,
+		[]string{"address", "tags", "buys", "sells", "volume_usd", "edge", "last_seen", "first_buy_ts"},
+		mint)
+	if err != nil {
+		return "", nil, nil, err
+	}
+	holders, err = json.Marshal(holderRows)
 	if err != nil {
 		return "", nil, nil, err
 	}
@@ -500,7 +505,7 @@ func tokenIntakeHandler(w http.ResponseWriter, r *http.Request) {
 		resp["pool_health"] = poolHealth
 	}
 
-	resp["found"] = pick != nil || (string(tokenRow) != "null") || len(verdicts) > 0
+	resp["found"] = pick != nil || (string(tokenRow) != "null") || (string(verdicts) != "[]")
 	if len(errs) > 0 {
 		resp["source_errors"] = errs
 	}

@@ -40,6 +40,12 @@ jobs:
           repository: cryptonomicsed-byte/DIP
           path: DIP
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout sovereign-stack
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/sovereign-stack
+          path: sovereign-stack
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install system dependencies
         run: sudo apt-get install -y protobuf-compiler
       - name: Install Rust
