@@ -27,6 +27,7 @@ impl DeployTarget {
         }
     }
 
+    #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
             Self::Local   => "local",

@@ -16,6 +16,7 @@ use crate::manifest::DeployManifest;
 
 #[derive(Debug, Clone, Deserialize)]
 pub struct IrInstruction {
+    #[allow(dead_code)]
     pub opcode: u8,
     pub opcode_name: String,
     #[serde(default)]
@@ -35,6 +36,7 @@ enum IrInput {
 struct IrProgram {
     pub instructions: Vec<IrInstruction>,
     #[serde(default)]
+    #[allow(dead_code)]
     pub metadata: serde_json::Value,
 }
 
