@@ -1,6 +1,5 @@
 //! Agent client — SDK for agent-to-agent interactions.
 
-use crate::error::SdkError;
 use serde::{Deserialize, Serialize};
 
 /// Agent capability advertisement.
