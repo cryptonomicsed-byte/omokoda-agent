@@ -52,17 +52,17 @@ impl OsoParser {
         let mut args: HashMap<String, IrValue> = HashMap::new();
 
         // Optional paren args: @name(key=val, ...)
-        if self.peek().map_or(false, |t| t.kind == TokenKind::LParen) {
+        if self.peek().is_some_and(|t| t.kind == TokenKind::LParen) {
             self.advance(); // consume `(`
             loop {
-                if self.peek().map_or(true, |t| t.kind == TokenKind::RParen) { break; }
+                if self.peek().is_none_or(|t| t.kind == TokenKind::RParen) { break; }
                 let key_tok = self.expect(&TokenKind::Ident)?;
                 let key = key_tok.value.clone();
                 self.expect(&TokenKind::Eq)?;
                 let val = self.parse_value()?;
                 args.insert(key, val);
                 // Consume optional comma
-                if self.peek().map_or(false, |t| t.kind == TokenKind::Comma) {
+                if self.peek().is_some_and(|t| t.kind == TokenKind::Comma) {
                     self.advance();
                 }
             }
@@ -70,10 +70,10 @@ impl OsoParser {
         }
 
         // Optional block body: { @inner... }
-        if self.peek().map_or(false, |t| t.kind == TokenKind::LBrace) {
+        if self.peek().is_some_and(|t| t.kind == TokenKind::LBrace) {
             self.advance(); // consume `{`
             let mut nested = Vec::new();
-            while self.peek().map_or(false, |t| t.kind != TokenKind::RBrace) {
+            while self.peek().is_some_and(|t| t.kind != TokenKind::RBrace) {
                 nested.push(self.parse_attribute()?);
             }
             self.expect(&TokenKind::RBrace)?;
@@ -133,7 +133,7 @@ impl OsoParser {
         let mut program = Vec::new();
         while self.peek().is_some() {
             // Skip stray semicolons at top level
-            if self.peek().map_or(false, |t| t.kind == TokenKind::Semi) {
+            if self.peek().is_some_and(|t| t.kind == TokenKind::Semi) {
                 self.advance();
                 continue;
             }
