@@ -3,7 +3,6 @@
 
 use serde::{Deserialize, Serialize};
 
-
 /// All birth parameters compiled into one canonical, signable document.
 /// Immutable once created — represents the agent's permanent identity.
 #[derive(Debug, Clone, Serialize, Deserialize)]

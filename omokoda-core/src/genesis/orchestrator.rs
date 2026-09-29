@@ -285,8 +285,7 @@ impl BiponProvider for DefaultBiponProvider {
 
         // Mnemonic from entropy
         let mnemonic = Bipon39::entropy_to_mnemonic(&request.entropy);
-        let indices =
-            Bipon39::mnemonic_to_indices(&mnemonic).map_err(GenesisError::Bipon)?;
+        let indices = Bipon39::mnemonic_to_indices(&mnemonic).map_err(GenesisError::Bipon)?;
 
         // Derive master seed
         let born_at_ms = std::time::SystemTime::now()
