@@ -20,6 +20,26 @@ jobs:
         uses: actions/checkout@v4
         with:
           path: Omo-Koda2
+      # omokoda-core has path deps to sibling repos: ../../GIX, ../../ARP, ../../DIP.
+      # These must be checked out at the same level as Omo-Koda2 for cargo to resolve them.
+      - name: Checkout GIX
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/GIX
+          path: GIX
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout ARP
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/ARP
+          path: ARP
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout DIP
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/DIP
+          path: DIP
+          token: ${{ secrets.GITHUB_TOKEN }}
       - name: Install system dependencies
         run: sudo apt-get install -y protobuf-compiler
       - name: Install Rust
