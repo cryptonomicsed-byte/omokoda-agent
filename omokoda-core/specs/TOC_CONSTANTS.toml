@@ -1,0 +1,181 @@
+# TOC_CONSTANTS.toml — Single Source of Truth for all Àṣẹ/Dopamine/Synapse constants
+# ALL languages (Rust / Julia / Python / JavaScript) read from or are tested against this file.
+# Last locked: 2026-09-15
+# Rule: CI fails if any language's hardcoded constants drift from these values.
+
+[ase]
+emission_per_minute   = 1           # 1 ASE per minute (global clock)
+emission_window_hours = 24          # the cap window == one daily clock cycle
+# max_daily_emission is DERIVED, not declared: emission_per_minute × 60 ×
+# emission_window_hours. It is deliberately NOT a literal in this file so that
+# 1440 appears in TOC_CONSTANTS exactly once -- the Inheritance seat count (I-11).
+birth_fee             = 10.0        # 10 ASE locked at birth → AGENT_BORN tx
+micro_per_ase         = 1_000_000   # 1 ASE = 1,000,000 mist (micro-units)
+
+[ase.pools]
+# 8-pool distribution — percentages must sum to 1.0
+veilsim               = 0.20        # VeilSim / proof-of-simulation rewards
+rnd                   = 0.15        # R&D fund
+governance            = 0.15        # Council + 24-sector governance
+reserve               = 0.15        # Protocol reserve
+compute               = 0.15        # Compute (Dopamine) pool
+storage               = 0.10        # Storage pool (Walrus/Arweave adapters)
+witness               = 0.05        # Witness + evidence pool
+treasury              = 0.05        # Bínò treasury
+
+[dopamine]
+# Elastic pool — grows with verified GPU compute contributed to the hive.
+# Decision 2026-09-15: Dopamine is ONE shared ecosystem pool (not per-agent fixed).
+# 86B is the genesis seed; pool expands via @gpuContribution verified work.
+genesis_seed          = 86_000_000_000  # starting pool (elastic — grows with compute)
+transferable          = false           # NOT a tradeable token
+agent_burn_rate       = 10_000          # 1 ASE → 10,000 Dopamine (burn rate)
+opcode_mint           = "0x54"          # @tocMint opcode
+opcode_decay          = "0x55"          # @tocDecay opcode
+opcode_contribution   = "0x3f"          # @gpuContribution opcode
+# Dynamic decay formula (computed each 7-day Koodu epoch, published on Sabbath):
+#   U_smooth = EMA(time-weighted GPU utilization, alpha=decay_ema_alpha)
+#   decay = decay_min + (decay_max - decay_min) × U_smooth
+#   clamped: |delta| ≤ decay_clamp_per_epoch
+decay_min             = 0.001           # 0.1%/day at U=0 (idle network, 693-day half-life)
+decay_max             = 0.020           # 2.0%/day at U=1 (saturated, 35-day half-life)
+decay_ema_alpha       = 0.25            # smoothing — ~4 epochs (28 days) to converge
+decay_clamp_per_epoch = 0.002           # max shift per 7-day cycle (prevents oscillation)
+# Three-Tier Economic Constitution additions (2026-09-26):
+synapse_to_dopamine_factor = 0.85       # Synapse → Guild Dopamine conversion (< 1.0 = collective efficiency tax)
+# dop_per_gpu_hour intentionally equals synapse.per_gpu_hour = 1000.0.
+# SYN and DOP share the same GPU-hour denomination by design (see §3.3 of
+# THREE_TIER_ECONOMIC_CONSTITUTION): pool_G += s_a × f × CONTRIBUTION_FACTOR
+# is unit-preserving — the 0.85 haircut is a dimensionless efficiency tax, not
+# a unit conversion. Enforced in toc_drift_check.py as an equality assertion.
+dop_per_gpu_hour      = 1000.0          # DOPAMINE units per GPU-hour — must equal synapse.per_gpu_hour
+# dop_per_gpu_second is DELETED — derived value (= dop_per_gpu_hour / 3600).
+# Compute in code: gpu_hours = gpu_seconds / 3600.0 (see oso_vm.jl:2457)
+idle_decay_rate       = 0.01            # 1%/day idle decay on Guild Dopamine pool
+
+[synapse]
+# Per-agent compute slice — SHARE of Dopamine pool, not absolute.
+# Decision 2026-09-15: percentage-of-pool removes the 1,000-agent hard cap.
+# max_pool_share: one agent may hold at most 0.5% of total Dopamine pool.
+max_pool_share        = 0.005           # 0.5% of Dopamine pool max per agent
+# transferable = "agent_only": Synapse may be transferred between registered agents
+# only. Human principals may NOT hold or receive Synapse directly (I-4).
+# The token program must call is_agent(recipient) and deny non-agent recipients.
+transferable          = "agent_only"
+conversion_ratio      = 0.1             # 10 Dopamine → 1 Synapse (10:1 burn)
+per_gpu_hour          = 1000.0          # Synapse minted per verified GPU-hour
+# Decay mirrors Dopamine — same dynamic formula, same epoch schedule
+# Three-Tier Economic Constitution additions (2026-09-26):
+base_cost_ase         = 1.0             # 1 ASE = 1000 SYN (base cost before scarcity curve)
+saturation_count      = 100.0           # nonlinear scarcity knee: 100 agents → cost doubles
+credit_to_alloc_ratio = 1.0             # default SynapseCredit → SynapseAllocation conversion
+allocation_expiry_secs = 28800.0        # 8 hours: unused allocation expires (no refund)
+# Note: synapse birth endowment is derived in code: genesis_seed × conversion_ratio = 86B × 0.1 = 8.6B
+# Not a separate constant — avoids two names for one implied value.
+
+[esu]
+# Èṣù tithe — 3.69% on value-job settlements
+tithe_rate            = 0.0369
+opcode               = "0x27"           # @tithe
+
+[gates]
+# Hermetic gate system thresholds
+stake_fraction        = 0.10            # 10% of current Synapse must be staked to pass gate
+gate_count            = 7               # 7 gates (one per HermeticPrinciple)
+balance_weight        = 0.25            # multiplier contribution from balance
+gate_alignment_weight = 0.15            # multiplier contribution from gate alignment
+base_multiplier       = 0.80            # floor multiplier (fully imbalanced agent)
+max_multiplier        = 1.20            # ceiling (perfectly balanced agent)
+
+[ritual]
+# KooduRitualGate multipliers (BTC-anchored sacred time)
+sabbath_multiplier    = 1.10            # every 7 days
+eshu_squared_multi    = 1.369           # 7² = 49th day (crossroads gate)
+jubilee_minor_multi   = 2.00            # 49th day, 7×7 completion
+capstone_multi        = 1.50            # completion gate
+void_multi            = 0.00            # rest/no-op gate
+
+[genesis]
+# Èṣù's Twist — Block 0 special minting
+genesis_flaw_token_opcode = "0x2b"      # @genesisFlawToken
+koodu_genesis_block   = 780_000         # BTC block height anchoring OSO epoch
+koodu_blocks_per_day  = 144             # Bitcoin blocks per day
+
+[inheritance]
+# 1440 Inheritance Wallet governance -- the single canonical meaning of 1440
+inheritance_seat_count = 1440
+council_seats         = 12
+sector_count          = 24
+offering_share        = 0.25            # 25% of protocol revenue → 1440 vaults
+yield_rate            = 0.1111          # 11.11% annual yield (Sabbath-aware)
+
+[job_payment]
+creator_share         = 0.10            # 10% to job creator (Sabbath-vested 7 days)
+burn_share            = 0.05            # 5% permanently burned (protocol)
+agent_ase_treasury    = 0.30            # 30% retained as spendable Àṣẹ (drone upgrades, Walrus, relays)
+agent_dopamine        = 0.55            # 55% burned → Dopamine signal (compute capacity)
+# Note: agent_ase_treasury + agent_dopamine = 0.85 (the agent's 85% share)
+# constants.jl derives agent_share by summing the two fields — no separate key needed.
+# Decision 2026-09-15: agents need spendable currency for external costs.
+# Prior: 85% all burned to Dopamine; agents had no way to pay external vendors.
+
+[compute_proof]
+opcode               = "0x56"           # @computeProof
+scoring_threshold     = 0.777           # F1 quality gate (≥0.777 passes)
+
+[veilsim]
+# VeilSim scoring — separate gate from compute_proof (veil execution vs. GPU work)
+scoring_threshold     = 0.9             # F1 quality gate for veil simulation records
+
+[bonus_ladder]
+# Governance-configurable emission multipliers per WorkDomain.
+# Applied to compute_score = claimed_quantity × multiplier.
+# Reason: pay MORE for harder-to-fake, harder-to-compute work.
+# Anti-gaming: "sim_to_real" requires real measurement — cannot be faked cheaply.
+#
+# Scale:  VALID (sim ran) = 1.0x   VALIDATED (prediction matched reality) = 5.0-10.0x
+# These values are DEFAULTS. Governance may adjust via proposal; changes
+# take effect at the next 7-day Koodu epoch boundary.
+
+gpu_compute           = 1.0    # baseline — verified GPU-seconds
+simulation            = 1.0    # deterministic sim only (no external check)
+print_job             = 2.0    # verified physical print (caliper check)
+sci_sim               = 2.0    # scientific simulation (FEA, CFD, molecular)
+spatial_capture       = 2.0    # Gaussian splat / point cloud capture
+aerial_flight         = 3.0    # verified drone flight with telemetry
+ground_robot          = 3.0    # verified ground robot / quadruped operation
+sim_to_real           = 5.0    # simulation whose PREDICTION matched reality
+# sim_to_real ceiling — governance may raise to 10.0x for high-stakes proofs
+sim_to_real_max       = 10.0   # maximum allowed after governance vote
+
+[guild]
+# Three-Tier Economic Constitution (2026-09-26):
+treasury_fraction     = 0.05            # 5% of agent_total_share → guild treasury per job
+job_timeout_secs      = 3600.0          # max job duration before Dopamine soft-lock released
+max_contribution_fraction = 1.0         # agent may contribute up to 100% of allocation
+
+[birthright]
+# Three-Tier Economic Constitution (2026-09-26):
+qualifying_fraction   = 0.10            # 10% of qualifying human-originated revenue
+max_chain_depth       = 0               # 0 = flat birthright (no recursive agent-born-agent chain)
+
+[settlement]
+# Three-Tier Economic Constitution (2026-09-26):
+quote_expiry_secs     = 300.0           # COMPUTE_QUOTE expires after 5 minutes
+# min_work_evidence_score REMOVED — was a duplicate of [compute_proof] scoring_threshold
+# at the same value (0.777). Two names for one meaning is the defect this gate was
+# built to prevent. Code must reference [compute_proof] scoring_threshold directly.
+# Declared agent population policy (I-10): the per-agent epoch cap must be
+# small enough that this many agents can each earn their fair share.
+# epoch_synapse_per_agent = dopamine.genesis_seed / dop_per_syn / expected_agent_count
+# = 86B / 10 / 1_000_000 = 8_600 Synapse ≈ 8.6 GPU-hours per epoch per agent.
+expected_agent_count  = 1_000_000       # declared policy: 1M agents must each be serviceable
+
+# Anti-gaming guards (enforced at EndBlock / TOC_MINT gate):
+# 1. Per-agent per-epoch cap (Dopamine units): prevents bulk farming
+per_agent_epoch_cap   = 50_000_000   # max Dopamine mintable per agent per 7-day epoch
+# 2. Diversity requirement: same model_hash / sim_hash cannot earn > 3 times per epoch
+repeat_limit          = 3
+# 3. Tier gate: higher multipliers require higher TrustTier
+sim_to_real_min_tier  = 2     # T2+ required to earn 5x
+aerial_min_tier       = 3     # T3+ required for aerial 3x

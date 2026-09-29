@@ -73,7 +73,9 @@ pub struct DopamineConstants {
 #[derive(Debug, Clone, Deserialize, PartialEq)]
 pub struct SynapseConstants {
     pub max_pool_share: f64,
-    pub transferable: bool,
+    /// "agent_only" | "false" | bool-like string — not a raw boolean because
+    /// the canonical TOML value is "agent_only" (a policy string, not true/false).
+    pub transferable: String,
     pub conversion_ratio: f64,
     pub per_gpu_hour: f64,
 }
@@ -134,7 +136,15 @@ impl TocConstants {
         if let Ok(p) = std::env::var("TOC_CONSTANTS_PATH") {
             return Ok(p);
         }
-        // Derive from HOME
+        // Bundled copy inside the crate (used in CI where sovereign-eco-blueprint
+        // is not checked out alongside Omo-Koda2).
+        if let Ok(manifest) = std::env::var("CARGO_MANIFEST_DIR") {
+            let bundled = format!("{manifest}/specs/TOC_CONSTANTS.toml");
+            if std::path::Path::new(&bundled).exists() {
+                return Ok(bundled);
+            }
+        }
+        // Derive from HOME (developer workstation default)
         let home = std::env::var("HOME").unwrap_or_else(|_| "/root".to_string());
         Ok(format!(
             "{home}/sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml"
