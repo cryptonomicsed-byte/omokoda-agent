@@ -212,16 +212,17 @@ impl ActionInterpreter {
                     };
                 }
             }
-            ExecutionMode::FlowGuard => {
-                if is_write_op && is_high_frequency(proposed_tool) {
-                    return InterpretDecision::Refused {
-                        odu_index,
-                        execution_mode: ExecutionMode::FlowGuard,
-                        required_mode: "Executor".to_string(),
-                        reason: "FlowGuard mode applies rate constraints to high-frequency write operations".to_string(),
-                    };
-                }
+            ExecutionMode::FlowGuard if is_write_op && is_high_frequency(proposed_tool) => {
+                return InterpretDecision::Refused {
+                    odu_index,
+                    execution_mode: ExecutionMode::FlowGuard,
+                    required_mode: "Executor".to_string(),
+                    reason:
+                        "FlowGuard mode applies rate constraints to high-frequency write operations"
+                            .to_string(),
+                };
             }
+            ExecutionMode::FlowGuard => {}
             _ => {}
         }
 

@@ -306,7 +306,6 @@ fn resolve_mail_creds() -> Result<(String, String, String), String> {
 ///
 /// The full Stalwart JMAP API implementation is Phase 9.3 scope.
 /// These stubs compile cleanly and are replaceable without API changes.
-
 async fn send_email_jmap(
     jmap_url: &str,
     from_email: &str,

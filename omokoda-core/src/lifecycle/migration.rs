@@ -89,7 +89,7 @@ impl AgentCapsule {
         let dest_x25519 = ed25519_vk_to_x25519_pk(dest_verifying_key);
 
         // 2. Ephemeral X25519 key + shared secret.
-        let eph_secret = EphemeralSecret::random_from_rng(&mut rand::thread_rng());
+        let eph_secret = EphemeralSecret::random_from_rng(rand::thread_rng());
         let eph_pub = X25519Public::from(&eph_secret);
         let shared_secret = eph_secret.diffie_hellman(&dest_x25519);
 

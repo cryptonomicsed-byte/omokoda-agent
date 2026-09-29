@@ -6478,7 +6478,9 @@ impl Steward {
         #[allow(unused_assignments)]
         let mut attest_receipt_id = String::new();
         let mut attest_merkle_root = String::new();
+        #[allow(unused_assignments)]
         let mut attest_gate_align = 0.0_f64;
+        #[allow(unused_assignments)]
         let mut attest_agent_str = String::new();
         let act_receipt_gix_id: Option<String> = {
             use crate::receipt::act_receipt::ActReceipt;
