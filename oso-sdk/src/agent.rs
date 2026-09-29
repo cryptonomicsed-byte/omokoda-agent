@@ -1,7 +1,7 @@
 //! Agent client — SDK for agent-to-agent interactions.
 
+use crate::error::SdkError;
 use serde::{Deserialize, Serialize};
-use crate::error::{SdkError, SdkResult};
 
 /// Agent capability advertisement.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -36,26 +36,30 @@ impl AgentClient {
 
     /// Find an online peer with a given skill.
     pub fn find_by_skill(&self, skill: &str) -> Vec<&AgentCard> {
-        self.known_agents.values()
+        self.known_agents
+            .values()
             .filter(|c| c.is_online && c.skills.iter().any(|s| s == skill))
             .collect()
     }
 
     /// Check if an agent is known and online.
     pub fn is_peer_online(&self, agent_id: &str) -> bool {
-        self.known_agents.get(agent_id).map_or(false, |c| c.is_online)
+        self.known_agents.get(agent_id).is_some_and(|c| c.is_online)
     }
 }
 
 /// The full SDK handle combining job, contract, and agent clients.
 pub struct AgentSdk {
-    pub agent_id:     String,
+    pub agent_id: String,
     pub principal_id: String,
 }
 
 impl AgentSdk {
     pub fn new(agent_id: impl Into<String>, principal_id: impl Into<String>) -> Self {
-        Self { agent_id: agent_id.into(), principal_id: principal_id.into() }
+        Self {
+            agent_id: agent_id.into(),
+            principal_id: principal_id.into(),
+        }
     }
 }
 
