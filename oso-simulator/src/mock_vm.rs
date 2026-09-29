@@ -168,6 +168,7 @@ impl MockOsovmState {
 
     // ── Job operations ────────────────────────────────────────────────────────
 
+    #[allow(dead_code)]
     pub fn create_job(&mut self, job_id: &str, owner: &str) {
         self.jobs.insert(job_id.to_string(), JobEntry {
             job_id: job_id.to_string(),

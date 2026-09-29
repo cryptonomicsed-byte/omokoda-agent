@@ -178,9 +178,10 @@ defmodule OmokodaSwarm.Wave9Test do
       id = "test-teammate-#{System.unique_integer([:positive])}"
       {:ok, _pid} = OmokodaSwarm.Teammate.start_link(id: id, model: :haiku)
       on_exit(fn ->
-        case GenServer.whereis(OmokodaSwarm.Teammate.via(id)) do
-          nil -> :ok
-          _pid -> OmokodaSwarm.Teammate.stop(id)
+        try do
+          OmokodaSwarm.Teammate.stop(id)
+        catch
+          :exit, _ -> :ok
         end
       end)
       %{id: id}
