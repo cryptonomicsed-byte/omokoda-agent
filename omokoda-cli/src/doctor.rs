@@ -169,9 +169,8 @@ pub fn run() {
         check_service(&mut r, cfg.zangbeto.enabled, &cfg.zangbeto.url, "zangbeto");
     } else {
         println!(
-            "  {}  {}",
+            "  {}  Services check skipped (config not loaded)",
             "⚠ WARN".yellow().bold(),
-            "Services check skipped (config not loaded)"
         );
         r.warned += 1;
     }
