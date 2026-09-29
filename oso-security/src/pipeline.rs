@@ -32,6 +32,7 @@ pub struct PipelineResult {
 }
 
 impl PipelineResult {
+    #[allow(dead_code)]
     fn failed_at(step: &str, error: &str) -> Self {
         PipelineResult {
             passed: false,
