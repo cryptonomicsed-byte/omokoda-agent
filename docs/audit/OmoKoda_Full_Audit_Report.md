@@ -1016,11 +1016,11 @@ graph LR
 | ID | Item | Class | Effort | Evidence |
 |---|---|---|---|---|
 | W-01 | Fix OSOVM ARM64 (native Rust opcodes, drop Julia dependency) | **BLOCKING** | 1–2 wk | `organism-core/README.md`; Julia cranelift crash on ARM64 |
-| W-02 | Wire `GoalGenesisEngine` into `think_agentic()` | **FOUNDATIONAL** | 1–2 d | `goal_genesis.rs:437L`; zero calls in `interpreter.rs` |
-| W-03 | Replace `zangbeto-stub` with real `~/Zangbeto/` enforcement client | **FOUNDATIONAL** | 1–3 d | `zangbeto-stub/src/lib.rs:24`: always passes |
+| W-02 | ~~Wire `GoalGenesisEngine` into `think_agentic()`~~ | ~~FOUNDATIONAL~~ | **DONE** | Wired prior session: `interpreter.rs:4919–4950` derives 5-stream goal set, injects top 3 into prompt |
+| W-03 | Replace `zangbeto-stub` with real `~/Zangbeto/` enforcement client | **FOUNDATIONAL** | 1–3 d | `omokoda-core/Cargo.toml:51` still points to `zangbeto-stub` |
 | W-04 | Wire `AgentConstitution` auto-sign + persist at birth | **FOUNDATIONAL** | 1 d | `constitution.rs` exported; no birth-path call |
-| W-05 | Add Ed25519 signatures to heartbeat chain | **HARDENING** | 0.5 d | `heartbeat.rs`: `signature: Option<String>` marked `// future` |
-| W-06 | Parameterize `chain_id` (remove `"testnet"` hardcode) | **HARDENING** | 1 hr | `interpreter.rs:1093` |
+| W-05 | ~~Add Ed25519 signatures to heartbeat chain~~ | ~~HARDENING~~ | **DONE** | `runtime.rs:advance_chain` now calls `sign_with_key` when `OMOKODA_HEARTBEAT_KEY` is set (2026-09-30) |
+| W-06 | ~~Parameterize `chain_id` (remove `"testnet"` hardcode)~~ | ~~HARDENING~~ | **DONE** | `interpreter.rs:1199` already reads `CHAIN_ID` env var, defaults to `"mainnet"` |
 | W-07 | Wire `ReflectionLedger::record()` after each Act | **INTEGRATION** | 1 d | `memory/reflection.rs`: compiled, never called |
 | W-08 | Wire `SOMA::update()` with gate_alignment delta after Act | **INTEGRATION** | 2 d | `memory/soma.rs`: compiled, never called |
 | W-09 | Wire `CausalMemoryDag::append()` after Act | **INTEGRATION** | 2 d | `memory/dag.rs` CausalMemoryDag: never populated |
@@ -1034,12 +1034,12 @@ graph LR
 | W-17 | RitualPhase + TwelfthFace state machine (H6) | **FUTURE** | 1 wk | Depends on H5 |
 | W-18 | CollectiveIntent → GoalGenesis wire at hive level (H7) | **FUTURE** | 1 wk | Depends on H6 + W-02 |
 | W-19 | Sandbox syscall restriction hardening | **HARDENING** | 1–2 wk | `sandbox.rs`: PARTIAL classification |
-| W-20 | Remove Tier-6 dead branch in `ifscript_gate.rs` | **CLEANUP** | 0.5 d | M-4 finding: max tier = 5, Tier 6+ unreachable |
+| W-20 | ~~Remove Tier-6 dead branch in `ifscript_gate.rs`~~ | ~~CLEANUP~~ | **DONE** | Stale doc comment corrected (2026-09-30): "permanently denied, max tier T5" |
 | W-21 | Review `unsafe {}` in `twin_binding_tool.rs` lines 141, 148 | **HARDENING** | 1 d | H-2 finding |
 | W-22 | Wire sensor reading → `HabitatAddress` feedback loop | **INTEGRATION** | 2 d | `kernel/sensors.rs`: PARTIAL classification |
 | W-23 | 11 Lobe Agent instantiations with constitutional birth params | **FUTURE** | 3 d | Depends on H1 |
 | W-24 | ScarabSwarm simulation gate (H8) | **FUTURE** | 2 wk | Depends on H7 |
-| W-25 | Update README test count (759 → 1,052) | **CLEANUP** | 10 min | L-1 finding |
+| W-25 | ~~Update README test count (759 → 1,052)~~ | ~~CLEANUP~~ | **DONE** | README already shows 1,052 (942 lib + 110 integration) |
 
 **Critical path to single sovereign agent:** W-01 → W-02 → W-03 → W-04 → W-05 → W-06 (in that order; none block each other except W-18 depending on W-02)
 
