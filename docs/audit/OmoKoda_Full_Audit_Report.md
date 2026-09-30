@@ -1021,9 +1021,9 @@ graph LR
 | W-04 | Wire `AgentConstitution` auto-sign + persist at birth | **FOUNDATIONAL** | 1 d | `constitution.rs` exported; no birth-path call |
 | W-05 | ~~Add Ed25519 signatures to heartbeat chain~~ | ~~HARDENING~~ | **DONE** | `runtime.rs:advance_chain` now calls `sign_with_key` when `OMOKODA_HEARTBEAT_KEY` is set (2026-09-30) |
 | W-06 | ~~Parameterize `chain_id` (remove `"testnet"` hardcode)~~ | ~~HARDENING~~ | **DONE** | `interpreter.rs:1199` already reads `CHAIN_ID` env var, defaults to `"mainnet"` |
-| W-07 | Wire `ReflectionLedger::record()` after each Act | **INTEGRATION** | 1 d | `memory/reflection.rs`: compiled, never called |
-| W-08 | Wire `SOMA::update()` with gate_alignment delta after Act | **INTEGRATION** | 2 d | `memory/soma.rs`: compiled, never called |
-| W-09 | Wire `CausalMemoryDag::append()` after Act | **INTEGRATION** | 2 d | `memory/dag.rs` CausalMemoryDag: never populated |
+| W-07 | ~~Wire `ReflectionLedger::record()` after each Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30: `interpreter.rs:execute_tool_call_for_agentic` records "act" entries with EmotionState; private gate applied |
+| W-08 | Wire `SOMA::update()` with gate_alignment delta after Act | **INTEGRATION** | 2 d | `AgentSoma` not in `AgentSnapshot`; requires new field + wiring through `LoopState.soma` |
+| W-09 | ~~Wire `CausalMemoryDag::append()` after Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30 alongside W-07: MemNode inserted with causal chain from last_causal_node; private gate applied |
 | W-10 | Set `WALRUS_PUBLISHER_URL`, `OMOKODA_TEE_SEAL` as required in deployment guide | **HARDENING** | 0.5 d | M-5 finding: all three env-gated, not default |
 | W-11 | Fix `grep_tool_basic` test (hardcoded `notes/` path) | **CLEANUP** | 2 hr | `tests/tool_registry_tests.rs:101` |
 | W-12 | Delete 4 OBSOLETE systemd units (`ares-*.service`) | **CLEANUP** | 0.5 d | `systemd/` — target services archived |
