@@ -6611,20 +6611,40 @@ impl Steward {
             }));
         }
 
-        // W-07: record this act turn in the ReflectionLedger with emotional state.
-        // The ledger makes the agent's action history introspectable alongside emotional context,
-        // distinct from the GIX structural chain recorded by record_action_memory() above.
-        {
-            let now_ms = current_unix_timestamp() * 1000;
+        // W-07 + W-09: record this act turn in the ReflectionLedger and CausalMemoryDag.
+        // Skipped for private tool calls (same gate as the Think path: private thoughts
+        // must not persist as plaintext; causal_dag and reflection persist to disk).
+        if !_private {
+            let now_secs = current_unix_timestamp();
+            let now_ms = now_secs * 1000;
             let emotion = crate::emotion::EmotionState::birth();
             if let Ok(agent_mut) = self.ensure_born_mut() {
                 let content = format!("{}: {}", tool_name, &output[..output.len().min(256)]);
+                // W-07: ReflectionLedger — introspective journal with emotional context.
                 agent_mut.snapshot.reflection.record_with_emotion(
                     "act",
                     &content,
                     now_ms,
                     &emotion,
                 );
+                // W-09: CausalMemoryDag — cryptographically chained action lineage
+                // (parallel to the GIX-store chain; persists with the snapshot).
+                let node_id = format!("act-{}-{}", tool_name, now_secs);
+                let node = crate::memory::dag::MemNode::new(
+                    node_id.clone(),
+                    content,
+                    now_secs,
+                )
+                .with_parents(
+                    agent_mut
+                        .snapshot
+                        .last_causal_node
+                        .clone()
+                        .into_iter()
+                        .collect(),
+                );
+                agent_mut.snapshot.causal_dag.insert(node);
+                agent_mut.snapshot.last_causal_node = Some(node_id);
             }
         }
 
