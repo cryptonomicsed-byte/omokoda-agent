@@ -16,7 +16,7 @@
 //! Enforcement is graduated, not binary:
 //!   - `Primary` actions: fully native to this vessel — no extra gate
 //!   - `Permitted` actions: allowed but logged as cross-vessel activity
-//!   - `Blocked` actions: denied unless the agent has Tier 6+ override
+//!   - `Blocked` actions: permanently denied (max tier is T5; no tier override exists)
 //!
 //! The `vessel_action_alignment` function produces a `VesselAlignment` that
 //! callers may choose to enforce strictly (block) or softly (warn + log).

@@ -90,23 +90,30 @@ pub struct AgentRuntime {
     pub chain_head: Option<AgentHeartbeat>,
     /// Registry of active daemons.
     pub daemons: DaemonRegistry,
+    /// Base64url-encoded Ed25519 private key for signing heartbeats.
+    /// Set from `OMOKODA_HEARTBEAT_KEY` env var. `None` = chain is hash-only (unsigned).
+    signing_key: Option<String>,
 }
 
 impl AgentRuntime {
     /// Create a fresh runtime for `agent_id`.  The heartbeat chain starts at genesis.
+    /// Reads `OMOKODA_HEARTBEAT_KEY` from the environment to enable Ed25519 beat signatures.
     pub fn new(agent_id: impl Into<String>, tier: impl Into<String>) -> Arc<Mutex<Self>> {
         let agent_id = agent_id.into();
         let tier = tier.into();
         let genesis = AgentHeartbeat::genesis(&agent_id, &tier);
+        let signing_key = std::env::var("OMOKODA_HEARTBEAT_KEY").ok().filter(|k| !k.is_empty());
         Arc::new(Mutex::new(Self {
             agent_id,
             tier,
             chain_head: Some(genesis),
             daemons: DaemonRegistry::default(),
+            signing_key,
         }))
     }
 
-    /// Advance the chain: build the next beat and store it as the new head.
+    /// Advance the chain: build the next beat, sign it if a key is configured,
+    /// and store it as the new head.
     /// Returns the new beat (caller may publish it to Vantage / Zàngbétò).
     pub fn advance_chain(
         &mut self,
@@ -114,10 +121,13 @@ impl AgentRuntime {
         current_work: Option<String>,
     ) -> AgentHeartbeat {
         let active = self.daemons.active_names();
-        let next = match &self.chain_head {
+        let mut next = match &self.chain_head {
             Some(prev) => AgentHeartbeat::next_from(prev, state, active, current_work),
             None => AgentHeartbeat::genesis(&self.agent_id, &self.tier),
         };
+        if let Some(key) = &self.signing_key {
+            next.sign_with_key(key);
+        }
         self.chain_head = Some(next.clone());
         next
     }
