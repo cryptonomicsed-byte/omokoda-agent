@@ -19,7 +19,12 @@ impl DeviceContract {
             "list_devices" => Self::list_devices(&args)?,
             _ => return Err(SdkError::MethodNotFound(method.into())),
         };
-        let arp = super::arp_payload(contract, method, args["caller"].as_str().unwrap_or(""), &output);
+        let arp = super::arp_payload(
+            contract,
+            method,
+            args["caller"].as_str().unwrap_or(""),
+            &output,
+        );
         Ok(CallResult {
             contract_id: contract.id.clone(),
             method: method.into(),
@@ -29,7 +34,9 @@ impl DeviceContract {
     }
 
     fn register_device(args: &Value) -> SdkResult<Value> {
-        let device_id = args["device_id"].as_str().ok_or(SdkError::InvalidArgs("device_id required".into()))?;
+        let device_id = args["device_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("device_id required".into()))?;
         let owner = args["owner"].as_str().unwrap_or("");
         let device_type = args["device_type"].as_str().unwrap_or("generic");
         Ok(json!({
@@ -42,7 +49,9 @@ impl DeviceContract {
     }
 
     fn update_manifest(args: &Value) -> SdkResult<Value> {
-        let device_id = args["device_id"].as_str().ok_or(SdkError::InvalidArgs("device_id required".into()))?;
+        let device_id = args["device_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("device_id required".into()))?;
         let firmware = args["firmware_version"].as_str().unwrap_or("unknown");
         let capabilities = args["capabilities"].as_array().cloned().unwrap_or_default();
         Ok(json!({
@@ -55,12 +64,16 @@ impl DeviceContract {
     }
 
     fn deregister(args: &Value) -> SdkResult<Value> {
-        let device_id = args["device_id"].as_str().ok_or(SdkError::InvalidArgs("device_id required".into()))?;
+        let device_id = args["device_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("device_id required".into()))?;
         Ok(json!({ "device_id": device_id, "status": "deregistered" }))
     }
 
     fn set_sensor_policy(args: &Value) -> SdkResult<Value> {
-        let device_id = args["device_id"].as_str().ok_or(SdkError::InvalidArgs("device_id required".into()))?;
+        let device_id = args["device_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("device_id required".into()))?;
         let policy = &args["policy"];
         Ok(json!({
             "device_id": device_id,
@@ -76,7 +89,9 @@ impl DeviceContract {
     }
 
     fn heartbeat(args: &Value) -> SdkResult<Value> {
-        let device_id = args["device_id"].as_str().ok_or(SdkError::InvalidArgs("device_id required".into()))?;
+        let device_id = args["device_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("device_id required".into()))?;
         let ts = args["ts"].as_u64().unwrap_or(0);
         Ok(json!({ "device_id": device_id, "ts": ts, "status": "alive" }))
     }
@@ -98,7 +113,12 @@ mod tests {
     use crate::contract::ContractClass;
 
     fn contract() -> NativeContract {
-        NativeContract { id: "dev-reg-1".into(), class: ContractClass::Device, owner: "a".into(), metadata: json!({}) }
+        NativeContract {
+            id: "dev-reg-1".into(),
+            class: ContractClass::Device,
+            owner: "a".into(),
+            metadata: json!({}),
+        }
     }
 
     #[test]

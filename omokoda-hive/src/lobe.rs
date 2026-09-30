@@ -9,23 +9,25 @@ use serde::{Deserialize, Serialize};
 /// The 11 Ọrìṣà lobe identities (Twelfth Face is an invariant, not a lobe).
 #[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum OrisaLobe {
-    Obatala,   // Purity, wisdom, long-range planning
-    Ogun,      // Execution, force, tool use
-    Shango,    // Justice, enforcement, receipts
-    Yemoja,    // Memory, continuity, GlyphIndex
-    Oshun,     // Creativity, content, narrative
-    Eshu,      // Communication, routing, DIP
-    Orunmila,  // Prophecy, goal genesis, simulation
-    Oduduwa,   // Governance, council, proposals
-    Oya,       // Transformation, mutation, adaptation
-    Osoosi,    // Exploration, search, pattern mining
-    Sango,     // [Alias seat for dynamic allocation]
+    Obatala,  // Purity, wisdom, long-range planning
+    Ogun,     // Execution, force, tool use
+    Shango,   // Justice, enforcement, receipts
+    Yemoja,   // Memory, continuity, GlyphIndex
+    Oshun,    // Creativity, content, narrative
+    Eshu,     // Communication, routing, DIP
+    Orunmila, // Prophecy, goal genesis, simulation
+    Oduduwa,  // Governance, council, proposals
+    Oya,      // Transformation, mutation, adaptation
+    Osoosi,   // Exploration, search, pattern mining
+    Sango,    // [Alias seat for dynamic allocation]
 }
 
 impl OrisaLobe {
     pub fn all() -> &'static [OrisaLobe] {
         use OrisaLobe::*;
-        &[Obatala, Ogun, Shango, Yemoja, Oshun, Eshu, Orunmila, Oduduwa, Oya, Osoosi, Sango]
+        &[
+            Obatala, Ogun, Shango, Yemoja, Oshun, Eshu, Orunmila, Oduduwa, Oya, Osoosi, Sango,
+        ]
     }
 
     pub fn name(&self) -> &'static str {
@@ -94,8 +96,10 @@ impl LobeAgent {
     }
 
     pub fn is_healthy(&self, current_tick: u64) -> bool {
-        matches!(self.status, LobeStatus::Active | LobeStatus::Executing { .. })
-            && current_tick.saturating_sub(self.last_heartbeat_tick) < 10
+        matches!(
+            self.status,
+            LobeStatus::Active | LobeStatus::Executing { .. }
+        ) && current_tick.saturating_sub(self.last_heartbeat_tick) < 10
     }
 }
 
@@ -108,11 +112,15 @@ impl TwelfthFace {
     pub fn violates(action: &HiveAction) -> bool {
         match action {
             // No agent may be archived without its consent receipt
-            HiveAction::ArchiveAgent { consent_receipt, .. } => consent_receipt.is_none(),
+            HiveAction::ArchiveAgent {
+                consent_receipt, ..
+            } => consent_receipt.is_none(),
             // No lobe may be granted write access to another lobe's memory
             HiveAction::GrantCrossLobeWrite { .. } => true,
             // Resource requisition must not exceed tier cap
-            HiveAction::RequisitionResource { amount, tier_cap, .. } => amount > tier_cap,
+            HiveAction::RequisitionResource {
+                amount, tier_cap, ..
+            } => amount > tier_cap,
             _ => false,
         }
     }
@@ -121,13 +129,31 @@ impl TwelfthFace {
 /// Actions the hive coordinator may propose to lobe-agents.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum HiveAction {
-    SpawnLobe { lobe: OrisaLobe, config: serde_json::Value },
-    ArchiveAgent { agent_id: String, consent_receipt: Option<String> },
-    BroadcastGoal { goal_id: String, goal_vector: serde_json::Value },
-    GrantCrossLobeWrite { from: OrisaLobe, to: OrisaLobe },
-    RequisitionResource { resource: String, amount: f64, tier_cap: f64 },
+    SpawnLobe {
+        lobe: OrisaLobe,
+        config: serde_json::Value,
+    },
+    ArchiveAgent {
+        agent_id: String,
+        consent_receipt: Option<String>,
+    },
+    BroadcastGoal {
+        goal_id: String,
+        goal_vector: serde_json::Value,
+    },
+    GrantCrossLobeWrite {
+        from: OrisaLobe,
+        to: OrisaLobe,
+    },
+    RequisitionResource {
+        resource: String,
+        amount: f64,
+        tier_cap: f64,
+    },
     TriggerConsolidation,
-    EnterRest { duration_ticks: u64 },
+    EnterRest {
+        duration_ticks: u64,
+    },
 }
 
 #[cfg(test)]

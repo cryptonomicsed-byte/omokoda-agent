@@ -18,7 +18,12 @@ impl EvidenceContract {
             "resolve_challenge" => Self::resolve_challenge(&args)?,
             _ => return Err(SdkError::MethodNotFound(method.into())),
         };
-        let arp = super::arp_payload(contract, method, args["caller"].as_str().unwrap_or(""), &output);
+        let arp = super::arp_payload(
+            contract,
+            method,
+            args["caller"].as_str().unwrap_or(""),
+            &output,
+        );
         Ok(CallResult {
             contract_id: contract.id.clone(),
             method: method.into(),
@@ -28,7 +33,9 @@ impl EvidenceContract {
     }
 
     fn submit_proof(args: &Value) -> SdkResult<Value> {
-        let proof_hash = args["proof_hash"].as_str().ok_or(SdkError::InvalidArgs("proof_hash required".into()))?;
+        let proof_hash = args["proof_hash"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("proof_hash required".into()))?;
         let kind = args["kind"].as_str().unwrap_or("generic");
         let subject = args["subject"].as_str().unwrap_or("");
         Ok(json!({
@@ -42,7 +49,9 @@ impl EvidenceContract {
     }
 
     fn verify_proof(args: &Value) -> SdkResult<Value> {
-        let proof_id = args["proof_id"].as_str().ok_or(SdkError::InvalidArgs("proof_id required".into()))?;
+        let proof_id = args["proof_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("proof_id required".into()))?;
         let valid = args["valid"].as_bool().unwrap_or(true);
         Ok(json!({
             "proof_id": proof_id,
@@ -64,8 +73,12 @@ impl EvidenceContract {
     }
 
     fn attest(args: &Value) -> SdkResult<Value> {
-        let target = args["target"].as_str().ok_or(SdkError::InvalidArgs("target required".into()))?;
-        let attester = args["attester"].as_str().ok_or(SdkError::InvalidArgs("attester required".into()))?;
+        let target = args["target"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("target required".into()))?;
+        let attester = args["attester"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("attester required".into()))?;
         let claim = args["claim"].as_str().unwrap_or("witnessed");
         Ok(json!({
             "attestation_id": format!("att:{attester}:{target}"),
@@ -83,7 +96,9 @@ impl EvidenceContract {
     }
 
     fn challenge(args: &Value) -> SdkResult<Value> {
-        let proof_id = args["proof_id"].as_str().ok_or(SdkError::InvalidArgs("proof_id required".into()))?;
+        let proof_id = args["proof_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("proof_id required".into()))?;
         let reason = args["reason"].as_str().unwrap_or("disputed");
         Ok(json!({
             "challenge_id": format!("chal:{proof_id}"),
@@ -94,7 +109,9 @@ impl EvidenceContract {
     }
 
     fn resolve_challenge(args: &Value) -> SdkResult<Value> {
-        let challenge_id = args["challenge_id"].as_str().ok_or(SdkError::InvalidArgs("challenge_id required".into()))?;
+        let challenge_id = args["challenge_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("challenge_id required".into()))?;
         let upheld = args["upheld"].as_bool().unwrap_or(false);
         Ok(json!({
             "challenge_id": challenge_id,

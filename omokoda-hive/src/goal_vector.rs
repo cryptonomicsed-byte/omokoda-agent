@@ -10,9 +10,9 @@
 //   3. Goals below MIN_AGGREGATE_URGENCY are dropped before broadcast
 //   4. The top MAX_BROADCAST_GOALS by weighted urgency are emitted
 
+use crate::lobe::OrisaLobe;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::lobe::OrisaLobe;
 
 pub const MIN_AGGREGATE_URGENCY: f32 = 0.05;
 pub const MAX_BROADCAST_GOALS: usize = 12;
@@ -71,15 +71,15 @@ impl GoalVectorSynthesizer {
                 .unwrap_or(1.0 / 11.0);
             let weighted_urgency = proposal.urgency * weight as f32;
 
-            let entry = by_topic.entry(proposal.topic.clone()).or_insert_with(|| {
-                AggregatedGoal {
+            let entry = by_topic
+                .entry(proposal.topic.clone())
+                .or_insert_with(|| AggregatedGoal {
                     topic: proposal.topic.clone(),
                     description: proposal.description.clone(),
                     weighted_urgency: 0.0,
                     alignment_score: proposal.alignment_score,
                     proposing_lobes: Vec::new(),
-                }
-            });
+                });
 
             if weighted_urgency > entry.weighted_urgency {
                 entry.weighted_urgency = weighted_urgency;

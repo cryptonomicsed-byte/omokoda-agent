@@ -3,8 +3,8 @@
 //! Phase 25.3-25.8 will implement the concrete logic for each contract type.
 //! This module defines the trait surface and dispatch enum.
 
-use serde::{Deserialize, Serialize};
 use crate::error::{SdkError, SdkResult};
+use serde::{Deserialize, Serialize};
 
 /// The 6 native contract classes (from dApp layer spec).
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -51,7 +51,10 @@ pub struct ContractClient {
 
 impl ContractClient {
     pub fn new(agent_id: impl Into<String>) -> Self {
-        Self { agent_id: agent_id.into(), contracts: Default::default() }
+        Self {
+            agent_id: agent_id.into(),
+            contracts: Default::default(),
+        }
     }
 
     pub fn register(&mut self, contract: NativeContract) {
@@ -59,7 +62,9 @@ impl ContractClient {
     }
 
     pub fn get(&self, id: &str) -> SdkResult<&NativeContract> {
-        self.contracts.get(id).ok_or_else(|| SdkError::ContractNotFound(id.into()))
+        self.contracts
+            .get(id)
+            .ok_or_else(|| SdkError::ContractNotFound(id.into()))
     }
 
     /// Call a method on a registered contract.

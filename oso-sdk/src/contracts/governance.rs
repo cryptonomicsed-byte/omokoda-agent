@@ -8,12 +8,30 @@ pub struct GovernanceContract;
 
 /// The 24 sectors (shrine domains).
 pub const SECTORS: &[&str] = &[
-    "Simulation", "AgentIdentity", "EconomicPolicy", "Research",
-    "Infrastructure", "Governance", "Hardware", "DePIN",
-    "Education", "Security", "CrossChain", "Emergency",
-    "Healthcare", "Energy", "Transportation", "Agriculture",
-    "Finance", "Media", "Legal", "Environment",
-    "Science", "Culture", "Housing", "Labor",
+    "Simulation",
+    "AgentIdentity",
+    "EconomicPolicy",
+    "Research",
+    "Infrastructure",
+    "Governance",
+    "Hardware",
+    "DePIN",
+    "Education",
+    "Security",
+    "CrossChain",
+    "Emergency",
+    "Healthcare",
+    "Energy",
+    "Transportation",
+    "Agriculture",
+    "Finance",
+    "Media",
+    "Legal",
+    "Environment",
+    "Science",
+    "Culture",
+    "Housing",
+    "Labor",
 ];
 
 impl GovernanceContract {
@@ -28,10 +46,17 @@ impl GovernanceContract {
             "get_proposal" => Self::get_proposal(&args)?,
             "list_proposals" => Self::list_proposals(&args)?,
             "council_seat" => Self::council_seat(&args)?,
-            "get_sectors" => Ok::<Value, SdkError>(json!({ "sectors": SECTORS, "count": SECTORS.len() }))?,
+            "get_sectors" => {
+                Ok::<Value, SdkError>(json!({ "sectors": SECTORS, "count": SECTORS.len() }))?
+            }
             _ => return Err(SdkError::MethodNotFound(method.into())),
         };
-        let arp = super::arp_payload(contract, method, args["caller"].as_str().unwrap_or(""), &output);
+        let arp = super::arp_payload(
+            contract,
+            method,
+            args["caller"].as_str().unwrap_or(""),
+            &output,
+        );
         Ok(CallResult {
             contract_id: contract.id.clone(),
             method: method.into(),
@@ -41,11 +66,15 @@ impl GovernanceContract {
     }
 
     fn create_proposal(args: &Value) -> SdkResult<Value> {
-        let sector = args["sector"].as_str().ok_or(SdkError::InvalidArgs("sector required".into()))?;
+        let sector = args["sector"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("sector required".into()))?;
         if !SECTORS.contains(&sector) {
             return Err(SdkError::InvalidArgs(format!("unknown sector: {sector}")));
         }
-        let title = args["title"].as_str().ok_or(SdkError::InvalidArgs("title required".into()))?;
+        let title = args["title"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("title required".into()))?;
         let proposer = args["caller"].as_str().unwrap_or("");
         let proposal_id = format!("prop:{sector}:{title}");
         Ok(json!({
@@ -61,8 +90,12 @@ impl GovernanceContract {
     }
 
     fn vote(args: &Value) -> SdkResult<Value> {
-        let proposal_id = args["proposal_id"].as_str().ok_or(SdkError::InvalidArgs("proposal_id required".into()))?;
-        let support = args["support"].as_bool().ok_or(SdkError::InvalidArgs("support required".into()))?;
+        let proposal_id = args["proposal_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("proposal_id required".into()))?;
+        let support = args["support"]
+            .as_bool()
+            .ok_or(SdkError::InvalidArgs("support required".into()))?;
         let voter = args["caller"].as_str().unwrap_or("");
         Ok(json!({
             "proposal_id": proposal_id,
@@ -73,7 +106,9 @@ impl GovernanceContract {
     }
 
     fn finalize_proposal(args: &Value) -> SdkResult<Value> {
-        let proposal_id = args["proposal_id"].as_str().ok_or(SdkError::InvalidArgs("proposal_id required".into()))?;
+        let proposal_id = args["proposal_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("proposal_id required".into()))?;
         let votes_for = args["votes_for"].as_u64().unwrap_or(0);
         let votes_against = args["votes_against"].as_u64().unwrap_or(0);
         let passed = votes_for > votes_against && votes_for >= 7; // quorum = 7 (Council of 12, simple majority)
@@ -87,23 +122,33 @@ impl GovernanceContract {
     }
 
     fn join_sector(args: &Value) -> SdkResult<Value> {
-        let sector = args["sector"].as_str().ok_or(SdkError::InvalidArgs("sector required".into()))?;
-        let agent_id = args["agent_id"].as_str().ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
+        let sector = args["sector"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("sector required".into()))?;
+        let agent_id = args["agent_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
         Ok(json!({ "sector": sector, "agent_id": agent_id, "status": "joined" }))
     }
 
     fn leave_sector(args: &Value) -> SdkResult<Value> {
-        let sector = args["sector"].as_str().ok_or(SdkError::InvalidArgs("sector required".into()))?;
-        let agent_id = args["agent_id"].as_str().ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
+        let sector = args["sector"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("sector required".into()))?;
+        let agent_id = args["agent_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
         Ok(json!({ "sector": sector, "agent_id": agent_id, "status": "left" }))
     }
 
     /// @shrineSplit opcode: 50% shrine / 25% inheritance / 15% AIO / 10% burn
     fn shrine_split(args: &Value) -> SdkResult<Value> {
-        let amount = args["amount"].as_u64().ok_or(SdkError::InvalidArgs("amount required".into()))?;
-        let shrine = amount / 2;                        // 50%
-        let inheritance = amount / 4;                   // 25%
-        let aio = (amount as f64 * 0.15) as u64;       // 15%
+        let amount = args["amount"]
+            .as_u64()
+            .ok_or(SdkError::InvalidArgs("amount required".into()))?;
+        let shrine = amount / 2; // 50%
+        let inheritance = amount / 4; // 25%
+        let aio = (amount as f64 * 0.15) as u64; // 15%
         let burn = amount.saturating_sub(shrine + inheritance + aio); // 10% (remainder)
         Ok(json!({
             "gross": amount,
@@ -127,7 +172,9 @@ impl GovernanceContract {
     }
 
     fn council_seat(args: &Value) -> SdkResult<Value> {
-        let agent_id = args["agent_id"].as_str().ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
+        let agent_id = args["agent_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
         let action = args["action"].as_str().unwrap_or("query"); // "claim" | "resign" | "query"
         Ok(json!({
             "agent_id": agent_id,
@@ -144,13 +191,22 @@ mod tests {
     use crate::contract::ContractClass;
 
     fn contract() -> NativeContract {
-        NativeContract { id: "gov-1".into(), class: ContractClass::Governance, owner: "a".into(), metadata: json!({}) }
+        NativeContract {
+            id: "gov-1".into(),
+            class: ContractClass::Governance,
+            owner: "a".into(),
+            metadata: json!({}),
+        }
     }
 
     #[test]
     fn shrine_split_50_25_15_10() {
-        let r = GovernanceContract::call(&contract(), "shrine_split",
-            json!({"amount": 1000, "caller": "a"})).unwrap();
+        let r = GovernanceContract::call(
+            &contract(),
+            "shrine_split",
+            json!({"amount": 1000, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r.output["shrine"], 500u64);
         assert_eq!(r.output["inheritance"], 250u64);
         assert_eq!(r.output["aio"], 150u64);
@@ -159,19 +215,30 @@ mod tests {
 
     #[test]
     fn proposal_quorum_7() {
-        let r = GovernanceContract::call(&contract(), "finalize_proposal",
-            json!({"proposal_id": "x", "votes_for": 7, "votes_against": 4, "caller": "a"})).unwrap();
+        let r = GovernanceContract::call(
+            &contract(),
+            "finalize_proposal",
+            json!({"proposal_id": "x", "votes_for": 7, "votes_against": 4, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r.output["passed"], true);
 
-        let r2 = GovernanceContract::call(&contract(), "finalize_proposal",
-            json!({"proposal_id": "x", "votes_for": 6, "votes_against": 4, "caller": "a"})).unwrap();
+        let r2 = GovernanceContract::call(
+            &contract(),
+            "finalize_proposal",
+            json!({"proposal_id": "x", "votes_for": 6, "votes_against": 4, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r2.output["passed"], false);
     }
 
     #[test]
     fn unknown_sector_rejected() {
-        let err = GovernanceContract::call(&contract(), "create_proposal",
-            json!({"sector": "FakeSector", "title": "t", "caller": "a"}));
+        let err = GovernanceContract::call(
+            &contract(),
+            "create_proposal",
+            json!({"sector": "FakeSector", "title": "t", "caller": "a"}),
+        );
         assert!(matches!(err, Err(SdkError::InvalidArgs(_))));
     }
 

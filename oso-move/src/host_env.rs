@@ -69,10 +69,7 @@ impl MockMoveHostEnv {
             "agent-council",
             "0x0000000000000000000000000000000000000002",
         );
-        env.register_agent(
-            "agent-pool",
-            "0x0000000000000000000000000000000000000003",
-        );
+        env.register_agent("agent-pool", "0x0000000000000000000000000000000000000003");
         env.set_balance("agent-treasury", 1_000_000_000_000);
         env.set_balance("agent-pool", 500_000_000_000);
         env

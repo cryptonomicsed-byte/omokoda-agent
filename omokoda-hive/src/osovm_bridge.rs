@@ -13,9 +13,9 @@
 //
 // Fail-open: OSOVM_URL unset → all simulation requests return empty results.
 
-use serde::{Deserialize, Serialize};
 use crate::epistemic::{BeliefSource, EpistemicState};
 use crate::goal_vector::GoalVector;
+use serde::{Deserialize, Serialize};
 
 /// A simulation run request sent to OSOVM.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -58,8 +58,7 @@ pub struct OsovmHiveBridge {
 
 impl OsovmHiveBridge {
     pub fn from_env() -> Self {
-        let osovm_url = std::env::var("OSOVM_URL")
-            .unwrap_or_else(|_| String::new());
+        let osovm_url = std::env::var("OSOVM_URL").unwrap_or_else(|_| String::new());
         Self { osovm_url }
     }
 
@@ -69,11 +68,7 @@ impl OsovmHiveBridge {
 
     /// Submit a GoalVector to OSOVM as a simulation run.
     /// Returns the run_id to poll for results.
-    pub async fn submit_simulation(
-        &self,
-        gv: &GoalVector,
-        tick: u64,
-    ) -> Result<String, String> {
+    pub async fn submit_simulation(&self, gv: &GoalVector, tick: u64) -> Result<String, String> {
         if !self.is_enabled() {
             return Ok(format!("sim-noop-tick-{tick}"));
         }
@@ -106,14 +101,14 @@ impl OsovmHiveBridge {
         }
 
         let result: serde_json::Value = resp.json().await.map_err(|e| e.to_string())?;
-        Ok(result["run_id"].as_str().unwrap_or(&request.run_id).to_string())
+        Ok(result["run_id"]
+            .as_str()
+            .unwrap_or(&request.run_id)
+            .to_string())
     }
 
     /// Apply simulation results to the hive's EpistemicState (Axis A update).
-    pub fn apply_simulation_result(
-        epistemic: &mut EpistemicState,
-        result: &SimulationResult,
-    ) {
+    pub fn apply_simulation_result(epistemic: &mut EpistemicState, result: &SimulationResult) {
         for belief in &result.beliefs {
             epistemic.update_belief(
                 &belief.topic,
@@ -126,10 +121,7 @@ impl OsovmHiveBridge {
     }
 
     /// Apply a Zàngbétò receipt to the hive's EpistemicState (Axis B update).
-    pub fn apply_zangbeto_receipt(
-        epistemic: &mut EpistemicState,
-        receipt: &ZangbetoReceipt,
-    ) {
+    pub fn apply_zangbeto_receipt(epistemic: &mut EpistemicState, receipt: &ZangbetoReceipt) {
         epistemic.witness_belief(&receipt.topic, &receipt.receipt_id);
     }
 }
@@ -151,13 +143,11 @@ mod tests {
         let mut state = EpistemicState::new();
         let result = SimulationResult {
             run_id: "run-1".into(),
-            beliefs: vec![
-                SimulationBelief {
-                    topic: "agent_health".into(),
-                    confidence: 0.85,
-                    evidence: serde_json::json!({}),
-                },
-            ],
+            beliefs: vec![SimulationBelief {
+                topic: "agent_health".into(),
+                confidence: 0.85,
+                evidence: serde_json::json!({}),
+            }],
             osovm_proof: None,
         };
         OsovmHiveBridge::apply_simulation_result(&mut state, &result);

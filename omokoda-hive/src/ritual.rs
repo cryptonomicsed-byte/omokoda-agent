@@ -95,13 +95,21 @@ mod tests {
 
     #[test]
     fn validate_transition_accepts_legal() {
-        assert!(RitualPhase::Receive.validate_transition(&RitualPhase::Deliberate).is_ok());
-        assert!(RitualPhase::Rest.validate_transition(&RitualPhase::Receive).is_ok());
+        assert!(RitualPhase::Receive
+            .validate_transition(&RitualPhase::Deliberate)
+            .is_ok());
+        assert!(RitualPhase::Rest
+            .validate_transition(&RitualPhase::Receive)
+            .is_ok());
     }
 
     #[test]
     fn validate_transition_rejects_skip() {
-        assert!(RitualPhase::Receive.validate_transition(&RitualPhase::Synthesize).is_err());
-        assert!(RitualPhase::Witness.validate_transition(&RitualPhase::Rest).is_err());
+        assert!(RitualPhase::Receive
+            .validate_transition(&RitualPhase::Synthesize)
+            .is_err());
+        assert!(RitualPhase::Witness
+            .validate_transition(&RitualPhase::Rest)
+            .is_err());
     }
 }

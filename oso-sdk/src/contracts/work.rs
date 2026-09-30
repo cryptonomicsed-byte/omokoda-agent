@@ -11,9 +11,19 @@ pub struct WorkContract;
 
 /// The 13 lifecycle stages in order.
 pub const JOB_LIFECYCLE: &[&str] = &[
-    "create", "post", "discover", "apply", "review",
-    "assign", "acknowledge", "execute", "submit",
-    "verify", "dispute", "settle", "close",
+    "create",
+    "post",
+    "discover",
+    "apply",
+    "review",
+    "assign",
+    "acknowledge",
+    "execute",
+    "submit",
+    "verify",
+    "dispute",
+    "settle",
+    "close",
 ];
 
 impl WorkContract {
@@ -38,7 +48,12 @@ impl WorkContract {
             "get_lifecycle" => Ok::<Value, SdkError>(json!({ "stages": JOB_LIFECYCLE }))?,
             _ => return Err(SdkError::MethodNotFound(method.into())),
         };
-        let arp = super::arp_payload(contract, method, args["caller"].as_str().unwrap_or(""), &output);
+        let arp = super::arp_payload(
+            contract,
+            method,
+            args["caller"].as_str().unwrap_or(""),
+            &output,
+        );
         Ok(CallResult {
             contract_id: contract.id.clone(),
             method: method.into(),
@@ -48,7 +63,9 @@ impl WorkContract {
     }
 
     fn create(args: &Value) -> SdkResult<Value> {
-        let workload = args["workload"].as_str().ok_or(SdkError::InvalidArgs("workload required".into()))?;
+        let workload = args["workload"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("workload required".into()))?;
         let reward = args["reward"].as_u64().unwrap_or(0);
         let job_id = format!("job:{workload}:{}", reward);
         Ok(json!({
@@ -61,8 +78,12 @@ impl WorkContract {
     }
 
     fn transition(state: &str, args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
-        let step = JOB_LIFECYCLE.iter().position(|&s| s == state.split_once('_').map(|x| x.0).unwrap_or(state));
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let step = JOB_LIFECYCLE
+            .iter()
+            .position(|&s| s == state.split_once('_').map(|x| x.0).unwrap_or(state));
         Ok(json!({
             "job_id": job_id,
             "state": state,
@@ -71,8 +92,12 @@ impl WorkContract {
     }
 
     fn apply(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
-        let applicant = args["applicant"].as_str().ok_or(SdkError::InvalidArgs("applicant required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let applicant = args["applicant"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("applicant required".into()))?;
         Ok(json!({
             "job_id": job_id,
             "applicant": applicant,
@@ -83,7 +108,9 @@ impl WorkContract {
     }
 
     fn review(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         let approved = args["approved"].as_bool().unwrap_or(false);
         Ok(json!({
             "job_id": job_id,
@@ -95,8 +122,12 @@ impl WorkContract {
     }
 
     fn assign(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
-        let worker = args["worker"].as_str().ok_or(SdkError::InvalidArgs("worker required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let worker = args["worker"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("worker required".into()))?;
         Ok(json!({
             "job_id": job_id,
             "worker": worker,
@@ -106,7 +137,9 @@ impl WorkContract {
     }
 
     fn submit(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         let proof_hash = args["proof_hash"].as_str().unwrap_or("");
         Ok(json!({
             "job_id": job_id,
@@ -117,7 +150,9 @@ impl WorkContract {
     }
 
     fn verify(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         let f1_score = args["f1_score"].as_f64().unwrap_or(0.0);
         let passed = f1_score >= 0.777;
         Ok(json!({
@@ -130,7 +165,9 @@ impl WorkContract {
     }
 
     fn dispute(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         let reason = args["reason"].as_str().unwrap_or("unspecified");
         Ok(json!({
             "job_id": job_id,
@@ -142,7 +179,9 @@ impl WorkContract {
     }
 
     fn settle(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         let worker_pct = args["worker_pct"].as_f64().unwrap_or(1.0).clamp(0.0, 1.0);
         Ok(json!({
             "job_id": job_id,
@@ -154,7 +193,9 @@ impl WorkContract {
     }
 
     fn close(args: &Value) -> SdkResult<Value> {
-        let job_id = args["job_id"].as_str().ok_or(SdkError::InvalidArgs("job_id required".into()))?;
+        let job_id = args["job_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("job_id required".into()))?;
         Ok(json!({
             "job_id": job_id,
             "state": "closed",
@@ -186,20 +227,39 @@ mod tests {
     #[test]
     fn full_happy_path() {
         let c = contract();
-        let r = WorkContract::call(&c, "create", json!({"workload": "inference", "reward": 100, "caller": "a"})).unwrap();
+        let r = WorkContract::call(
+            &c,
+            "create",
+            json!({"workload": "inference", "reward": 100, "caller": "a"}),
+        )
+        .unwrap();
         let job_id = r.output["job_id"].as_str().unwrap().to_string();
 
-        let r2 = WorkContract::call(&c, "assign", json!({"job_id": job_id, "worker": "b", "caller": "a"})).unwrap();
+        let r2 = WorkContract::call(
+            &c,
+            "assign",
+            json!({"job_id": job_id, "worker": "b", "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r2.output["state"], "assigned");
 
-        let r3 = WorkContract::call(&c, "verify", json!({"job_id": job_id, "f1_score": 0.9, "caller": "a"})).unwrap();
+        let r3 = WorkContract::call(
+            &c,
+            "verify",
+            json!({"job_id": job_id, "f1_score": 0.9, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r3.output["passed"], true);
     }
 
     #[test]
     fn verify_fails_below_threshold() {
-        let r = WorkContract::call(&contract(), "verify",
-            json!({"job_id": "x", "f1_score": 0.5, "caller": "a"})).unwrap();
+        let r = WorkContract::call(
+            &contract(),
+            "verify",
+            json!({"job_id": "x", "f1_score": 0.5, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(r.output["passed"], false);
         assert_eq!(r.output["state"], "failed_verification");
     }

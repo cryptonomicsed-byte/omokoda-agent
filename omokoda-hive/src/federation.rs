@@ -11,9 +11,9 @@
 //
 // Fail-open: when DIP_URL is unset or unreachable, federation is disabled.
 
-use serde::{Deserialize, Serialize};
-use crate::goal_vector::GoalVector;
 use crate::epistemic::EpistemicDelta;
+use crate::goal_vector::GoalVector;
+use serde::{Deserialize, Serialize};
 
 /// A federation message exchanged between hive instances.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -29,10 +29,7 @@ pub enum HiveFederationMessage {
         delta: EpistemicDelta,
     },
     /// Requesting a peer's current GoalVector (pull model)
-    GoalVectorRequest {
-        from_hive: String,
-        tick: u64,
-    },
+    GoalVectorRequest { from_hive: String, tick: u64 },
 }
 
 /// A DIP-based federation client for cross-hive communication.
@@ -43,8 +40,7 @@ pub struct HiveFederationClient {
 
 impl HiveFederationClient {
     pub fn from_env(hive_id: String) -> Self {
-        let dip_url = std::env::var("DIP_URL")
-            .unwrap_or_else(|_| String::new());
+        let dip_url = std::env::var("DIP_URL").unwrap_or_else(|_| String::new());
         Self { hive_id, dip_url }
     }
 

@@ -46,6 +46,17 @@ jobs:
           repository: cryptonomicsed-byte/sovereign-stack
           path: sovereign-stack
           token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Checkout sovereign-eco-blueprint
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/sovereign-eco-blueprint
+          path: sovereign-eco-blueprint
+          token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Verify bundled TOC_CONSTANTS matches canonical
+        run: |
+          diff Omo-Koda2/omokoda-core/specs/TOC_CONSTANTS.toml \
+               sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml \
+          || { echo "ERROR: omokoda-core/specs/TOC_CONSTANTS.toml has drifted from sovereign-eco-blueprint/specs/TOC_CONSTANTS.toml — update the bundled copy"; exit 1; }
       - name: Install system dependencies
         run: sudo apt-get install -y protobuf-compiler
       - name: Install Rust

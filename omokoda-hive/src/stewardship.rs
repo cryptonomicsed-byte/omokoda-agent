@@ -41,8 +41,8 @@ impl StewardshipInvariant {
         }
 
         // INV-3: Consolidation may only happen from Witness phase
-        if ctx.proposed_action == StewardshipAction::Consolidate
-            && ctx.current_phase_index != 4 /* Witness */
+        if ctx.proposed_action == StewardshipAction::Consolidate && ctx.current_phase_index != 4
+        /* Witness */
         {
             violations.push(StewardshipViolation {
                 rule: "INV-3",

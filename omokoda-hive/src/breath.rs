@@ -11,14 +11,14 @@
 //   H7: Ọ̀ṣọ́ language → hive directives compiler
 //   H8: Full OSOVM simulation ↔ hive belief feedback loop
 
-use std::collections::HashMap;
-use serde::{Deserialize, Serialize};
 use crate::{
     epistemic::{EpistemicDelta, EpistemicState},
     lobe::{HiveAction, LobeAgent, LobeStatus, OrisaLobe, TwelfthFace},
     ritual::{RitualPhase, RitualTransition},
     stewardship::{StewardshipAction, StewardshipContext, StewardshipInvariant},
 };
+use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HiveBreathConfig {

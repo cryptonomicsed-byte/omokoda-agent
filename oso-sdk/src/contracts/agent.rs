@@ -21,7 +21,12 @@ impl AgentContract {
             "get_reputation" => Self::get_reputation(&args)?,
             _ => return Err(SdkError::MethodNotFound(method.into())),
         };
-        let arp = super::arp_payload(contract, method, args["caller"].as_str().unwrap_or(""), &output);
+        let arp = super::arp_payload(
+            contract,
+            method,
+            args["caller"].as_str().unwrap_or(""),
+            &output,
+        );
         Ok(CallResult {
             contract_id: contract.id.clone(),
             method: method.into(),
@@ -31,7 +36,9 @@ impl AgentContract {
     }
 
     fn register(args: &Value) -> SdkResult<Value> {
-        let agent_id = args["agent_id"].as_str().ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
+        let agent_id = args["agent_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
         let npub = args["npub"].as_str().unwrap_or("");
         let tier = args["tier"].as_u64().unwrap_or(0);
         Ok(json!({
@@ -49,8 +56,12 @@ impl AgentContract {
     }
 
     fn hire(args: &Value) -> SdkResult<Value> {
-        let employer = args["employer"].as_str().ok_or(SdkError::InvalidArgs("employer required".into()))?;
-        let employee = args["employee"].as_str().ok_or(SdkError::InvalidArgs("employee required".into()))?;
+        let employer = args["employer"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("employer required".into()))?;
+        let employee = args["employee"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("employee required".into()))?;
         let role = args["role"].as_str().unwrap_or("worker");
         Ok(json!({
             "hire_id": format!("hire:{employer}:{employee}"),
@@ -62,13 +73,19 @@ impl AgentContract {
     }
 
     fn terminate(args: &Value) -> SdkResult<Value> {
-        let hire_id = args["hire_id"].as_str().ok_or(SdkError::InvalidArgs("hire_id required".into()))?;
+        let hire_id = args["hire_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("hire_id required".into()))?;
         Ok(json!({ "hire_id": hire_id, "status": "terminated" }))
     }
 
     fn delegate(args: &Value) -> SdkResult<Value> {
-        let from = args["from"].as_str().ok_or(SdkError::InvalidArgs("from required".into()))?;
-        let to = args["to"].as_str().ok_or(SdkError::InvalidArgs("to required".into()))?;
+        let from = args["from"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("from required".into()))?;
+        let to = args["to"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("to required".into()))?;
         let capability = args["capability"].as_str().unwrap_or("*");
         Ok(json!({
             "delegation_id": format!("del:{from}:{to}"),
@@ -80,13 +97,19 @@ impl AgentContract {
     }
 
     fn revoke_delegation(args: &Value) -> SdkResult<Value> {
-        let delegation_id = args["delegation_id"].as_str().ok_or(SdkError::InvalidArgs("delegation_id required".into()))?;
+        let delegation_id = args["delegation_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("delegation_id required".into()))?;
         Ok(json!({ "delegation_id": delegation_id, "status": "revoked" }))
     }
 
     fn register_skill(args: &Value) -> SdkResult<Value> {
-        let agent_id = args["agent_id"].as_str().ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
-        let skill = args["skill"].as_str().ok_or(SdkError::InvalidArgs("skill required".into()))?;
+        let agent_id = args["agent_id"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("agent_id required".into()))?;
+        let skill = args["skill"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("skill required".into()))?;
         let level = args["level"].as_u64().unwrap_or(1);
         Ok(json!({
             "skill_id": format!("skill:{agent_id}:{skill}"),
@@ -104,8 +127,12 @@ impl AgentContract {
     }
 
     fn rate(args: &Value) -> SdkResult<Value> {
-        let target = args["target"].as_str().ok_or(SdkError::InvalidArgs("target required".into()))?;
-        let score = args["score"].as_f64().ok_or(SdkError::InvalidArgs("score required".into()))?;
+        let target = args["target"]
+            .as_str()
+            .ok_or(SdkError::InvalidArgs("target required".into()))?;
+        let score = args["score"]
+            .as_f64()
+            .ok_or(SdkError::InvalidArgs("score required".into()))?;
         if !(0.0..=1.0).contains(&score) {
             return Err(SdkError::InvalidArgs("score must be 0.0-1.0".into()));
         }
@@ -134,25 +161,43 @@ mod tests {
 
     #[test]
     fn register_returns_registry_id() {
-        let res = AgentContract::call(&contract(), "register",
-            json!({"agent_id": "abc", "npub": "npub1...", "tier": 2, "caller": "abc"})).unwrap();
-        assert!(res.output["registry_id"].as_str().unwrap().starts_with("reg:"));
+        let res = AgentContract::call(
+            &contract(),
+            "register",
+            json!({"agent_id": "abc", "npub": "npub1...", "tier": 2, "caller": "abc"}),
+        )
+        .unwrap();
+        assert!(res.output["registry_id"]
+            .as_str()
+            .unwrap()
+            .starts_with("reg:"));
     }
 
     #[test]
     fn rate_validates_score_range() {
-        let err = AgentContract::call(&contract(), "rate",
-            json!({"target": "x", "score": 1.5, "caller": "a"}));
+        let err = AgentContract::call(
+            &contract(),
+            "rate",
+            json!({"target": "x", "score": 1.5, "caller": "a"}),
+        );
         assert!(matches!(err, Err(SdkError::InvalidArgs(_))));
     }
 
     #[test]
     fn delegate_and_revoke() {
-        let res = AgentContract::call(&contract(), "delegate",
-            json!({"from": "a", "to": "b", "capability": "COMPUTE", "caller": "a"})).unwrap();
+        let res = AgentContract::call(
+            &contract(),
+            "delegate",
+            json!({"from": "a", "to": "b", "capability": "COMPUTE", "caller": "a"}),
+        )
+        .unwrap();
         let del_id = res.output["delegation_id"].as_str().unwrap().to_string();
-        let rev = AgentContract::call(&contract(), "revoke_delegation",
-            json!({"delegation_id": del_id, "caller": "a"})).unwrap();
+        let rev = AgentContract::call(
+            &contract(),
+            "revoke_delegation",
+            json!({"delegation_id": del_id, "caller": "a"}),
+        )
+        .unwrap();
         assert_eq!(rev.output["status"], "revoked");
     }
 }

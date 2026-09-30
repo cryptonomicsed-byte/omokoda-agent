@@ -13,9 +13,9 @@
 // Ọ̀ṣọ́ expressions that are meaningful at the hive level. Agent-level
 // Ọ̀ṣọ́ evaluation remains in omokoda-core.
 
-use serde::{Deserialize, Serialize};
-use crate::lobe::{HiveAction, OrisaLobe};
 use crate::goal_vector::LobeGoalProposal;
+use crate::lobe::{HiveAction, OrisaLobe};
+use serde::{Deserialize, Serialize};
 
 /// A parsed Ọ̀ṣọ́ hive directive.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -70,9 +70,9 @@ impl OsoHiveCompiler {
 
         match parts[0].to_uppercase().as_str() {
             "BORN" => {
-                let lobe_name = parts.get(1).ok_or_else(|| {
-                    OsoCompileError::Malformed("BORN requires lobe name".into())
-                })?;
+                let lobe_name = parts
+                    .get(1)
+                    .ok_or_else(|| OsoCompileError::Malformed("BORN requires lobe name".into()))?;
                 let lobe = Self::parse_lobe(lobe_name)?;
                 let config = parts
                     .get(2)
@@ -81,13 +81,13 @@ impl OsoHiveCompiler {
                 Ok(OsoHiveDirective::SpawnLobe { lobe, config })
             }
             "FEEL" => {
-                let lobe_name = parts.get(1).ok_or_else(|| {
-                    OsoCompileError::Malformed("FEEL requires lobe name".into())
-                })?;
+                let lobe_name = parts
+                    .get(1)
+                    .ok_or_else(|| OsoCompileError::Malformed("FEEL requires lobe name".into()))?;
                 let lobe = Self::parse_lobe(lobe_name)?;
-                let urgency_str = parts.get(2).ok_or_else(|| {
-                    OsoCompileError::Malformed("FEEL requires urgency".into())
-                })?;
+                let urgency_str = parts
+                    .get(2)
+                    .ok_or_else(|| OsoCompileError::Malformed("FEEL requires urgency".into()))?;
                 let urgency = urgency_str
                     .parse::<f32>()
                     .map_err(|_| OsoCompileError::InvalidUrgency(urgency_str.to_string()))?
@@ -97,12 +97,17 @@ impl OsoHiveCompiler {
                     .ok_or_else(|| OsoCompileError::Malformed("FEEL requires goal topic".into()))?
                     .to_string();
                 let description = parts.get(4).unwrap_or(&"").to_string();
-                Ok(OsoHiveDirective::Feel { lobe, urgency, goal_topic, description })
+                Ok(OsoHiveDirective::Feel {
+                    lobe,
+                    urgency,
+                    goal_topic,
+                    description,
+                })
             }
             "ACT" => {
-                let lobe_name = parts.get(1).ok_or_else(|| {
-                    OsoCompileError::Malformed("ACT requires lobe name".into())
-                })?;
+                let lobe_name = parts
+                    .get(1)
+                    .ok_or_else(|| OsoCompileError::Malformed("ACT requires lobe name".into()))?;
                 let lobe = Self::parse_lobe(lobe_name)?;
                 let tool = parts
                     .get(2)
@@ -142,16 +147,19 @@ impl OsoHiveCompiler {
             OsoHiveDirective::SpawnLobe { lobe, config } => {
                 HiveDirectiveOutput::Action(HiveAction::SpawnLobe { lobe, config })
             }
-            OsoHiveDirective::Feel { lobe, urgency, goal_topic, description } => {
-                HiveDirectiveOutput::Proposal(LobeGoalProposal {
-                    lobe,
-                    topic: goal_topic,
-                    description,
-                    urgency,
-                    alignment_score: 1.0,
-                    tick_proposed: tick,
-                })
-            }
+            OsoHiveDirective::Feel {
+                lobe,
+                urgency,
+                goal_topic,
+                description,
+            } => HiveDirectiveOutput::Proposal(LobeGoalProposal {
+                lobe,
+                topic: goal_topic,
+                description,
+                urgency,
+                alignment_score: 1.0,
+                tick_proposed: tick,
+            }),
             OsoHiveDirective::Act { lobe, tool, args } => {
                 HiveDirectiveOutput::Action(HiveAction::BroadcastGoal {
                     goal_id: format!("act-{lobe:?}-{tool}"),
@@ -175,13 +183,25 @@ mod tests {
     #[test]
     fn compile_born() {
         let d = OsoHiveCompiler::compile("BORN OBATALA").unwrap();
-        assert!(matches!(d, OsoHiveDirective::SpawnLobe { lobe: OrisaLobe::Obatala, .. }));
+        assert!(matches!(
+            d,
+            OsoHiveDirective::SpawnLobe {
+                lobe: OrisaLobe::Obatala,
+                ..
+            }
+        ));
     }
 
     #[test]
     fn compile_feel() {
         let d = OsoHiveCompiler::compile("FEEL YEMOJA 0.8 memory_health store all glyphs").unwrap();
-        if let OsoHiveDirective::Feel { lobe, urgency, goal_topic, .. } = d {
+        if let OsoHiveDirective::Feel {
+            lobe,
+            urgency,
+            goal_topic,
+            ..
+        } = d
+        {
             assert_eq!(lobe, OrisaLobe::Yemoja);
             assert!((urgency - 0.8).abs() < 0.001);
             assert_eq!(goal_topic, "memory_health");
@@ -193,7 +213,13 @@ mod tests {
     #[test]
     fn compile_act() {
         let d = OsoHiveCompiler::compile("ACT OGUN read_file /tmp/state.json").unwrap();
-        assert!(matches!(d, OsoHiveDirective::Act { lobe: OrisaLobe::Ogun, .. }));
+        assert!(matches!(
+            d,
+            OsoHiveDirective::Act {
+                lobe: OrisaLobe::Ogun,
+                ..
+            }
+        ));
     }
 
     #[test]
