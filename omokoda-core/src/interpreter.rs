@@ -6611,6 +6611,23 @@ impl Steward {
             }));
         }
 
+        // W-07: record this act turn in the ReflectionLedger with emotional state.
+        // The ledger makes the agent's action history introspectable alongside emotional context,
+        // distinct from the GIX structural chain recorded by record_action_memory() above.
+        {
+            let now_ms = current_unix_timestamp() * 1000;
+            let emotion = crate::emotion::EmotionState::birth();
+            if let Ok(agent_mut) = self.ensure_born_mut() {
+                let content = format!("{}: {}", tool_name, &output[..output.len().min(256)]);
+                agent_mut.snapshot.reflection.record_with_emotion(
+                    "act",
+                    &content,
+                    now_ms,
+                    &emotion,
+                );
+            }
+        }
+
         Ok(output)
     }
 }
