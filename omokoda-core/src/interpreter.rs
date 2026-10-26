@@ -1583,6 +1583,49 @@ impl Steward {
             })
         };
 
+        // W-04 — AgentConstitution: sign and persist at birth (fail-open).
+        // Nostr private key is in scope; constitutional DNA locks at birth and
+        // never changes. Persisted alongside agent.json in the session dir.
+        {
+            let k_epoch_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_epoch).unwrap_or(0);
+            let k_cycle_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_cycle).unwrap_or(0);
+            let k_phase_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_phase).unwrap_or(0);
+            let bipon39_phrase = mnemonic
+                .split_whitespace()
+                .take(3)
+                .collect::<Vec<_>>()
+                .join("-")
+                .to_uppercase();
+            let hermetic_dna = [
+                hermetic_state.mentalism() as f32,
+                hermetic_state.correspondence() as f32,
+                hermetic_state.vibration() as f32,
+                hermetic_state.polarity() as f32,
+                hermetic_state.rhythm() as f32,
+                hermetic_state.cause_effect() as f32,
+                hermetic_state.gender() as f32,
+            ];
+            let koodu_birth_score = k_epoch_b
+                .wrapping_add(k_cycle_b)
+                .wrapping_add(k_phase_b)
+                .wrapping_rem(256) as u8;
+            let mut constitution = crate::constitution::AgentConstitution::new(
+                bipon39_phrase,
+                primary_index,
+                hermetic_dna,
+                koodu_birth_score,
+                birth_timestamp,
+                None, // BTC height: filled later by Koodu anchor task
+                nostr_key.address.clone(),
+            );
+            let constitution_path = self.session_dir.join(id.as_str()).join("constitution.json");
+            if let Err(e) =
+                constitution.sign_and_persist(&nostr_key.private_key_hex, &constitution_path)
+            {
+                tracing::warn!("AgentConstitution sign_and_persist failed (fail-open): {e}");
+            }
+        }
+
         let birth_primary_odu: u8 = genesis_receipt_v2
             .as_ref()
             .map(|gr| gr.primary_odu)

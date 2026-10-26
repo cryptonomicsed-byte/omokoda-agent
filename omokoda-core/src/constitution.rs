@@ -83,6 +83,34 @@ impl AgentConstitution {
         self.signature_hex.is_some()
     }
 
+    /// Sign with an Ed25519 private key and persist to `path` as JSON.
+    /// `priv_hex` — 32-byte hex-encoded Ed25519 private scalar (same format as nostr private key).
+    /// Fail-open: returns Err on key/IO problems but never panics.
+    pub fn sign_and_persist(
+        &mut self,
+        priv_hex: &str,
+        path: &std::path::Path,
+    ) -> Result<(), String> {
+        use ed25519_dalek::Signer;
+        let sk_bytes =
+            hex::decode(priv_hex).map_err(|e| format!("constitution: invalid hex key: {e}"))?;
+        let arr: [u8; 32] = sk_bytes
+            .try_into()
+            .map_err(|_| "constitution: expected 32-byte Ed25519 key".to_string())?;
+        let sk = ed25519_dalek::SigningKey::from_bytes(&arr);
+        let sig = sk.sign(&self.signing_bytes());
+        self.signature_hex = Some(hex::encode(sig.to_bytes()));
+
+        if let Some(parent) = path.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|e| format!("constitution: mkdir failed: {e}"))?;
+        }
+        let json = serde_json::to_string_pretty(self)
+            .map_err(|e| format!("constitution: serialize failed: {e}"))?;
+        std::fs::write(path, json).map_err(|e| format!("constitution: write failed: {e}"))?;
+        Ok(())
+    }
+
     /// Human-readable summary suitable for Nostr kind 0 "about" field.
     pub fn summary(&self) -> String {
         format!(
@@ -194,5 +222,36 @@ mod tests {
         let balanced = [0.5f32; 7];
         let score = compute_gate_alignment(&balanced);
         assert!(score > 0.95, "balanced DNA should yield high alignment");
+    }
+
+    #[test]
+    fn sign_and_persist_roundtrip() {
+        use ed25519_dalek::SigningKey;
+        let sk = SigningKey::generate(&mut rand::rngs::OsRng);
+        let priv_hex = hex::encode(sk.to_bytes());
+
+        let mut c = AgentConstitution::new(
+            "FIRE-OYA-MOON".to_string(),
+            2,
+            [0.7, 0.4, 0.5, 0.6, 0.3, 0.8, 0.5],
+            33,
+            1_700_000_002,
+            None,
+            hex::encode(sk.verifying_key().to_bytes()),
+        );
+        assert!(!c.is_signed());
+
+        let dir = std::env::temp_dir().join(format!("omokoda-test-{}", std::process::id()));
+        let path = dir.join("constitution.json");
+        c.sign_and_persist(&priv_hex, &path).expect("sign_and_persist should succeed");
+        assert!(c.is_signed());
+        assert!(path.exists());
+
+        let raw = std::fs::read_to_string(&path).unwrap();
+        let loaded: AgentConstitution = serde_json::from_str(&raw).unwrap();
+        assert!(loaded.is_signed());
+        assert_eq!(loaded.odu_index, 2);
+
+        let _ = std::fs::remove_dir_all(&dir);
     }
 }
