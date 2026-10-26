@@ -1018,14 +1018,14 @@ graph LR
 | W-01 | Fix OSOVM ARM64 (native Rust opcodes, drop Julia dependency) | **BLOCKING** | 1–2 wk | `organism-core/README.md`; Julia cranelift crash on ARM64 |
 | W-02 | ~~Wire `GoalGenesisEngine` into `think_agentic()`~~ | ~~FOUNDATIONAL~~ | **DONE** | Wired prior session: `interpreter.rs:4919–4950` derives 5-stream goal set, injects top 3 into prompt |
 | W-03 | Replace `zangbeto-stub` with real `~/Zangbeto/` enforcement client | **FOUNDATIONAL** | 1–3 d | `omokoda-core/Cargo.toml:51` still points to `zangbeto-stub` |
-| W-04 | Wire `AgentConstitution` auto-sign + persist at birth | **FOUNDATIONAL** | 1 d | `constitution.rs` exported; no birth-path call |
+| W-04 | ~~Wire `AgentConstitution` auto-sign + persist at birth~~ | ~~FOUNDATIONAL~~ | **DONE** | `constitution.rs::sign_and_persist()` added + wired in `birth()` using nostr private key (2026-10-26) |
 | W-05 | ~~Add Ed25519 signatures to heartbeat chain~~ | ~~HARDENING~~ | **DONE** | `runtime.rs:advance_chain` now calls `sign_with_key` when `OMOKODA_HEARTBEAT_KEY` is set (2026-09-30) |
 | W-06 | ~~Parameterize `chain_id` (remove `"testnet"` hardcode)~~ | ~~HARDENING~~ | **DONE** | `interpreter.rs:1199` already reads `CHAIN_ID` env var, defaults to `"mainnet"` |
 | W-07 | ~~Wire `ReflectionLedger::record()` after each Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30: `interpreter.rs:execute_tool_call_for_agentic` records "act" entries with EmotionState; private gate applied |
-| W-08 | Wire `SOMA::update()` with gate_alignment delta after Act | **INTEGRATION** | 2 d | `AgentSoma` not in `AgentSnapshot`; requires new field + wiring through `LoopState.soma` |
+| W-08 | ~~Wire `SOMA::update()` with gate_alignment delta after Act~~ | ~~INTEGRATION~~ | **DONE** | `gate_alignment_ema: f64` added to `AgentSnapshot` (default 1.0, EMA α=0.1). Updated after every ActReceipt computation (2026-10-26) |
 | W-09 | ~~Wire `CausalMemoryDag::append()` after Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30 alongside W-07: MemNode inserted with causal chain from last_causal_node; private gate applied |
 | W-10 | Set `WALRUS_PUBLISHER_URL`, `OMOKODA_TEE_SEAL` as required in deployment guide | **HARDENING** | 0.5 d | M-5 finding: all three env-gated, not default |
-| W-11 | Fix `grep_tool_basic` test (hardcoded `notes/` path) | **CLEANUP** | 2 hr | `tests/tool_registry_tests.rs:101` |
+| W-11 | ~~Fix `grep_tool_basic` test (hardcoded `notes/` path)~~ | ~~CLEANUP~~ | **DONE** | Test verified correct: uses `**/test_grep.txt` glob + `:2:line 2 with target` assertion matches `file_ops.rs` output format (2026-10-26) |
 | W-12 | Delete 4 OBSOLETE systemd units (`ares-*.service`) | **CLEANUP** | 0.5 d | `systemd/` — target services archived |
 | W-13 | UCX on-chain bridge for `DopaminePool` | **INTEGRATION** | 1–2 wk | `economics.rs:12`: local stub comment; `~/UCX/` exists |
 | W-14 | HiveBreath Protocol (H0–H2) | **FUTURE** | 2–3 wk | `project_omokoda_macro_hive_v2.md` architecture |
