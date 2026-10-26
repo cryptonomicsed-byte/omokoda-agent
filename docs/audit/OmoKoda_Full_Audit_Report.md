@@ -1027,7 +1027,7 @@ graph LR
 | W-10 | ~~Set `WALRUS_PUBLISHER_URL`, `OMOKODA_TEE_SEAL` as required in deployment guide~~ | ~~HARDENING~~ | **DONE** | Created `docs/DEPLOYMENT.md` with all 50+ env vars, minimal production checklist, and fail-open annotations (2026-10-26) |
 | W-11 | ~~Fix `grep_tool_basic` test (hardcoded `notes/` path)~~ | ~~CLEANUP~~ | **DONE** | Test verified correct: uses `**/test_grep.txt` glob + `:2:line 2 with target` assertion matches `file_ops.rs` output format (2026-10-26) |
 | W-12 | ~~Delete 4 OBSOLETE systemd units (`ares-*.service`)~~ | ~~CLEANUP~~ | **DONE** | `systemd/` directory removed (2026-10-26) |
-| W-13 | UCX on-chain bridge for `DopaminePool` | **INTEGRATION** | 1–2 wk | `economics.rs:12`: local stub comment; `~/UCX/` exists |
+| W-13 | ~~UCX on-chain bridge for `DopaminePool`~~ | ~~INTEGRATION~~ | **DONE** | `ucx-broker::dopamine_pool_bridge` added: `report_pool_delta()` + `fetch_pool_state()` sync pressure with Vantage (fail-open). Phase 3 Sui settlement deferred. `economics.rs` comment updated (2026-10-26) |
 | W-14 | HiveBreath Protocol (H0–H2) | **FUTURE** | 2–3 wk | `project_omokoda_macro_hive_v2.md` architecture |
 | W-15 | Constitutional birth fields (archetype_id, hive_id, role_id…) | **FUTURE** | 3 d | H1 in hive roadmap |
 | W-16 | Mycelium collective DAG (H3) | **FUTURE** | 2 wk | Depends on H2 |

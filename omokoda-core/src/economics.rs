@@ -1,8 +1,8 @@
-// DopaminePool is a LOCAL simulation model only.
-// On-chain settlement roadmap:
+// DopaminePool is the LOCAL simulation model. On-chain settlement roadmap:
 //   Phase 1 (current): local accounting, no blockchain
-//   Phase 2: Vantage UCX API reports balances
-//   Phase 3: OSOVM TOC_MINT (0x54) 1440 Àṣẹ/day + Sui settlement
+//   Phase 2 (W-13 DONE): ucx-broker::dopamine_pool_bridge — report_pool_delta() +
+//     fetch_pool_state() sync pressure with Vantage (VANTAGE_URL env var, fail-open)
+//   Phase 3: OSOVM TOC_MINT (0x54) 1440 Àṣẹ/day + Sui on-chain settlement
 // See: ~/sovereign-eco-blueprint/plans/protocol-layer-synthesis.md
 
 use serde::{Deserialize, Serialize};
