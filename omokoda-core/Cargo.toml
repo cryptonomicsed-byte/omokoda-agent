@@ -48,7 +48,7 @@ gix-core    = { path = "../../GIX/crates/gix-core" }
 gix-types   = { path = "../../GIX/crates/gix-types" }
 arp-types   = { path = "../../ARP/crates/arp-types" }
 dip-types   = { path = "../../DIP/crates/dip-types" }
-zangbeto-enforcement = { path = "../zangbeto-stub" }
+# zangbeto-enforcement stub removed (W-03): post-act audit now uses bus::zangbeto::audit_state_post_act()
 nist_entropy = { path = "../nist_entropy" }
 omokoda-mesh = { path = "../omokoda-mesh" }
 omokoda-hermetic = { path = "../omokoda-hermetic" }

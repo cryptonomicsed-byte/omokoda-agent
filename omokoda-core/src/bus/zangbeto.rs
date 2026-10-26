@@ -206,6 +206,58 @@ pub fn render_incident_notice(trip: &serde_json::Value) -> Option<String> {
     Some(notice)
 }
 
+/// Drop-in replacement for `zangbeto_enforcement::AuditResult` (the stub crate).
+/// Returned by [`audit_state_post_act`], which replaces the direct crate call.
+pub struct ZangbetoAudit {
+    pub receipt_id: String,
+    pub sig: Vec<u8>,
+    pub passed: bool,
+}
+
+/// Post-act enforcement audit.  Mirrors the interface of `zangbeto_enforcement::audit_state()`
+/// but uses the HTTP client instead of a local stub crate.
+///
+/// When `ZANGBETO_URL` is set, sends a `report_anomaly` with severity=observational and
+/// interprets the response with `verdict_blocks()`. When unset, hashes the bytes with
+/// SHA-256 and always passes (same semantics as the old stub, but without the crate dep).
+pub async fn audit_state_post_act(state_bytes: &[u8], fallback_id: &str) -> ZangbetoAudit {
+    use sha2::{Digest, Sha256};
+
+    let hash_sig: Vec<u8> = Sha256::new().chain_update(state_bytes).finalize().to_vec();
+
+    match report_anomaly(
+        fallback_id,
+        "observational",
+        "post_act_audit",
+        &hex::encode(state_bytes),
+    )
+    .await
+    {
+        Some(verdict) => {
+            let passed = !verdict_blocks(&verdict);
+            let receipt_id = verdict["id"]
+                .as_str()
+                .or_else(|| verdict["receipt_id"].as_str())
+                .unwrap_or(fallback_id)
+                .to_string();
+            let sig = verdict["sig"]
+                .as_str()
+                .and_then(|s| hex::decode(s).ok())
+                .unwrap_or_else(|| hash_sig.clone());
+            ZangbetoAudit {
+                receipt_id,
+                sig,
+                passed,
+            }
+        }
+        None => ZangbetoAudit {
+            receipt_id: fallback_id.to_string(),
+            sig: hash_sig,
+            passed: true, // fail-open: no enforcer configured
+        },
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

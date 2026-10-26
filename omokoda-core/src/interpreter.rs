@@ -3686,10 +3686,16 @@ impl Steward {
                 };
                 let _ = self.event_bus.publish(event);
 
-                // Zàngbétò enforcement audit
+                // Zàngbétò enforcement audit (W-03: replaced zangbeto-stub crate call
+                // with the HTTP enforcement client in bus::zangbeto; fail-open when
+                // ZANGBETO_URL is unset, same semantics as the former stub).
                 let zangbeto_audit_passed = {
                     let state_bytes = hex::decode(&receipt.merkle_root).unwrap_or_default();
-                    let audit = zangbeto_enforcement::audit_state(&state_bytes);
+                    let audit = crate::bus::zangbeto::audit_state_post_act(
+                        &state_bytes,
+                        &receipt.receipt_id,
+                    )
+                    .await;
                     let passed = audit.passed;
                     if audit.passed {
                         let audit_event = SovereignEvent {
