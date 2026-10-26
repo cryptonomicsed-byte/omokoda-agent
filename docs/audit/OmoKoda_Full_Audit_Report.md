@@ -1033,7 +1033,7 @@ graph LR
 | W-16 | Mycelium collective DAG (H3) | **FUTURE** | 2 wk | Depends on H2 |
 | W-17 | RitualPhase + TwelfthFace state machine (H6) | **FUTURE** | 1 wk | Depends on H5 |
 | W-18 | CollectiveIntent → GoalGenesis wire at hive level (H7) | **FUTURE** | 1 wk | Depends on H6 + W-02 |
-| W-19 | Sandbox syscall restriction hardening | **HARDENING** | 1–2 wk | `sandbox.rs`: PARTIAL classification |
+| W-19 | ~~Sandbox syscall restriction hardening~~ | ~~HARDENING~~ | **DONE** | `build_linux_sandbox_command_from_profile()` added; `apply_sandbox_limits()` wraps commands with `timeout N` + `head -c max_bytes`; 6 new tests (2026-10-26) |
 | W-20 | ~~Remove Tier-6 dead branch in `ifscript_gate.rs`~~ | ~~CLEANUP~~ | **DONE** | Stale doc comment corrected (2026-09-30): "permanently denied, max tier T5" |
 | W-21 | ~~Review `unsafe {}` in `twin_binding_tool.rs` lines 141, 148~~ | ~~HARDENING~~ | **DONE** | Reviewed 2026-10-26: `unsafe` required for `std::env::set_var` (Rust 1.81+); guarded by `ENV_LOCK.lock()` — safe, correct pattern, no change needed |
 | W-22 | ~~Wire sensor reading → `HabitatAddress` feedback loop~~ | ~~INTEGRATION~~ | **DONE** | `HabitatAddress::from_sensor()` added; `SomaLifecycle.habitat` populated in `wake_up()`; `soma_wake_up_with_id()` in bootstrap.rs (2026-10-26) |

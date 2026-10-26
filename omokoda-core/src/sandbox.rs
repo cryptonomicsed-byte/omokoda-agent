@@ -268,8 +268,43 @@ pub struct LinuxSandboxCommand {
     pub env: Vec<(String, String)>,
 }
 
+/// Build a Linux sandbox command using `unshare` namespaces, with limits from a profile.
+/// Wraps the command with `timeout <n>` when `profile.timeout_secs > 0`, and truncates
+/// stdout to `profile.max_output_bytes` via `head -c`. This is the preferred call site
+/// for W-19 sandbox hardening — always pass the actual SandboxProfile.
+pub fn build_linux_sandbox_command_from_profile(
+    command: &str,
+    cwd: &std::path::Path,
+    profile: &SandboxProfile,
+) -> Option<LinuxSandboxCommand> {
+    let use_network_isolation = matches!(profile.network, NetworkMode::Isolated);
+    let wrapped = apply_sandbox_limits(command, profile.timeout_secs, profile.max_output_bytes);
+    build_linux_sandbox_command(&wrapped, cwd, use_network_isolation)
+}
+
+/// Wrap a shell command with `timeout` and `head -c` output cap.
+/// Returns the original command unchanged if no limits apply.
+fn apply_sandbox_limits(command: &str, timeout_secs: u64, max_output_bytes: usize) -> String {
+    let inner = if timeout_secs > 0 {
+        format!("timeout {} sh -lc {}", timeout_secs, shlex_quote(command))
+    } else {
+        command.to_string()
+    };
+    if max_output_bytes > 0 && max_output_bytes < usize::MAX {
+        format!("({}) | head -c {}", inner, max_output_bytes)
+    } else {
+        inner
+    }
+}
+
+/// Minimal shell quoting: wraps in single-quotes and escapes existing single-quotes.
+fn shlex_quote(s: &str) -> String {
+    format!("'{}'", s.replace('\'', "'\"'\"'"))
+}
+
 /// Build a Linux sandbox command using `unshare` namespaces.
 /// Returns `None` if not on Linux, or if `unshare` is not found in PATH.
+/// Prefer `build_linux_sandbox_command_from_profile` to enforce timeout/output limits.
 pub fn build_linux_sandbox_command(
     command: &str,
     cwd: &std::path::Path,
@@ -359,6 +394,57 @@ mod container_sandbox_tests {
             assert!(
                 !cmd.args.iter().any(|a| a == "--net"),
                 "--net should be absent"
+            );
+        }
+    }
+
+    #[test]
+    fn apply_sandbox_limits_with_timeout_and_cap() {
+        let result = apply_sandbox_limits("ls -la", 30, 1024);
+        assert!(result.contains("timeout 30"), "should wrap with timeout");
+        assert!(result.contains("head -c 1024"), "should cap output");
+        assert!(result.contains("ls -la"), "command should be present");
+    }
+
+    #[test]
+    fn apply_sandbox_limits_no_limits() {
+        let result = apply_sandbox_limits("ls", 0, usize::MAX);
+        assert_eq!(result, "ls", "no wrapping when no limits apply");
+    }
+
+    #[test]
+    fn apply_sandbox_limits_timeout_only() {
+        let result = apply_sandbox_limits("sleep 5", 10, usize::MAX);
+        assert!(result.contains("timeout 10"));
+        assert!(!result.contains("head -c"));
+    }
+
+    #[test]
+    fn apply_sandbox_limits_cap_only() {
+        let result = apply_sandbox_limits("cat file", 0, 512);
+        assert!(result.contains("head -c 512"));
+        assert!(!result.contains("timeout"));
+    }
+
+    #[test]
+    fn shlex_quote_escapes_single_quotes() {
+        let quoted = shlex_quote("echo 'hello world'");
+        assert!(quoted.starts_with('\''));
+        assert!(quoted.ends_with('\''));
+        assert!(quoted.contains("'\"'\"'"), "inner single-quotes must be escaped");
+    }
+
+    #[test]
+    fn build_from_profile_strict_applies_limits() {
+        let profile = SandboxProfile::strict();
+        let cwd = std::path::Path::new("/workspace");
+        // On Linux with unshare: verify command includes timeout wrapping.
+        // On non-Linux or without unshare: returns None — skip assertion.
+        if let Some(cmd) = build_linux_sandbox_command_from_profile("echo hi", cwd, &profile) {
+            let cmd_arg = cmd.args.last().expect("command arg should be last");
+            assert!(
+                cmd_arg.contains("timeout 30") || cmd_arg.contains("head -c"),
+                "profile limits should be applied: {cmd_arg}"
             );
         }
     }
