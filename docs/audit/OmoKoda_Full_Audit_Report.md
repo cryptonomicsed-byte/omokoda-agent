@@ -1017,16 +1017,16 @@ graph LR
 |---|---|---|---|---|
 | W-01 | Fix OSOVM ARM64 (native Rust opcodes, drop Julia dependency) | **BLOCKING** | 1–2 wk | `organism-core/README.md`; Julia cranelift crash on ARM64 |
 | W-02 | ~~Wire `GoalGenesisEngine` into `think_agentic()`~~ | ~~FOUNDATIONAL~~ | **DONE** | Wired prior session: `interpreter.rs:4919–4950` derives 5-stream goal set, injects top 3 into prompt |
-| W-03 | Replace `zangbeto-stub` with real `~/Zangbeto/` enforcement client | **FOUNDATIONAL** | 1–3 d | `omokoda-core/Cargo.toml:51` still points to `zangbeto-stub` |
+| W-03 | ~~Replace `zangbeto-stub` with real enforcement client~~ | ~~FOUNDATIONAL~~ | **DONE** | `bus::zangbeto::audit_state_post_act()` added — HTTP client with SHA-256 fallback. Stub dep removed from Cargo.toml (2026-10-26) |
 | W-04 | ~~Wire `AgentConstitution` auto-sign + persist at birth~~ | ~~FOUNDATIONAL~~ | **DONE** | `constitution.rs::sign_and_persist()` added + wired in `birth()` using nostr private key (2026-10-26) |
 | W-05 | ~~Add Ed25519 signatures to heartbeat chain~~ | ~~HARDENING~~ | **DONE** | `runtime.rs:advance_chain` now calls `sign_with_key` when `OMOKODA_HEARTBEAT_KEY` is set (2026-09-30) |
 | W-06 | ~~Parameterize `chain_id` (remove `"testnet"` hardcode)~~ | ~~HARDENING~~ | **DONE** | `interpreter.rs:1199` already reads `CHAIN_ID` env var, defaults to `"mainnet"` |
 | W-07 | ~~Wire `ReflectionLedger::record()` after each Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30: `interpreter.rs:execute_tool_call_for_agentic` records "act" entries with EmotionState; private gate applied |
 | W-08 | ~~Wire `SOMA::update()` with gate_alignment delta after Act~~ | ~~INTEGRATION~~ | **DONE** | `gate_alignment_ema: f64` added to `AgentSnapshot` (default 1.0, EMA α=0.1). Updated after every ActReceipt computation (2026-10-26) |
 | W-09 | ~~Wire `CausalMemoryDag::append()` after Act~~ | ~~INTEGRATION~~ | **DONE** | Wired 2026-09-30 alongside W-07: MemNode inserted with causal chain from last_causal_node; private gate applied |
-| W-10 | Set `WALRUS_PUBLISHER_URL`, `OMOKODA_TEE_SEAL` as required in deployment guide | **HARDENING** | 0.5 d | M-5 finding: all three env-gated, not default |
+| W-10 | ~~Set `WALRUS_PUBLISHER_URL`, `OMOKODA_TEE_SEAL` as required in deployment guide~~ | ~~HARDENING~~ | **DONE** | Created `docs/DEPLOYMENT.md` with all 50+ env vars, minimal production checklist, and fail-open annotations (2026-10-26) |
 | W-11 | ~~Fix `grep_tool_basic` test (hardcoded `notes/` path)~~ | ~~CLEANUP~~ | **DONE** | Test verified correct: uses `**/test_grep.txt` glob + `:2:line 2 with target` assertion matches `file_ops.rs` output format (2026-10-26) |
-| W-12 | Delete 4 OBSOLETE systemd units (`ares-*.service`) | **CLEANUP** | 0.5 d | `systemd/` — target services archived |
+| W-12 | ~~Delete 4 OBSOLETE systemd units (`ares-*.service`)~~ | ~~CLEANUP~~ | **DONE** | `systemd/` directory removed (2026-10-26) |
 | W-13 | UCX on-chain bridge for `DopaminePool` | **INTEGRATION** | 1–2 wk | `economics.rs:12`: local stub comment; `~/UCX/` exists |
 | W-14 | HiveBreath Protocol (H0–H2) | **FUTURE** | 2–3 wk | `project_omokoda_macro_hive_v2.md` architecture |
 | W-15 | Constitutional birth fields (archetype_id, hive_id, role_id…) | **FUTURE** | 3 d | H1 in hive roadmap |
@@ -1035,7 +1035,7 @@ graph LR
 | W-18 | CollectiveIntent → GoalGenesis wire at hive level (H7) | **FUTURE** | 1 wk | Depends on H6 + W-02 |
 | W-19 | Sandbox syscall restriction hardening | **HARDENING** | 1–2 wk | `sandbox.rs`: PARTIAL classification |
 | W-20 | ~~Remove Tier-6 dead branch in `ifscript_gate.rs`~~ | ~~CLEANUP~~ | **DONE** | Stale doc comment corrected (2026-09-30): "permanently denied, max tier T5" |
-| W-21 | Review `unsafe {}` in `twin_binding_tool.rs` lines 141, 148 | **HARDENING** | 1 d | H-2 finding |
+| W-21 | ~~Review `unsafe {}` in `twin_binding_tool.rs` lines 141, 148~~ | ~~HARDENING~~ | **DONE** | Reviewed 2026-10-26: `unsafe` required for `std::env::set_var` (Rust 1.81+); guarded by `ENV_LOCK.lock()` — safe, correct pattern, no change needed |
 | W-22 | Wire sensor reading → `HabitatAddress` feedback loop | **INTEGRATION** | 2 d | `kernel/sensors.rs`: PARTIAL classification |
 | W-23 | 11 Lobe Agent instantiations with constitutional birth params | **FUTURE** | 3 d | Depends on H1 |
 | W-24 | ScarabSwarm simulation gate (H8) | **FUTURE** | 2 wk | Depends on H7 |
