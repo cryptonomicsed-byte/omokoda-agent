@@ -1036,7 +1036,7 @@ graph LR
 | W-19 | Sandbox syscall restriction hardening | **HARDENING** | 1–2 wk | `sandbox.rs`: PARTIAL classification |
 | W-20 | ~~Remove Tier-6 dead branch in `ifscript_gate.rs`~~ | ~~CLEANUP~~ | **DONE** | Stale doc comment corrected (2026-09-30): "permanently denied, max tier T5" |
 | W-21 | ~~Review `unsafe {}` in `twin_binding_tool.rs` lines 141, 148~~ | ~~HARDENING~~ | **DONE** | Reviewed 2026-10-26: `unsafe` required for `std::env::set_var` (Rust 1.81+); guarded by `ENV_LOCK.lock()` — safe, correct pattern, no change needed |
-| W-22 | Wire sensor reading → `HabitatAddress` feedback loop | **INTEGRATION** | 2 d | `kernel/sensors.rs`: PARTIAL classification |
+| W-22 | ~~Wire sensor reading → `HabitatAddress` feedback loop~~ | ~~INTEGRATION~~ | **DONE** | `HabitatAddress::from_sensor()` added; `SomaLifecycle.habitat` populated in `wake_up()`; `soma_wake_up_with_id()` in bootstrap.rs (2026-10-26) |
 | W-23 | 11 Lobe Agent instantiations with constitutional birth params | **FUTURE** | 3 d | Depends on H1 |
 | W-24 | ScarabSwarm simulation gate (H8) | **FUTURE** | 2 wk | Depends on H7 |
 | W-25 | ~~Update README test count (759 → 1,052)~~ | ~~CLEANUP~~ | **DONE** | README already shows 1,052 (942 lib + 110 integration) |
