@@ -15,10 +15,15 @@ pub struct SomaLifecycle {
     pub emotion: EmotionState,
     pub session_start: u64,
     pub message_count: u64,
+    /// W-22: habitat address derived from sensor reading at wake_up.
+    /// agent_id is initially empty — call `habitat.set_agent_id()` once known.
+    pub habitat: crate::habitat::HabitatAddress,
 }
 
 impl SomaLifecycle {
     /// Wake up: read sensors, initialize EmotionState from device reality.
+    /// Also builds an initial HabitatAddress (W-22). Call `soma.habitat.set_agent_id()`
+    /// once the agent's id is known.
     pub fn wake_up() -> Self {
         let sensors = SensorReading::read();
         let emotion = EmotionState::birth().update_from_sensors(
@@ -27,18 +32,21 @@ impl SomaLifecycle {
             sensors.hour,
         );
         let session_start = now_secs();
+        let habitat = crate::habitat::HabitatAddress::from_sensor("", &sensors);
         log::info!(
-            "soma::wake_up battery={}% temp={}°C hour={} energy={:.2} tension={:.2}",
+            "soma::wake_up battery={}% temp={}°C hour={} energy={:.2} tension={:.2} area={:?}",
             sensors.battery_pct,
             sensors.temp_c,
             sensors.hour,
             emotion.energy,
             emotion.tension,
+            habitat.area_id,
         );
         Self {
             emotion,
             session_start,
             message_count: 0,
+            habitat,
         }
     }
 
@@ -100,5 +108,12 @@ mod tests {
             notable_events: vec![],
         };
         soma.sleep(&summary);
+    }
+
+    #[test]
+    fn wake_up_populates_habitat_address() {
+        let soma = SomaLifecycle::wake_up();
+        // W-22: habitat.confirmed_at should be set (non-zero)
+        assert!(soma.habitat.confirmed_at > 0);
     }
 }

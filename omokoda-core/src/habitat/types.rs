@@ -60,6 +60,42 @@ pub struct HabitatAddress {
 }
 
 impl HabitatAddress {
+    /// W-22: Build a minimal habitat address from a live sensor reading.
+    /// `agent_id` may be `""` when called before identity is resolved; the caller
+    /// should call `set_agent_id()` once the id is known.
+    /// Stamps `confirmed_at` with the current wall-clock second.
+    /// Attempts to read the local IP from the `AGENT_HABITAT_SPEC` env var or
+    /// falls back to None (the connection layer fills it when available).
+    pub fn from_sensor(agent_id: &str, reading: &crate::lifecycle::sensor::SensorReading) -> Self {
+        let confirmed_at = std::time::SystemTime::now()
+            .duration_since(std::time::UNIX_EPOCH)
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        let ip = std::env::var("AGENT_LOCAL_IP").ok().filter(|s| !s.is_empty());
+        // area_id encodes device context as a human-readable zone hint.
+        let area_id = if reading.battery_pct < 20 {
+            Some("low-power-zone".to_string())
+        } else if reading.temp_c > 45.0 {
+            Some("high-temp-zone".to_string())
+        } else {
+            None // nominal — no special zone
+        };
+        Self {
+            agent_id: agent_id.to_string(),
+            area_id,
+            gps: None,   // GPS not available from device sensors on this platform
+            ip,
+            mesh_node: None,
+            nostr_npub: None,
+            confirmed_at,
+        }
+    }
+
+    /// Update the agent_id after it is resolved (e.g. after SOMA wake_up).
+    pub fn set_agent_id(&mut self, agent_id: &str) {
+        self.agent_id = agent_id.to_string();
+    }
+
     /// Serialize to `NetworkRepr { network: "habitat", address: "<area_id|agent_id>" }`.
     /// Satisfies acceptance criterion: AGENT_HABITAT_SPEC.md line 426.
     pub fn to_network_repr(&self) -> crate::bridge::NetworkRepr {

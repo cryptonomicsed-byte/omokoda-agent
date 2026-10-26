@@ -86,18 +86,26 @@ impl BootstrapGraph {
     }
 
     /// Run SOMA wake_up as part of the bootstrap sequence (after Identity phase).
+    /// `agent_id` is set on the habitat address (W-22: sensor → HabitatAddress wire).
     /// Returns the initialized SomaLifecycle to be held by the agent runtime.
     pub fn soma_wake_up(&mut self) -> SomaLifecycle {
-        let soma = SomaLifecycle::wake_up();
+        let mut soma = SomaLifecycle::wake_up();
         self.record_phase(
             BirthPhase::Memory,
             true,
             format!(
-                "SOMA awake: energy={:.2} tension={:.2}",
-                soma.emotion.energy, soma.emotion.tension
+                "SOMA awake: energy={:.2} tension={:.2} area={:?}",
+                soma.emotion.energy, soma.emotion.tension, soma.habitat.area_id,
             ),
             0,
         );
+        soma
+    }
+
+    /// Same as `soma_wake_up` but binds the agent_id to the habitat address immediately.
+    pub fn soma_wake_up_with_id(&mut self, agent_id: &str) -> SomaLifecycle {
+        let mut soma = self.soma_wake_up();
+        soma.habitat.set_agent_id(agent_id);
         soma
     }
 
