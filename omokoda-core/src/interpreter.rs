@@ -192,6 +192,10 @@ mod personality_profile_serde {
     }
 }
 
+fn default_gate_alignment_ema() -> f64 {
+    1.0
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct AgentSnapshot {
     pub version: u32,
@@ -348,6 +352,13 @@ pub struct AgentSnapshot {
     /// so the sequence is never reused across restarts.
     #[serde(default)]
     pub fork_count: u32,
+    /// SOMA gate-alignment EMA (exponential moving average, α=0.1).
+    /// Updated after every Act: reflects how well this agent's tool calls align
+    /// with its hermetic DNA gates over its lifetime. 1.0 = perfect alignment,
+    /// floor = 0.5 (imposed by the gate_alignment computation). Starts at 1.0
+    /// at birth. Persisted so the signal is continuous across restarts.
+    #[serde(default = "default_gate_alignment_ema")]
+    pub gate_alignment_ema: f64,
 }
 
 /// Response payload for `AgentCore::reveal_seed` / `/v1/reveal-seed`.
@@ -1774,6 +1785,7 @@ impl Steward {
             // Birth composed_odu mirrors primary on both bytes until experience accrues.
             current_composed_odu: (birth_primary_odu as u16) << 8 | birth_primary_odu as u16,
             fork_count: 0,
+            gate_alignment_ema: 1.0, // perfect alignment at birth; degrades with hermetic warnings
         };
         let mut core = AgentCore::from_snapshot(snapshot, k_root);
         core.private_data = Some(private_data);
@@ -6541,6 +6553,11 @@ impl Steward {
             .with_gate_alignment(gate_alignment)
             .with_previous_hash(prev_hash.unwrap_or_default());
             agent.snapshot.last_act_receipt_hash = Some(receipt.receipt_id.clone());
+            // W-08 — SOMA gate-alignment EMA: α=0.1 per act (slow moving average).
+            // Tracks hermetic DNA alignment health across the agent's lifetime.
+            const SOMA_EMA_ALPHA: f64 = 0.1;
+            agent.snapshot.gate_alignment_ema = (1.0 - SOMA_EMA_ALPHA) * agent.snapshot.gate_alignment_ema
+                + SOMA_EMA_ALPHA * gate_alignment;
             // Capture for OSOVM attest spawn below (before receipt moves into ring).
             attest_receipt_id = receipt.receipt_id.clone();
             attest_gate_align = gate_alignment;
