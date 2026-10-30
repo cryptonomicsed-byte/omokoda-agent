@@ -5040,6 +5040,56 @@ impl Steward {
                 ctx.push(ConversationMessage::new_system(section, private));
             }
 
+            // Task 4 — Julia Memory service enrichment (MEMORY_ENGINE_URL, :7703).
+            // Runs alongside the existing odu_dir.recall above. Merges remote
+            // results into the "Recalled from memory" section. Fail-open: an
+            // unreachable service contributes zero results.
+            {
+                let memory_url = std::env::var("MEMORY_ENGINE_URL")
+                    .unwrap_or_else(|_| "http://localhost:7703".to_string());
+                let body = serde_json::json!({ "query": prompt, "limit": 3usize });
+                let remote_results: Vec<String> = match reqwest::Client::new()
+                    .post(&format!("{}/search", memory_url))
+                    .json(&body)
+                    .timeout(std::time::Duration::from_secs(5))
+                    .send()
+                    .await
+                {
+                    Ok(resp) => resp
+                        .json::<serde_json::Value>()
+                        .await
+                        .ok()
+                        .and_then(|v| {
+                            v["results"].as_array().map(|arr| {
+                                arr.iter()
+                                    .filter_map(|r| {
+                                        r["content"]
+                                            .as_str()
+                                            .or_else(|| r["text"].as_str())
+                                            .map(|s| s.chars().take(400).collect::<String>())
+                                    })
+                                    .collect()
+                            })
+                        })
+                        .unwrap_or_default(),
+                    Err(_) => vec![], // fail-open
+                };
+                if !remote_results.is_empty() {
+                    ctx.push(ConversationMessage::new_system(
+                        format!(
+                            "## Memory Engine Recall
+{}",
+                            remote_results
+                                .iter()
+                                .map(|r| format!("- {}", r))
+                                .collect::<Vec<_>>()
+                                .join("\n")
+                        ),
+                        private,
+                    ));
+                }
+            }
+
             // Soma: real cross-session memory via the Julia Ọ̀ṣun service
             // (see bus/clients.rs::HttpOsunClient). Fail-open when OSUN_URL
             // is unset or the service is unreachable -- reconstruct_soma

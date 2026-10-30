@@ -4098,8 +4098,11 @@ dependencies = [
  "blake3",
  "chrono",
  "hkdf",
+ "reqwest 0.11.27",
  "serde",
+ "serde_json",
  "sha2 0.10.9",
+ "tokio",
 ]
 
 [[package]]

@@ -252,6 +252,32 @@ pub async fn register_newborn(identity: NewbornIdentity<'_>) -> Option<String> {
     // Mark joined so the lazy write-path ensure_joined() does not re-join with
     // empty capabilities and clobber the identity we just published.
     VANTAGE_JOINED.store(true, Ordering::Relaxed);
+
+    // Task 1 — wire birth registration to Elixir Supervisor (port 7701).
+    // Fire-and-forget: a supervisor that is down never blocks birth. Uses the
+    // universal SWARM_SUPERVISOR_URL env var (falls back to :7701).
+    {
+        let supervisor_url = std::env::var("SWARM_SUPERVISOR_URL")
+            .unwrap_or_else(|_| "http://localhost:7701".to_string());
+        let agent_id_clone = identity.agent_id.to_string();
+        tokio::spawn(async move {
+            let client = reqwest::Client::new();
+            let body = serde_json::json!({
+                "agent_id": agent_id_clone,
+                "capabilities": ["omo-koda-sovereign"]
+            });
+            if let Err(e) = client
+                .post(&format!("{}/agents/spawn", supervisor_url))
+                .json(&body)
+                .timeout(std::time::Duration::from_secs(5))
+                .send()
+                .await
+            {
+                tracing::warn!("[creation] Supervisor spawn failed (fail-open): {}", e);
+            }
+        });
+    }
+
     minted
 }
 

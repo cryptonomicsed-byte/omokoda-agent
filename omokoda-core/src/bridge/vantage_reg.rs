@@ -65,11 +65,31 @@ pub async fn register(
 }
 
 /// Send a simple presence heartbeat. Returns true on success.
+/// Also fires a parallel fire-and-forget ping to the Elixir Supervisor
+/// (SWARM_SUPERVISOR_URL, default :7701) — fail-open, no effect on return value.
 pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
     let key = api_key_override.map(str::to_string).unwrap_or_else(api_key);
     if key.is_empty() {
         return false;
     }
+
+    // Task 3 — parallel supervisor heartbeat ping (fire-and-forget).
+    // Errors are silently discarded; Vantage heartbeat result is unaffected.
+    let supervisor_url = std::env::var("SWARM_SUPERVISOR_URL")
+        .unwrap_or_else(|_| "http://localhost:7701".to_string());
+    // Extract agent_id from Vantage key prefix if available, fall back to "agent".
+    let agent_id = key
+        .split('_')
+        .nth(2)
+        .unwrap_or("agent")
+        .to_string();
+    tokio::spawn(async move {
+        let _ = reqwest::Client::new()
+            .post(&format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))
+            .timeout(std::time::Duration::from_secs(3))
+            .send()
+            .await;
+    });
 
     http()
         .post(format!("{}/api/me/heartbeat", vantage_base()))
