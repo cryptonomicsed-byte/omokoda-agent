@@ -2,6 +2,8 @@
 // Contract: JobContract (work)
 // OSO-IR version: 1.0
 // Minimum tier: 1  Currency: ASE
+//
+// Updated: wired settle() to elegbara_router::settle_job_payment (phase9-move).
 
 module oso_contracts::job_contract {
 
@@ -10,6 +12,8 @@ module oso_contracts::job_contract {
     use sui::transfer;
     use sui::event;
     use sui::object::{Self, UID};
+    use sui::coin::Coin;
+    use techgnosis::elegbara_router::{Self as router, ElegbaraRouter, BirthRecord};
 
     /// Auto-generated from AssetSpec "Job"
     struct Job has key, store {
@@ -102,17 +106,35 @@ module oso_contracts::job_contract {
         // TODO: update state field to STATE_SETTLED
     }
 
-    /// Settlement: distribute Àṣẹ per fee routing policy.
-    /// currency=ASE fee_routing=6-pool provider_share=0.85
-    public entry fun settle(provider: address, amount: u64, ctx: &mut TxContext) {
-        // TRANSFER opcode → sui::transfer::public_transfer stub
-        // TODO: sui::transfer::public_transfer(coin, provider);
-        // EMIT_RECEIPT opcode → event emission stub
-        // TODO: event::emit(SettlementReceipt { provider, amount });
-        // Èṣù tithe: 0.0369 of settlement flows to justice pool
-        // TODO: transfer tithe to ESU_JUSTICE_POOL address
-        let _ctx = ctx;
-        let (_provider, _amount) = (provider, amount);
+    /// Settlement: distribute payment via elegbara_router::settle_job_payment.
+    ///   - Skims 3.69% Èṣù tithe to 8 ecosystem pools.
+    ///   - Pays birther royalty (gen 0=20%, gen 1=15%, gen 2+=10%) to record.birther_addr.
+    ///   - Pays agent operational share (15%) to agent_wallet.
+    ///   - Ecosystem remainder (~65%) routed back to 8 pools.
+    ///
+    /// Parameters:
+    ///   elegbara_router — shared ElegbaraRouter object.
+    ///   birth_record    — immutable BirthRecord created at agent birth.
+    ///   payment         — Coin<T> gross payment from the escrow.
+    ///   agent_wallet    — address of the agent's operational wallet.
+    public fun settle<T>(
+        elegbara_router: &mut ElegbaraRouter<T>,
+        birth_record: &BirthRecord,
+        payment: Coin<T>,
+        agent_wallet: address,
+        ctx: &mut TxContext,
+    ) {
+        let (birther_coin, agent_coin) = router::settle_job_payment<T>(
+            elegbara_router,
+            birth_record,
+            payment,
+            ctx,
+        );
+
+        // Transfer birther royalty to the address recorded at birth.
+        transfer::public_transfer(birther_coin, router::birth_record_birther_addr(birth_record));
+        // Transfer agent operational share to the agent's wallet.
+        transfer::public_transfer(agent_coin, agent_wallet);
     }
 
     /// AGENT_CALL opcode — cross-module call stub.
