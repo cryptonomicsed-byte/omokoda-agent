@@ -125,27 +125,31 @@ impl NetworkGuard {
     fn check_private_ranges(&self, url: &str) -> Option<String> {
         let host = extract_host(url);
 
-        // Loopback
-        if host == "localhost" || host == "::1" || host.starts_with("127.") || host == "[::1]" {
+        // Hostname forms.
+        if host == "localhost" || host.ends_with(".localhost") || host == "::1" || host == "[::1]" {
             return Some(format!("SSRF guard: loopback address blocked '{}'", host));
         }
 
-        // RFC-1918 private ranges
-        if let Some(reason) = check_rfc1918(host) {
-            return Some(reason);
-        }
-
-        // Link-local
-        if host.starts_with("169.254.") {
-            return Some(format!("SSRF guard: link-local address blocked '{}'", host));
-        }
-
-        // IPv6 private/link-local
-        if host.starts_with("fc") || host.starts_with("fd") || host.starts_with("fe80") {
-            return Some(format!(
-                "SSRF guard: IPv6 private/link-local blocked '{}'",
-                host
-            ));
+        // IP forms, including the non-canonical spellings a string check misses
+        // (decimal 2130706433, 0x7f.1, [::ffff:127.0.0.1], octal octets).
+        if let Some(ip) = parse_host_ip(host) {
+            let blocked = match ip {
+                std::net::IpAddr::V4(v4) => {
+                    v4.is_loopback() || v4.is_private() || v4.is_link_local() || v4.is_unspecified()
+                }
+                std::net::IpAddr::V6(v6) => {
+                    let seg = v6.segments();
+                    let ula = (seg[0] & 0xfe00) == 0xfc00;
+                    let link_local = (seg[0] & 0xffc0) == 0xfe80;
+                    v6.is_loopback() || v6.is_unspecified() || ula || link_local
+                }
+            };
+            if blocked {
+                return Some(format!(
+                    "SSRF guard: private/loopback address blocked '{}' ({})",
+                    host, ip
+                ));
+            }
         }
 
         None
@@ -190,7 +194,7 @@ impl NetworkGuard {
     }
 }
 
-/// Extract the host portion from a URL string (best-effort, no full URL parsing)
+/// Extract the host portion from a URL string (best-effort, no full URL parsing).
 fn extract_host(url: &str) -> &str {
     // Strip scheme
     let after_scheme = if let Some(pos) = url.find("://") {
@@ -211,6 +215,15 @@ fn extract_host(url: &str) -> &str {
         .next()
         .unwrap_or(after_scheme);
 
+    // Strip credentials. `http://evil.com@127.0.0.1/` is a request to 127.0.0.1,
+    // but the previous code returned the whole `evil.com@127.0.0.1` authority,
+    // so the loopback host was allowed through unchecked. Everything before the
+    // LAST '@' is userinfo.
+    let host_port = match host_port.rfind('@') {
+        Some(pos) => &host_port[pos + 1..],
+        None => host_port,
+    };
+
     // Strip port
     // Handle IPv6 [::1]:port
     if host_port.starts_with('[') {
@@ -219,6 +232,62 @@ fn extract_host(url: &str) -> &str {
         }
     }
     host_port.split(':').next().unwrap_or(host_port)
+}
+
+/// Parse the host into an IP address, resolving the non-canonical spellings a
+/// URL parser accepts but a string prefix check misses: decimal (`2130706433`),
+/// hex (`0x7f000001`), octal-ish (`0177.0.0.1`) and IPv4-mapped IPv6
+/// (`[::ffff:127.0.0.1]`).
+fn parse_host_ip(host: &str) -> Option<std::net::IpAddr> {
+    let h = host.trim_start_matches('[').trim_end_matches(']');
+
+    if let Ok(ip) = h.parse::<std::net::IpAddr>() {
+        // Normalise ::ffff:127.0.0.1 to its IPv4 form.
+        if let std::net::IpAddr::V6(v6) = ip {
+            if let Some(v4) = v6.to_ipv4_mapped() {
+                return Some(std::net::IpAddr::V4(v4));
+            }
+        }
+        return Some(ip);
+    }
+
+    // inet_aton-style shorthand: a 32-bit value, a.b (8+24), a.b.c (8+8+16)
+    // and a.b.c.d all name an IPv4 address. "127.1" means 127.0.0.1.
+    let parts: Vec<&str> = h.split('.').collect();
+    if parts.is_empty() || parts.len() > 4 {
+        return None;
+    }
+    let parse_part = |p: &str| -> Option<u64> {
+        if p.is_empty() {
+            return None;
+        }
+        if let Some(hex) = p.strip_prefix("0x").or_else(|| p.strip_prefix("0X")) {
+            u64::from_str_radix(hex, 16).ok()
+        } else if p.len() > 1 && p.starts_with('0') {
+            u64::from_str_radix(&p[1..], 8).ok()
+        } else {
+            p.parse::<u64>().ok()
+        }
+    };
+    let mut vals = [0u64; 4];
+    for (i, part) in parts.iter().enumerate() {
+        vals[i] = parse_part(part)?;
+    }
+    let value: u64 = match parts.len() {
+        1 => vals[0],
+        2 if vals[0] <= 255 && vals[1] <= 0x00ff_ffff => (vals[0] << 24) | vals[1],
+        3 if vals[0] <= 255 && vals[1] <= 255 && vals[2] <= 0xffff => {
+            (vals[0] << 24) | (vals[1] << 16) | vals[2]
+        }
+        4 if vals.iter().all(|v| *v <= 255) => {
+            (vals[0] << 24) | (vals[1] << 16) | (vals[2] << 8) | vals[3]
+        }
+        _ => return None,
+    };
+    if value > u32::MAX as u64 {
+        return None;
+    }
+    Some(std::net::IpAddr::V4(std::net::Ipv4Addr::from(value as u32)))
 }
 
 /// Check if a host matches an allowlist/blocklist entry (exact or suffix `.example.com`)
@@ -232,36 +301,6 @@ fn host_matches(host: &str, pattern: &str) -> bool {
     }
     // Pattern without leading dot: exact or subdomain
     host == pattern || host.ends_with(&format!(".{}", pattern))
-}
-
-/// Check RFC-1918 private IPv4 ranges
-fn check_rfc1918(host: &str) -> Option<String> {
-    if host.starts_with("10.") {
-        return Some(format!(
-            "SSRF guard: RFC-1918 10.0.0.0/8 blocked '{}'",
-            host
-        ));
-    }
-    if host.starts_with("192.168.") {
-        return Some(format!(
-            "SSRF guard: RFC-1918 192.168.0.0/16 blocked '{}'",
-            host
-        ));
-    }
-    // 172.16.0.0/12 = 172.16.x.x through 172.31.x.x
-    if let Some(rest) = host.strip_prefix("172.") {
-        if let Some(second_octet) = rest.split('.').next() {
-            if let Ok(n) = second_octet.parse::<u8>() {
-                if (16..=31).contains(&n) {
-                    return Some(format!(
-                        "SSRF guard: RFC-1918 172.16.0.0/12 blocked '{}'",
-                        host
-                    ));
-                }
-            }
-        }
-    }
-    None
 }
 
 #[cfg(test)]
@@ -332,5 +371,39 @@ mod tests {
         });
         assert!(guard.check("https://evil.com/payload").is_blocked());
         assert!(guard.check("https://sub.evil.com/payload").is_blocked());
+    }
+
+    /// Regression: userinfo made the authority string start with a public host,
+    /// so `http://evil.com@127.0.0.1/` reached loopback unchecked.
+    #[test]
+    fn test_userinfo_cannot_hide_loopback() {
+        assert!(guard().check("http://evil.com@127.0.0.1/admin").is_blocked());
+        assert!(guard()
+            .check("http://user:pass@127.0.0.1:8000/seed")
+            .is_blocked());
+        assert!(guard()
+            .check("http://169.254.169.254@example.com/")
+            .is_blocked());
+    }
+
+    /// Regression: alternate IP spellings bypassed the string-prefix checks.
+    #[test]
+    fn test_non_canonical_ip_spellings_are_blocked() {
+        for url in [
+            "http://2130706433/",            // 127.0.0.1 as decimal
+            "http://0x7f000001/",            // 127.0.0.1 as hex
+            "http://0177.0.0.1/",            // 127.0.0.1 as octal
+            "http://[::ffff:127.0.0.1]/",    // IPv4-mapped IPv6
+            "http://[::1]/",                 // IPv6 loopback
+            "http://127.1/",                 // shorthand loopback
+            "http://2852039166/latest/",     // 169.254.169.254 as decimal
+        ] {
+            assert!(guard().check(url).is_blocked(), "expected block for {url}");
+        }
+        // Public addresses keep working.
+        assert_eq!(
+            guard().check("https://93.184.216.34/x"),
+            NetworkGuardDecision::Allow
+        );
     }
 }

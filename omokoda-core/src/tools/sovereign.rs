@@ -23,9 +23,9 @@ impl Tool for ApplyPatchTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Patch applied successfully".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -50,9 +50,9 @@ impl Tool for ExecTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Command executed".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -77,9 +77,9 @@ impl Tool for ProcessTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Process status retrieved".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -104,9 +104,9 @@ impl Tool for WebSearchTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Search results retrieved".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -118,7 +118,7 @@ impl Tool for WebFetchTool {
         "web_fetch"
     }
     fn description(&self) -> &str {
-        "Fetch and extract readable content from a URL"
+        "Fetch a URL and return readable text. Params: a URL, or JSON {\"url\": \"...\"}. SSRF-guarded; redirects are not followed automatically."
     }
     fn required_tier(&self) -> u8 {
         5
@@ -128,13 +128,54 @@ impl Tool for WebFetchTool {
     }
     async fn execute(
         &self,
-        _params: &str,
+        params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Content fetched".to_string(),
-            crate::usage::TokenUsage::default(),
-        ))
+        let url = extract_fetch_url(params)?;
+        // The SSRF guard was previously never called from any tool, so
+        // `security.ssrf_guard` was decorative. Every outbound fetch goes
+        // through it now.
+        crate::tools::net_guard::guard_url(&url)?;
+
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(20))
+            // Do NOT follow redirects: a 302 to 127.0.0.1 or to an internal
+            // host would otherwise bypass the guard, which only saw the
+            // original URL. The caller re-issues and gets re-checked.
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .map_err(|e| format!("http client: {e}"))?;
+
+        let resp = client
+            .get(&url)
+            .header("User-Agent", "omo-koda/0.1 (+web_fetch)")
+            .send()
+            .await
+            .map_err(|e| format!("fetch failed: {e}"))?;
+
+        let status = resp.status();
+        if status.is_redirection() {
+            let location = resp
+                .headers()
+                .get(reqwest::header::LOCATION)
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("<no Location header>")
+                .to_string();
+            return Err(format!(
+                "fetch {url} -> HTTP {status} redirect to {location}; not followed automatically (re-issue web_fetch on the target so it is SSRF-checked)"
+            ));
+        }
+        if !status.is_success() {
+            return Err(format!("fetch {url} -> HTTP {status}"));
+        }
+
+        let body = resp.text().await.map_err(|e| format!("read body: {e}"))?;
+        let text = html_to_text(&body);
+        let trimmed: String = text.trim().chars().take(12_000).collect();
+        if trimmed.is_empty() {
+            return Err(format!("fetch {url} -> empty body"));
+        }
+        Ok((trimmed, crate::usage::TokenUsage::default()))
     }
 }
 
@@ -158,9 +199,9 @@ impl Tool for BrowserTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Browser action complete".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -185,9 +226,9 @@ impl Tool for CanvasTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Canvas updated".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -212,9 +253,9 @@ impl Tool for NodesTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Node operation complete".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -239,9 +280,9 @@ impl Tool for ImageTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Image analysis complete".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -266,9 +307,9 @@ impl Tool for MessageTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Message sent".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -293,9 +334,9 @@ impl Tool for CronTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Cron job registered".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -320,9 +361,9 @@ impl Tool for GatewayTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Gateway updated".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -347,9 +388,9 @@ impl Tool for SessionsListTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Session list retrieved".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -374,9 +415,9 @@ impl Tool for SessionsHistoryTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Session history retrieved".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -401,9 +442,9 @@ impl Tool for SessionsSendTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Message routed".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -428,9 +469,9 @@ impl Tool for SessionsSpawnTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Sub-agent spawned".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -455,9 +496,9 @@ impl Tool for SessionStatusTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Session status: Active".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -482,9 +523,9 @@ impl Tool for AgentsListTool {
         _params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        Ok((
-            "Agent list retrieved".to_string(),
-            crate::usage::TokenUsage::default(),
+        Err(format!(
+            "{} is registered but has no implementation in this build — nothing was executed. Do not report this call as a success.",
+            self.name()
         ))
     }
 }
@@ -493,6 +534,58 @@ impl Tool for AgentsListTool {
 ///
 /// Reaching T5 requires Proof-of-Evolution across all 5 domains — not
 /// mere possession of these capabilities.  See CANONICAL_PILLAR_CONTRACT.md.
+/// Accept either a bare URL or `{"url": "..."}` (the shape the model emits).
+fn extract_fetch_url(params: &str) -> Result<String, String> {
+    let trimmed = params.trim();
+    if trimmed.starts_with('{') {
+        let v: serde_json::Value = serde_json::from_str(trimmed)
+            .map_err(|e| format!("invalid web_fetch params: {e}"))?;
+        let url = v
+            .get("url")
+            .and_then(|u| u.as_str())
+            .ok_or_else(|| "web_fetch requires {\"url\": \"https://...\"}".to_string())?;
+        if !(url.starts_with("http://") || url.starts_with("https://")) {
+            return Err("web_fetch only accepts http(s) URLs".to_string());
+        }
+        Ok(url.to_string())
+    } else if trimmed.starts_with("http://") || trimmed.starts_with("https://") {
+        Ok(trimmed.to_string())
+    } else {
+        Err("web_fetch only accepts http(s) URLs".to_string())
+    }
+}
+
+/// Crude HTML -> text: drop script/style bodies, strip tags, unescape the five
+/// XML entities, collapse blank lines. Enough for an agent to read a page.
+fn html_to_text(html: &str) -> String {
+    use std::sync::LazyLock;
+    static SCRIPT: LazyLock<regex::Regex> = LazyLock::new(|| {
+        regex::Regex::new(r"(?is)<(script|style|noscript)[^>]*>.*?</(script|style|noscript)>")
+            .expect("static regex")
+    });
+    static TAG: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"(?s)<[^>]+>").expect("static regex"));
+    static BLANK: LazyLock<regex::Regex> =
+        LazyLock::new(|| regex::Regex::new(r"\n\s*\n\s*\n+").expect("static regex"));
+
+    let without_scripts = SCRIPT.replace_all(html, " ");
+    let without_tags = TAG.replace_all(&without_scripts, " ");
+    let unescaped = without_tags
+        .replace("&nbsp;", " ")
+        .replace("&amp;", "&")
+        .replace("&lt;", "<")
+        .replace("&gt;", ">")
+        .replace("&quot;", "\"")
+        .replace("&#39;", "'");
+    let collapsed = BLANK.replace_all(&unescaped, "\n\n");
+    collapsed
+        .lines()
+        .map(|l| l.split_whitespace().collect::<Vec<_>>().join(" "))
+        .filter(|l| !l.is_empty())
+        .collect::<Vec<_>>()
+        .join("\n")
+}
+
 pub fn sovereign_tool_list() -> Vec<&'static str> {
     vec![
         "apply_patch",         // 1  — multi-file edit

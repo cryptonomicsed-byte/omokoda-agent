@@ -21,6 +21,25 @@ impl PermissionMode {
             Self::Allow => "allow",
         }
     }
+
+    /// Precedence used by the permission matrix.
+    ///
+    /// This exists because the derived `Ord` ranks enum *variants* in
+    /// declaration order, which puts `Prompt` ABOVE `DangerFullAccess`. Any
+    /// `current_mode >= required_mode` check therefore auto-allowed every
+    /// dangerous tool in Prompt mode — the tier 3-4 default — turning the
+    /// "ask before escalating" mode into the most permissive one. `Prompt` is
+    /// an interaction mode, not a capability level, so it is ranked by the
+    /// capability it grants (workspace-write) and handled explicitly.
+    #[must_use]
+    pub fn rank(self) -> u8 {
+        match self {
+            Self::ReadOnly => 0,
+            Self::WorkspaceWrite | Self::Prompt => 1,
+            Self::DangerFullAccess => 2,
+            Self::Allow => 3,
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -88,11 +107,20 @@ impl PatternPolicy {
     }
 
     pub fn check(&self, action: &str, resource: &str) -> PermissionOutcome {
-        let target = format!("{}:{}", action, resource);
+        // Path actions are matched against a lexically normalised path so a
+        // deny pattern like `read:/etc/*` cannot be stepped around with
+        // `read:../../etc/passwd` (the previous code compared raw strings, so
+        // traversal, `//` and `./` spelling all bypassed it).
+        let resource_norm = if action == "read" || action == "write" {
+            normalize_path_lexically(resource)
+        } else {
+            resource.to_string()
+        };
+        let target = format!("{}:{}", action, resource_norm);
 
         // 1. Deny always wins
         for pattern in &self.deny {
-            if self.match_pattern(pattern, &target) {
+            if self.match_pattern(pattern, &target) || matches_exec_deny(pattern, action, resource) {
                 return PermissionOutcome::Deny {
                     reason: format!(
                         "PatternPolicy: action '{}' is explicitly denied by pattern '{}'",
@@ -310,10 +338,12 @@ impl PermissionPolicy {
             return PermissionOutcome::Deny { reason };
         }
 
-        // 2. Check Traditional Tier/Mode matrix
+        // 2. Check Traditional Tier/Mode matrix.
+        // `rank()` (not the derived Ord: Prompt must never outrank
+        // DangerFullAccess — see PermissionMode::rank).
         let current_mode = self.active_mode();
         let required_mode = self.required_mode_for(tool_name);
-        if current_mode == PermissionMode::Allow || current_mode >= required_mode {
+        if current_mode == PermissionMode::Allow || current_mode.rank() >= required_mode.rank() {
             return PermissionOutcome::Allow;
         }
 
@@ -350,6 +380,86 @@ impl PermissionPolicy {
                 current_mode.as_str()
             ),
         }
+    }
+}
+
+/// Split a shell command into words at the separators bash treats as command
+/// boundaries, so `exec:sudo` can be matched against `cd /tmp && sudo rm -rf /`.
+fn shell_words(cmd: &str) -> Vec<String> {
+    cmd.split(|c: char| {
+        c.is_whitespace() || matches!(c, ';' | '|' | '&' | '(' | ')' | '`' | '$' | '\n' | '>')
+    })
+    .filter(|w| !w.is_empty())
+    .map(|w| w.trim_matches(|c| c == '"' || c == '\'' || c == ',').to_string())
+    .collect()
+}
+
+/// Match an `exec:*` deny pattern against the *command*, not the raw string.
+///
+/// The deny list is written as `exec:sudo` / `exec:rm_rf`, but `check()` used to
+/// compare it against the whole target `exec:sudo apt install -y`, which never
+/// matches — both entries were decorative. `rm_rf` additionally has to cover
+/// every flag spelling (`-rf`, `-fr`, `-r -f`, `--recursive --force`).
+fn matches_exec_deny(pattern: &str, action: &str, cmd: &str) -> bool {
+    if action != "exec" {
+        return false;
+    }
+    let Some(denied) = pattern.strip_prefix("exec:") else {
+        return false;
+    };
+    if denied == "rm_rf" {
+        let words = shell_words(cmd);
+        let mut recursive = false;
+        let mut force = false;
+        for w in &words {
+            match w.as_str() {
+                "--recursive" => recursive = true,
+                "--force" => force = true,
+                _ if w.starts_with('-') && !w.starts_with("--") => {
+                    recursive |= w.contains('r') || w.contains('R');
+                    force |= w.contains('f');
+                }
+                _ => {}
+            }
+        }
+        if !(recursive && force) || !words.iter().any(|w| w == "rm") {
+            return false;
+        }
+        // Only the catastrophic form is denied: a recursive force delete aimed
+        // at an absolute path, a parent, a glob root, `*`, `~` or `$HOME`.
+        // `rm -rf build` inside the workspace stays allowed (the bash tool's
+        // own validator additionally hard-blocks `rm -rf /`).
+        const DANGEROUS_TARGETS: [&str; 6] = ["/", "..", "../", "*", "~", "$HOME"];
+        words.iter().skip(1).any(|w| {
+            w.starts_with('/')
+                || DANGEROUS_TARGETS.contains(&w.as_str())
+                || w.starts_with("~/")
+                || w.starts_with("$HOME")
+        })
+    } else {
+        shell_words(cmd).iter().any(|w| w == denied)
+    }
+}
+
+/// Resolve `.` and `..` segments without touching the filesystem (the target
+/// may not exist yet).
+fn normalize_path_lexically(path: &str) -> String {
+    let absolute = path.starts_with('/');
+    let mut out: Vec<&str> = Vec::new();
+    for seg in path.split('/') {
+        match seg {
+            "" | "." => {}
+            ".." => {
+                out.pop();
+            }
+            s => out.push(s),
+        }
+    }
+    let joined = out.join("/");
+    if absolute {
+        format!("/{joined}")
+    } else {
+        joined
     }
 }
 
@@ -401,5 +511,72 @@ deny:
             policy.check("read", "/etc/passwd"),
             PermissionOutcome::Deny { .. }
         ));
+    }
+
+    /// Regression: Prompt (tier 3-4 default) must never grant DangerFullAccess
+    /// without an approver. The derived Ord ranked Prompt above
+    /// DangerFullAccess, so `current_mode >= required_mode` allowed `bash`
+    /// outright.
+    #[test]
+    fn prompt_mode_does_not_auto_allow_danger_full_access() {
+        let policy = PermissionPolicy::default_steward_policy(PermissionMode::Prompt);
+        match policy.authorize("bash", "echo hi", None) {
+            PermissionOutcome::Deny { reason } => assert!(reason.contains("approval")),
+            PermissionOutcome::Allow => panic!("Prompt mode auto-allowed bash"),
+        }
+        // ...while read-only / workspace tools stay usable without an approver.
+        assert_eq!(
+            policy.authorize("read_file", "/tmp/x", None),
+            PermissionOutcome::Allow
+        );
+        assert_eq!(
+            policy.authorize("edit_file", "notes/a.md", None),
+            PermissionOutcome::Allow
+        );
+    }
+
+    /// Regression: the deny list entries `exec:sudo` / `exec:rm_rf` were
+    /// compared to the whole command string and never matched anything.
+    #[test]
+    fn exec_deny_patterns_match_real_commands() {
+        let policy = PatternPolicy::default();
+        for cmd in [
+            "sudo apt install -y foo",
+            "cd /tmp && sudo rm -rf /var",
+            "rm -rf /",
+            "rm -fr /tmp/x",
+            "rm -r -f /var/lib",
+            "rm --recursive --force /opt",
+            "rm -rf ~/projects",
+            "rm -rf *",
+        ] {
+            assert!(
+                matches!(policy.check("exec", cmd), PermissionOutcome::Deny { .. }),
+                "expected deny for {cmd}"
+            );
+        }
+        // Ordinary commands must still pass the pattern layer — including an
+        // in-workspace recursive delete, which is not catastrophic.
+        assert_eq!(
+            policy.check("exec", "rm build/tmp.o"),
+            PermissionOutcome::Allow
+        );
+        assert_eq!(
+            policy.check("exec", "rm -rf build/target"),
+            PermissionOutcome::Allow
+        );
+        assert_eq!(policy.check("exec", "ls -la"), PermissionOutcome::Allow);
+    }
+
+    /// Regression: a `read:/etc/*` deny was bypassable with `..` traversal.
+    #[test]
+    fn path_traversal_does_not_bypass_deny_patterns() {
+        let policy = PatternPolicy::default();
+        for p in ["/etc/passwd", "/etc/./passwd", "/tmp/../etc/passwd"] {
+            assert!(
+                matches!(policy.check("read", p), PermissionOutcome::Deny { .. }),
+                "expected deny for {p}"
+            );
+        }
     }
 }

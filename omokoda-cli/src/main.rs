@@ -345,6 +345,18 @@ fn session_dir() -> PathBuf {
 fn load_or_new_steward() -> Steward {
     let mut steward = Steward::new();
     steward.try_load_owner();
+    // The escalation prompter existed but was never installed by the CLI, so a
+    // Prompt-mode agent (tier 3-4 — the default once reputed) could never be
+    // approved interactively. Install it for terminal sessions only; scripted
+    // and piped runs stay fail-closed.
+    {
+        use std::io::IsTerminal;
+        if std::io::stdin().is_terminal() {
+            steward.permission_prompter = Some(Box::new(
+                omokoda_core::execution::prompter::TerminalPrompter::new("omokoda"),
+            ));
+        }
+    }
     steward
 }
 

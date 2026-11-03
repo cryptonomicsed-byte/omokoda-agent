@@ -1,7 +1,7 @@
 use axum::{
     body::Body,
     extract::{Path, Query, State},
-    http::{header, StatusCode},
+    http::{header, HeaderMap, StatusCode},
     response::{IntoResponse, Json, Response},
 };
 
@@ -234,7 +234,11 @@ pub async fn get_access_log(
 pub async fn get_vault_file(
     State(state): State<AppState>,
     Path(file_path): Path<String>,
+    headers: HeaderMap,
 ) -> impl IntoResponse {
+    if !crate::server::owner_authorized(&headers) {
+        return (StatusCode::UNAUTHORIZED, "owner token required").into_response();
+    }
     let Some((agent_id, agent_name)) = active_agent(&state).await else {
         return (StatusCode::NOT_FOUND, "no active agent").into_response();
     };
@@ -283,7 +287,10 @@ pub async fn get_vault_ls(
 
 // ─── GET /v1/vault/download ─────────────────────────────────────────────────
 
-pub async fn get_vault_download(State(state): State<AppState>) -> impl IntoResponse {
+pub async fn get_vault_download(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+    if !crate::server::owner_authorized(&headers) {
+        return (StatusCode::UNAUTHORIZED, "owner token required").into_response();
+    }
     let Some((agent_id, agent_name)) = active_agent(&state).await else {
         return (StatusCode::NOT_FOUND, "no active agent").into_response();
     };
