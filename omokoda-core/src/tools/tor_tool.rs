@@ -247,10 +247,24 @@ impl Tool for TorTool {
                         .to_string()
                 })?;
 
-                Command::new(&bin)
+                // The probe result used to be discarded, so a present-but-broken
+                // `oniux` still flipped Tor to "enabled" and every /tor run then
+                // failed at exec time with a confusing error.
+                let probe = Command::new(&bin)
                     .arg("--version")
                     .output()
                     .map_err(|e| format!("oniux --version failed: {e}"))?;
+                if !probe.status.success() {
+                    return Err(format!(
+                        "oniux at {} is not usable: `oniux --version` exited with {}{}",
+                        bin.display(),
+                        probe.status,
+                        match String::from_utf8_lossy(&probe.stderr).trim() {
+                            "" => String::new(),
+                            e => format!(" ({e})"),
+                        }
+                    ));
+                }
 
                 let mut state = self
                     .state
@@ -375,6 +389,34 @@ impl Tool for TorTool {
 mod tests {
     use super::*;
 
+    /// `ONIUX_BIN` is process-global. Two tests mutate it, so without a lock
+    /// `on_errors_without_oniux`'s resolve-on-enter check can land inside the
+    /// window `run_via_echo_bin` holds the var set — the pair then fails
+    /// intermittently under the default parallel test runner.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
+    /// Restores `ONIUX_BIN` on drop, including when the test panics (the old
+    /// manual restore at the end of the body leaked `/bin/echo` into every
+    /// later test in the binary).
+    struct OniuxBinGuard(Option<String>);
+
+    impl OniuxBinGuard {
+        fn set(value: &str) -> Self {
+            let prev = std::env::var("ONIUX_BIN").ok();
+            std::env::set_var("ONIUX_BIN", value);
+            Self(prev)
+        }
+    }
+
+    impl Drop for OniuxBinGuard {
+        fn drop(&mut self) {
+            match self.0.take() {
+                Some(v) => std::env::set_var("ONIUX_BIN", v),
+                None => std::env::remove_var("ONIUX_BIN"),
+            }
+        }
+    }
+
     #[test]
     fn parse_on_off_status() {
         assert!(matches!(
@@ -444,6 +486,7 @@ mod tests {
     async fn on_errors_without_oniux() {
         // If oniux is not installed (typical CI), /tor on should return an
         // informative Err, not panic.
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         if resolve_oniux().is_some() {
             return; // skip when oniux is actually installed
         }
@@ -517,8 +560,9 @@ mod tests {
         // Point ONIUX_BIN at /bin/echo to test the exec path without real Tor.
         // oniux is called as: oniux <cmd> <args...>, so echo will emit
         // "curl -s https://example.com" which proves we exec without a shell.
-        let prev = std::env::var("ONIUX_BIN").ok();
-        std::env::set_var("ONIUX_BIN", "/bin/echo");
+        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _restore = OniuxBinGuard::set("/bin/echo");
+        assert!(resolve_oniux().is_some(), "guard must make resolve succeed");
 
         let t = TorTool::new();
         let ctx = ExecutionContext {
@@ -542,10 +586,5 @@ mod tests {
             .expect("echo succeeds");
         assert!(out.contains("curl"), "got: {out}");
         assert!(out.contains("https://example.com"), "got: {out}");
-
-        match prev {
-            Some(v) => std::env::set_var("ONIUX_BIN", v),
-            None => std::env::remove_var("ONIUX_BIN"),
-        }
     }
 }

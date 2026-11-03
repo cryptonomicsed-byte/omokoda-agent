@@ -1618,7 +1618,7 @@ impl Steward {
             ];
             let koodu_birth_score = k_epoch_b
                 .wrapping_add(k_cycle_b)
-                .wrapping_add(k_phase_b)
+                .wrapping_add(u64::from(k_phase_b))
                 .wrapping_rem(256) as u8;
             let mut constitution = crate::constitution::AgentConstitution::new(
                 bipon39_phrase,

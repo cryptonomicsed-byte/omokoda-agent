@@ -334,6 +334,14 @@ async fn reveal_seed_handler(
 ) -> impl IntoResponse {
     use axum::http::StatusCode;
 
+    if !owner_authorized(&headers) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "owner token required" })),
+        )
+            .into_response();
+    }
+
     let requested_id = headers
         .get("x-agent-id")
         .and_then(|v| v.to_str().ok())
@@ -390,6 +398,14 @@ async fn keystore_handler(
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
     use axum::http::StatusCode;
+
+    if !owner_authorized(&headers) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "owner token required" })),
+        )
+            .into_response();
+    }
 
     let requested_id = headers
         .get("x-agent-id")
@@ -791,6 +807,14 @@ async fn capability_handler(
 ) -> impl IntoResponse {
     use crate::genesis::capability::{CapabilityRegistry, CapabilityScope};
     use axum::http::StatusCode;
+
+    if !owner_authorized(&headers) {
+        return (
+            StatusCode::UNAUTHORIZED,
+            Json(serde_json::json!({ "error": "owner token required" })),
+        )
+            .into_response();
+    }
 
     let requested_id = headers.get("x-agent-id").and_then(|v| v.to_str().ok());
     let receipt_opt = match requested_id {
@@ -1428,7 +1452,7 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/vault/file/*path", get(get_vault_file))
         // Rhythm route
         .route("/v1/rhythm/today", get(rhythm_today_handler))
-        .layer(CorsLayer::permissive())
+        .layer(cors_layer())
         .with_state(state)
 }
 
@@ -1625,7 +1649,91 @@ fn spawn_heartbeat(
     });
 }
 
+/// Cluster-local token for the owner (unauthenticated-by-design) API surface.
+/// When set, every owner-path call must present `Authorization: Bearer <token>`.
+pub fn owner_token() -> Option<String> {
+    std::env::var("OMOKODA_OWNER_TOKEN")
+        .ok()
+        .map(|t| t.trim().to_string())
+        .filter(|t| !t.is_empty())
+}
+
+/// Gate for the endpoints that hand out key material (seed reveal, keystore,
+/// vault file reads, state import). With no token configured the deployment is
+/// loopback-only and guarded at bind time by `bind_addr()`.
+pub fn owner_authorized(headers: &axum::http::HeaderMap) -> bool {
+    let Some(expected) = owner_token() else {
+        return true;
+    };
+    headers
+        .get(axum::http::header::AUTHORIZATION)
+        .and_then(|v| v.to_str().ok())
+        .and_then(|v| v.strip_prefix("Bearer "))
+        .map(|presented| presented.trim() == expected)
+        .unwrap_or(false)
+}
+
+/// Resolve the listen address and refuse configurations that would publish the
+/// unauthenticated owner surface (seed reveal, keystore, vault files) to the
+/// network. Previously the server always bound 0.0.0.0 with permissive CORS and
+/// no auth at all, so any host that could reach the port — or any web page the
+/// user visited, via CORS + loopback — could read the agent's private seed.
+fn bind_addr(port: u16) -> Result<std::net::SocketAddr, std::io::Error> {
+    let raw = std::env::var("OMOKODA_BIND").unwrap_or_else(|_| "127.0.0.1".to_string());
+    let ip: std::net::IpAddr = raw.trim().parse().map_err(|_| {
+        std::io::Error::new(
+            std::io::ErrorKind::InvalidInput,
+            format!("OMOKODA_BIND='{raw}' is not a valid IP address"),
+        )
+    })?;
+
+    if !ip.is_loopback()
+        && owner_token().is_none()
+        && std::env::var("OMOKODA_ALLOW_UNAUTHENTICATED_OWNER").as_deref() != Ok("1")
+    {
+        return Err(std::io::Error::new(
+            std::io::ErrorKind::PermissionDenied,
+            format!(
+                "refusing to bind {ip}:{port}: the owner API (POST /v1/reveal-seed, \
+                 GET /v1/keystore, GET /v1/vault/file/*) hands out key material and has \
+                 no authentication. Set OMOKODA_OWNER_TOKEN=<token> to expose it with \
+                 bearer auth, OMOKODA_BIND=127.0.0.1 to stay loopback-only, or \
+                 OMOKODA_ALLOW_UNAUTHENTICATED_OWNER=1 to accept the risk explicitly."
+            ),
+        ));
+    }
+    Ok(std::net::SocketAddr::new(ip, port))
+}
+
+/// CORS for the agent API. Default is *no* CORS headers (same-origin only):
+/// a permissive policy on an unauthenticated API lets any website the operator
+/// visits read the seed from `http://127.0.0.1:<port>`. Opt in per-origin with
+/// a comma-separated OMOKODA_CORS_ORIGINS.
+fn cors_layer() -> CorsLayer {
+    let origins: Vec<axum::http::HeaderValue> = std::env::var("OMOKODA_CORS_ORIGINS")
+        .unwrap_or_default()
+        .split(',')
+        .filter_map(|o| {
+            let o = o.trim();
+            if o.is_empty() {
+                None
+            } else {
+                o.parse().ok()
+            }
+        })
+        .collect();
+    if origins.is_empty() {
+        CorsLayer::new()
+    } else {
+        CorsLayer::new()
+            .allow_origin(origins)
+            .allow_methods(tower_http::cors::Any)
+            .allow_headers(tower_http::cors::Any)
+    }
+}
+
 pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
+    let addr = bind_addr(port)?;
     let state = AppState::new();
     spawn_heartbeat(state.steward.clone(), state.runtime.clone());
     crate::lifecycle::spawn_scheduler(
@@ -1649,7 +1757,6 @@ pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
             .unwrap_or(300),
     );
     let router = create_router(state);
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Ọmọ Kọ́dà HTTP server listening on {addr}");
     axum::serve(listener, router).await
@@ -2117,5 +2224,62 @@ mod event_json_tests {
         assert_eq!(j["odu_id"], 3);
         assert_eq!(j["tier"], 2);
         assert!(j["score"].is_number());
+    }
+}
+
+#[cfg(test)]
+mod owner_auth_tests {
+    use super::*;
+    use axum::http::{HeaderMap, HeaderValue};
+    use std::sync::Mutex;
+
+    // `OMOKODA_OWNER_TOKEN` is process-global; serialize the tests that set it.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
+
+    #[test]
+    fn owner_token_gate_enforces_bearer() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("OMOKODA_OWNER_TOKEN");
+        assert!(owner_authorized(&HeaderMap::new()), "no token => open (loopback-only)");
+
+        std::env::set_var("OMOKODA_OWNER_TOKEN", "s3cret");
+        assert!(!owner_authorized(&HeaderMap::new()), "token set => anonymous denied");
+        let mut wrong = HeaderMap::new();
+        wrong.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer nope"),
+        );
+        assert!(!owner_authorized(&wrong));
+        let mut right = HeaderMap::new();
+        right.insert(
+            axum::http::header::AUTHORIZATION,
+            HeaderValue::from_static("Bearer s3cret"),
+        );
+        assert!(owner_authorized(&right));
+        std::env::remove_var("OMOKODA_OWNER_TOKEN");
+    }
+
+    #[test]
+    fn non_loopback_bind_requires_token_or_explicit_opt_in() {
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        std::env::remove_var("OMOKODA_OWNER_TOKEN");
+        std::env::remove_var("OMOKODA_ALLOW_UNAUTHENTICATED_OWNER");
+        std::env::set_var("OMOKODA_BIND", "0.0.0.0");
+        assert!(
+            bind_addr(7777).is_err(),
+            "0.0.0.0 without a token must fail closed"
+        );
+
+        std::env::set_var("OMOKODA_ALLOW_UNAUTHENTICATED_OWNER", "1");
+        assert!(bind_addr(7777).is_ok());
+        std::env::remove_var("OMOKODA_ALLOW_UNAUTHENTICATED_OWNER");
+
+        std::env::set_var("OMOKODA_OWNER_TOKEN", "s3cret");
+        assert!(bind_addr(7777).is_ok(), "token makes exposure intentional");
+        std::env::remove_var("OMOKODA_OWNER_TOKEN");
+
+        std::env::set_var("OMOKODA_BIND", "127.0.0.1");
+        assert!(bind_addr(7777).is_ok(), "loopback default is fine");
+        std::env::remove_var("OMOKODA_BIND");
     }
 }

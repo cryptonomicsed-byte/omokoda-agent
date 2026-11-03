@@ -18,6 +18,7 @@ pub mod mail_tool;
 pub mod mailbox_provisioner;
 pub mod manifesto_tool;
 pub mod mesh_tools;
+pub mod net_guard;
 pub mod nostr_identity_tool;
 pub mod omohome_tool;
 pub mod onchain_tools;
@@ -902,9 +903,29 @@ impl Tool for BashTool {
             c
         };
 
-        let output = cmd
-            .output()
-            .map_err(|e| format!("failed to execute bash: {}", e))?;
+        // A command that never returns used to hang the agent forever: the old
+        // code blocked on `Command::output()` with no deadline. Bound it, and
+        // kill the child on timeout/drop.
+        let mut cmd = tokio::process::Command::from(cmd);
+        cmd.kill_on_drop(true);
+        let timeout_secs = std::env::var("OMOKODA_BASH_TIMEOUT_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(120);
+        let output = match tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            cmd.output(),
+        )
+        .await
+        {
+            Ok(Ok(o)) => o,
+            Ok(Err(e)) => return Err(format!("failed to execute bash: {}", e)),
+            Err(_) => {
+                return Err(format!(
+                    "bash command timed out after {timeout_secs}s and was killed"
+                ))
+            }
+        };
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();
@@ -940,7 +961,10 @@ impl Tool for WebSearchTool {
         params: &str,
         _context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        let client = reqwest::Client::new();
+        let client = reqwest::Client::builder()
+            .timeout(std::time::Duration::from_secs(15))
+            .build()
+            .map_err(|e| format!("web search client: {e}"))?;
         let url = format!(
             "https://duckduckgo.com/lite/?q={}",
             urlencoding::encode(params)
