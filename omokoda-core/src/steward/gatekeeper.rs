@@ -142,6 +142,18 @@ impl EsuGatekeeper {
     ///
     /// The caller's `ctx` swarm/cooldown fields are preserved; the agent's DNA is merged in.
     pub fn evaluate(&self, op: &Operation, ctx: &GateContext) -> GatekeeperResult {
+        // MANDATORY: Act operations MUST provide structured ActionIntent.
+        // Falling back to string heuristics is a security regression.
+        if let OperationKind::Act { .. } = &op.kind {
+            if op.action_intent.is_none() {
+                return GatekeeperResult::Halted {
+                    failed_gate: HermeticPrinciple::Mentalism,
+                    reason: \"ActionIntent required for Act operations — structured semantics are mandatory\".to_string(),
+                    scores: vec![],
+                };
+            }
+        }
+
         // Merge caller's context with the agent's DNA
         let ctx = GateContext::new_with_dna(
             ctx.in_cooldown,
@@ -150,6 +162,7 @@ impl EsuGatekeeper {
             self.dna.clone(),
         );
         let mut scores = Vec::with_capacity(7);
+
 
         for (i, gate) in self.gates.iter().enumerate() {
             let principle = HermeticPrinciple::from_index(i);

@@ -4085,7 +4085,6 @@ dependencies = [
  "wasmtime-wasi",
  "wat",
  "x25519-dalek",
- "zangbeto-enforcement",
  "zeroize",
  "zip",
 ]

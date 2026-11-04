@@ -119,7 +119,29 @@ impl PatternPolicy {
             return true;
         }
         if let Some(prefix) = pattern.strip_suffix('*') {
-            return target.starts_with(prefix);
+            // Normalize target to prevent path traversal bypasses (e.g., "workspace/../../etc/passwd")
+            let normalized = std::path::Path::new(target)
+                .components()
+                .filter(|c| matches!(c, std::path::Component::Normal(_)))
+                .collect::<Vec<_>>();
+            let prefix_path = std::path::Path::new(prefix);
+            
+            if prefix_path.components().count() == 0 {
+                return target.starts_with(prefix);
+            }
+            
+            // Check if the normalized target starts with the prefix path
+            let mut target_iter = normalized.iter();
+            let mut prefix_iter = prefix_path.components();
+            
+            loop {
+                match (target_iter.next(), prefix_iter.next()) {
+                    (Some(t), Some(p)) if t == p => continue,
+                    (None, None) => return true,
+                    (_, None) => return true,
+                    _ => return false,
+                }
+            }
         }
         pattern == target
     }

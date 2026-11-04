@@ -3464,6 +3464,32 @@ impl Steward {
                     let warn_count = agent_mut.snapshot.session.warn_count;
                     let swarm_load =
                         (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+                    // 1. Generate structured ActionIntent via ActionInterpreter
+                    let odu_index = agent.odu_identity().primary_index;
+                    let decision = crate::execution::action_interpreter::ActionInterpreter::evaluate(
+                        odu_index,
+                        &tool,
+                        &params,
+                    );
+
+                    let action_intent = match decision {
+                        crate::execution::action_interpreter::InterpretDecision::Proceed {
+                            receipt_required,
+                            ..
+                        } => Some(crate::gates::ActionIntent {
+                            purpose: format!("execute tool {}", tool),
+                            target: params.clone(),
+                            mutations: vec![], // Populated by ActionCompiler if available
+                            data_sensitivity: crate::gates::DataSensitivity::Internal,
+                            network_access: params.contains("http") || params.contains("fetch"),
+                            consent_required: false,
+                            reversibility: crate::gates::Reversibility::Reversible,
+                            expected_effects: vec![],
+                            receipt_required,
+                        }),
+                        _ => None, // Gatekeeper will handle the rejection if we pass None or an error
+                    };
+
                     let op = Operation {
                         kind: OperationKind::Act {
                             tool: tool.clone(),
@@ -3471,7 +3497,7 @@ impl Steward {
                         },
                         intent: format!("execute tool {}", tool),
                         agent_id: Some(agent_id.clone()),
-                        action_intent: None,
+                        action_intent,
                     };
                     let ctx = GateContext::new(
                         self.rhythm_tracker.has_any_active(),
