@@ -90,12 +90,16 @@ impl AppState {
         let runtime = crate::lifecycle::AgentRuntime::new(owner_id.clone(), owner_tier);
         // Register the five canonical daemons.
         {
-            let mut rt = runtime.blocking_lock();
-            rt.daemons.register("heartbeat");
-            rt.daemons.register("presence");
-            rt.daemons.register("learning");
-            rt.daemons.register("job");
-            rt.daemons.register("skill");
+            // NOTE: try_lock, not blocking_lock — AppState::new runs inside the
+            // tokio runtime and blocking_lock panics there. At boot there is no
+            // contention, so try_lock always succeeds.
+            if let Ok(mut rt) = runtime.try_lock() {
+                rt.daemons.register("heartbeat");
+                rt.daemons.register("presence");
+                rt.daemons.register("learning");
+                rt.daemons.register("job");
+                rt.daemons.register("skill");
+            }
         }
         // Boot the sovereign OS kernel and register the owner process.
         let os_kernel = Arc::new(crate::kernel::OsKernel::new());
