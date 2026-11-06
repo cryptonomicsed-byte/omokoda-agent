@@ -294,6 +294,15 @@ async fn birth_handler(
             let agent_id = new_steward
                 .agent_core()
                 .map(|a| a.id().as_str().to_string());
+            // M4: ensure every guest has a non-guessable API key stored in
+            // snapshot.vantage_key so dispatch_for_request finds it via vantage_key().
+            if new_steward.agent_core().and_then(|a| a.vantage_key()).is_none() {
+                let random_key = uuid::Uuid::new_v4().to_string();
+                if let Ok(core) = new_steward.ensure_born_mut() {
+                    core.set_vantage_key(random_key.clone());
+                }
+                let _ = new_steward.seal_additional_secrets(Some(random_key), None);
+            }
             let agent_key = new_steward
                 .agent_core()
                 .and_then(|a| a.vantage_key())
@@ -365,7 +374,10 @@ async fn reveal_seed_handler(
                 .agent_core()
                 .and_then(|a| a.vantage_key())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| id.clone());
+                // M4: never fall back to the agent ID — use an unguessable random
+                // value so agents without a stored key reject all auth attempts
+                // rather than accepting the publicly-known agent ID as a password.
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
             let presented = headers.get("x-agent-key").and_then(|v| v.to_str().ok());
             if presented != Some(expected_key.as_str()) {
                 return (
@@ -437,7 +449,10 @@ async fn keystore_handler(
                 .agent_core()
                 .and_then(|a| a.vantage_key())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| id.clone());
+                // M4: never fall back to the agent ID — use an unguessable random
+                // value so agents without a stored key reject all auth attempts
+                // rather than accepting the publicly-known agent ID as a password.
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
             let presented = headers.get("x-agent-key").and_then(|v| v.to_str().ok());
             if presented != Some(expected_key.as_str()) {
                 return (
@@ -545,9 +560,22 @@ async fn dispatch_for_request(
                 .agent_core()
                 .and_then(|a| a.vantage_key())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| id.clone());
-            let presented = headers.get("x-agent-key").and_then(|v| v.to_str().ok());
-            if presented != Some(expected_key.as_str()) {
+                // M4: never fall back to the agent ID — use an unguessable random
+                // value so agents without a stored key reject all auth attempts
+                // rather than accepting the publicly-known agent ID as a password.
+                .unwrap_or_else(|| uuid::Uuid::new_v4().to_string());
+            let presented = headers
+                .get("x-agent-key")
+                .and_then(|v| v.to_str().ok())
+                .unwrap_or("");
+            // M4: constant-time comparison to prevent timing side-channel
+            let key_ok = {
+                let a = presented.as_bytes();
+                let b = expected_key.as_bytes();
+                a.len() == b.len()
+                    && a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+            };
+            if !key_ok {
                 return Err((
                     StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({"error": "invalid or missing X-Agent-Key"})),
@@ -1768,6 +1796,14 @@ fn cors_layer() -> CorsLayer {
 }
 
 pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
+    // M2: unsigned heartbeat chains are insecure — warn operators so they know
+    if std::env::var("OMOKODA_HEARTBEAT_KEY").unwrap_or_default().is_empty() {
+        eprintln!(
+            "WARNING: OMOKODA_HEARTBEAT_KEY is not set. Heartbeat chain is hash-only \
+             (unsigned). Set this env var to an Ed25519 private key (base64url) to \
+             enable cryptographic heartbeat signatures."
+        );
+    }
     let addr = bind_addr(port)?;
     let state = AppState::new();
     spawn_heartbeat(state.steward.clone(), state.runtime.clone());
