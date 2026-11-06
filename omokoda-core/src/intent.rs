@@ -464,6 +464,11 @@ fn default_iterations_for(class: &IntentClass, modifiers: &ThinkModifiers) -> u3
     }
 }
 
+/// Public wrapper for the agentic path's tier-based iteration cap.
+pub fn tier_iteration_cap(tier: u8) -> u32 {
+    iteration_cap_for_tier(tier)
+}
+
 fn iteration_cap_for_tier(tier: u8) -> u32 {
     match tier {
         0 => 3,

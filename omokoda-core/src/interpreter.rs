@@ -2750,7 +2750,15 @@ impl Steward {
                 // the single-shot compiled think. Uses her BYOK key + identity
                 // and honours the requested iteration budget.
                 if modifiers.loop_enabled {
-                    let max_turns = modifiers.max_iterations.unwrap_or(8);
+                    // H2: cap requested iterations by both the agent's tier
+                    // and the global MAX_TOOL_ITERATIONS_PER_TURN hard limit.
+                    let tier_cap = crate::intent::tier_iteration_cap(
+                        self.agent.as_ref().map_or(0, |a| a.tier()),
+                    );
+                    let max_turns = modifiers.max_iterations
+                        .unwrap_or(8)
+                        .min(tier_cap)
+                        .min(crate::intent::MAX_TOOL_ITERATIONS_PER_TURN);
                     return self.think_agentic(prompt, private, max_turns).await;
                 }
 
@@ -6027,7 +6035,10 @@ impl Steward {
         //       let _ = crate::bootstrap_artifact::archive_bootstrap_md(&home);
         //   }
 
-        let max_turns = max_turns.clamp(1, 25);
+        // H2: enforce the shared iteration cap so the agentic path
+        // cannot exceed MAX_TOOL_ITERATIONS_PER_TURN regardless of what
+        // the caller requested over the API.
+        let max_turns = max_turns.clamp(1, crate::intent::MAX_TOOL_ITERATIONS_PER_TURN);
 
         // 1. Safety checks (same as regular think)
         if private {

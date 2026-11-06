@@ -870,18 +870,31 @@ impl Tool for BashTool {
         params: &str,
         context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        // P0 Security: Validate bash commands to prevent injection
-        if let Err(e) = crate::execution::bash_validation::validate_bash_command(params) {
-            return Err(format!("Security blocked: {}", e.reason));
-        }
-
+        // H3: Use validate_bash_full (not just validate_bash_command) so path
+        // boundary checks and destructive-operation detection run too.
         let sandbox = context.sandbox_mode;
-
+        let workspace_root = &context.workspace_root;
+        let validation = crate::execution::bash_validation::validate_bash_full(
+            params,
+            Some(workspace_root.as_path()),
+            false,
+            sandbox,
+        );
+        if let Some(blocked) = validation.block {
+            return Err(format!("Security blocked: {}", blocked.reason));
+        }
+        // Sandbox: block ".." path traversal (stage_sandbox_checks only warns).
         if sandbox && params.contains("..") {
             return Err("sandboxed bash commands must not contain '..'".to_string());
         }
 
-        let workspace_root = &context.workspace_root;
+        // H3: clear potentially-sensitive env vars before exec
+        let dangerous_env_keys = [
+            "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+            "GITHUB_TOKEN", "NPM_TOKEN", "CARGO_REGISTRY_TOKEN",
+            "DATABASE_URL", "OMOKODA_BEARER_TOKEN", "VANTAGE_API_KEY",
+        ];
+
         let mut cmd = if sandbox {
             let mut c = Command::new("unshare");
             c.args([
@@ -895,17 +908,27 @@ impl Tool for BashTool {
                 params,
             ]);
             c.current_dir(workspace_root);
+            for k in &dangerous_env_keys { c.env_remove(k); }
             c
         } else {
             let mut c = Command::new("bash");
             c.args(["-c", params]);
             c.current_dir(workspace_root);
+            for k in &dangerous_env_keys { c.env_remove(k); }
             c
         };
 
-        // A command that never returns used to hang the agent forever: the old
+// A command that never returns used to hang the agent forever: the old
         // code blocked on `Command::output()` with no deadline. Bound it, and
         // kill the child on timeout/drop.
+        //
+        // NOTE (audit-pass-3 reconciliation): wave-3's H3 fix reimplemented this
+        // same bound using spawn_blocking + std::process::Command, with a
+        // hardcoded 60s timeout. That version is dropped here because
+        // tokio::time::timeout racing a spawn_blocking task does NOT kill the
+        // underlying child on timeout -- the blocking thread (and the process
+        // it spawned) keeps running as an orphan. This version actually kills
+        // the child via kill_on_drop, and the timeout is configurable.
         let mut cmd = tokio::process::Command::from(cmd);
         cmd.kill_on_drop(true);
         let timeout_secs = std::env::var("OMOKODA_BASH_TIMEOUT_SECS")

@@ -14,6 +14,18 @@ use std::sync::OnceLock;
 use reqwest::Client;
 use serde_json::json;
 
+/// H4: 5-second hard timeout for all Zàngbétò HTTP calls.
+/// Prevents a slow or hung enforcer from blocking the act pipeline.
+const ZANGBETO_TIMEOUT_SECS: u64 = 5;
+
+/// H4: When ZANGBETO_FAIL_CLOSED=true, transport errors become block verdicts.
+/// Default is fail-open (safe for dev/CI). Set to "true" in production.
+fn fail_closed() -> bool {
+    std::env::var("ZANGBETO_FAIL_CLOSED")
+        .map(|v| v.eq_ignore_ascii_case("true") || v == "1")
+        .unwrap_or(false)
+}
+
 static HTTP: OnceLock<Client> = OnceLock::new();
 fn http() -> &'static Client {
     HTTP.get_or_init(Client::new)
@@ -59,21 +71,31 @@ pub async fn report_anomaly(
     detail: &str,
 ) -> Option<serde_json::Value> {
     let base = base_url()?;
-    let resp = http()
-        .post(format!("{base}/enforce"))
-        .json(&json!({
-            "agent_id": agent_id,
-            "severity": severity,
-            "classification": classification,
-            "detail": detail,
-        }))
-        .send()
-        .await
-        .ok()?;
+    let resp = tokio::time::timeout(
+        std::time::Duration::from_secs(ZANGBETO_TIMEOUT_SECS),
+        http()
+            .post(format!("{base}/enforce"))
+            .json(&json!({
+                "agent_id": agent_id,
+                "severity": severity,
+                "classification": classification,
+                "detail": detail,
+            }))
+            .send(),
+    )
+    .await
+    .ok()?
+    .ok()?;
     if !resp.status().is_success() {
         return None;
     }
-    resp.json::<serde_json::Value>().await.ok()
+    tokio::time::timeout(
+        std::time::Duration::from_secs(ZANGBETO_TIMEOUT_SECS),
+        resp.json::<serde_json::Value>(),
+    )
+    .await
+    .ok()?
+    .ok()
 }
 
 /// Ask ZÀNGBÉTÒ to review a *proposed* act before it runs and return its verdict
@@ -82,20 +104,30 @@ pub async fn report_anomaly(
 /// [`verdict_blocks`]) denies an otherwise-allowed act. Fail-open.
 pub async fn review_act(agent_id: &str, tool: &str, detail: &str) -> Option<serde_json::Value> {
     let base = base_url()?;
-    let resp = http()
-        .post(format!("{base}/review"))
-        .json(&json!({
-            "agent_id": agent_id,
-            "tool": tool,
-            "detail": detail,
-        }))
-        .send()
-        .await
-        .ok()?;
+    let resp = tokio::time::timeout(
+        std::time::Duration::from_secs(ZANGBETO_TIMEOUT_SECS),
+        http()
+            .post(format!("{base}/review"))
+            .json(&json!({
+                "agent_id": agent_id,
+                "tool": tool,
+                "detail": detail,
+            }))
+            .send(),
+    )
+    .await
+    .ok()?
+    .ok()?;
     if !resp.status().is_success() {
         return None;
     }
-    resp.json::<serde_json::Value>().await.ok()
+    tokio::time::timeout(
+        std::time::Duration::from_secs(ZANGBETO_TIMEOUT_SECS),
+        resp.json::<serde_json::Value>(),
+    )
+    .await
+    .ok()?
+    .ok()
 }
 
 /// Interpret a ZÀNGBÉTÒ verdict: does it order the act blocked?
@@ -253,7 +285,9 @@ pub async fn audit_state_post_act(state_bytes: &[u8], fallback_id: &str) -> Zang
         None => ZangbetoAudit {
             receipt_id: fallback_id.to_string(),
             sig: hash_sig,
-            passed: true, // fail-open: no enforcer configured
+            // H4: respect ZANGBETO_FAIL_CLOSED in production —
+            // transport errors block the act. Default remains fail-open for dev.
+            passed: !fail_closed(),
         },
     }
 }
