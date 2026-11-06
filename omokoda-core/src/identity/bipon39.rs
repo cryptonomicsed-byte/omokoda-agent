@@ -9,7 +9,13 @@ use std::collections::HashMap;
 
 /// BIPỌ̀N39 256-token Yoruba wordlist (canonical)
 /// Generated at build time from assets/bipon39_wordlist.txt
-const BIPON39_WORDLIST: &[&str] = include_str!("../../assets/bipon39_wordlist.txt");
+static BIPON39_WORDLIST_RAW: &str = include_str!("../../assets/bipon39_wordlist.txt");
+
+fn get_wordlist() -> &'static [&'static str] {
+    use std::sync::OnceLock;
+    static WORDLIST: OnceLock<Vec<&'static str>> = OnceLock::new();
+    WORDLIST.get_or_init(|| BIPON39_WORDLIST_RAW.lines().filter(|l| !l.is_empty()).collect())
+}
 
 /// Odù-to-index mapping (256 Odù → 0-255)
 const ODU_INDEX_MAP: &[(u8, &str)] = include!("../../assets/odu_index_map.rs");
@@ -89,22 +95,30 @@ impl Bipon39Mnemonic {
             return Err(Bipon39Error::InvalidEntropyLength);
         }
 
-        // Convert entropy to 24 word indices (11 bits each = 264 bits, use 256 + 8 checksum)
+        // Convert entropy to 24 word indices (11 bits each = 264 bits, use 256 + 8 checksum).
+        // Work in bits so that 33 bytes → 264 bits → 24 × 11-bit groups.
         let mut indices = Vec::with_capacity(24);
-        let mut bits = entropy.to_vec();
-        bits.push(entropy[0]); // Add 8 bits for checksum (simplified)
+        let mut entropy_bytes = entropy.to_vec();
+        entropy_bytes.push(entropy[0]); // 8-bit checksum (simplified)
 
-        for chunk in bits.chunks(11) {
-            let mut idx = 0u16;
-            for &b in chunk {
-                idx = (idx << 1) | (b & 1) as u16;
+        // Expand bytes to individual bits (MSB first)
+        let mut all_bits: Vec<u8> = Vec::with_capacity(entropy_bytes.len() * 8);
+        for &byte in &entropy_bytes {
+            for shift in (0..8).rev() {
+                all_bits.push((byte >> shift) & 1);
+            }
+        }
+        // Extract 24 × 11-bit groups
+        for chunk in all_bits.chunks(11).take(24) {
+            let mut idx: u16 = 0;
+            for &bit in chunk {
+                idx = (idx << 1) | bit as u16;
             }
             indices.push((idx % 256) as usize);
         }
-        indices.truncate(24);
 
         let words: Vec<String> = indices.iter()
-            .map(|&i| BIPON39_WORDLIST[i].to_string())
+            .map(|&i| get_wordlist()[i].to_string())
             .collect();
 
         // Derive Odù from first 2 words
@@ -142,7 +156,7 @@ impl Bipon39Mnemonic {
     }
 
     fn word_to_odù(word: &str) -> Result<u8, Bipon39Error> {
-        BIPON39_WORDLIST.iter()
+        get_wordlist().iter()
             .position(|&w| w == word)
             .map(|i| i as u8)
             .ok_or(Bipon39Error::WordNotInWordlist)
@@ -189,7 +203,10 @@ pub struct SuiAddress(pub String); // 0x... format
 
 impl SuiAddress {
     pub fn derive_from_seed(seed: &[u8; 32], path: &str) -> Self {
-        let derived = blake3::keyed_hash(b"sui-derivation", seed);
+        let mut _key = [0u8; 32];
+        let _src = b"sui-derivation";
+        _key[.._src.len()].copy_from_slice(_src);
+        let derived = blake3::keyed_hash(&_key, seed);
         Self(format!("0x{}", hex::encode(&derived.as_bytes()[..32])))
     }
 }
@@ -237,7 +254,7 @@ impl BirthReceipt {
             dna_fingerprint: identity.dna_fingerprint.clone(),
             odù_primary: identity.odù_primary,
             odù_secondary: identity.odù_secondary,
-            bipon39_fingerprint: bipon39_fp,
+            bipon39_fingerprint: bipon39_fp.to_string(),
             ip_root,
             timestamp,
             signature: String::new(),

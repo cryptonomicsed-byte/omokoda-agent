@@ -6,8 +6,8 @@
 
 use crate::gates::{
     CauseEffectGate, CorrespondenceGate, GateContext, GateResult, GenderGate, HermeticDna,
-    HermeticGate, HermeticPrinciple, HermeticRhythmGate, MentalismGate, Operation, PolarityGate,
-    VibrationGate,
+    HermeticGate, HermeticPrinciple, HermeticRhythmGate, MentalismGate, Operation, OperationKind,
+    PolarityGate, VibrationGate,
 };
 use omokoda_hermetic::HermeticState;
 
@@ -148,7 +148,7 @@ impl EsuGatekeeper {
             if op.action_intent.is_none() {
                 return GatekeeperResult::Halted {
                     failed_gate: HermeticPrinciple::Mentalism,
-                    reason: \"ActionIntent required for Act operations — structured semantics are mandatory\".to_string(),
+                    reason: "ActionIntent required for Act operations — structured semantics are mandatory".to_string(),
                     scores: vec![],
                 };
             }
@@ -292,6 +292,8 @@ mod tests {
     #[test]
     fn cooldown_active_halted_at_rhythm() {
         let gk = EsuGatekeeper::new();
+        // action_intent must be Some so the Mentalism pre-gate passes; the
+        // test is specifically checking that cooldown fires the Rhythm gate.
         let op = Operation {
             kind: OperationKind::Act {
                 tool: "bash".to_string(),
@@ -299,7 +301,7 @@ mod tests {
             },
             intent: "list files".to_string(),
             agent_id: Some(id()),
-            action_intent: None,
+            action_intent: Some(crate::gates::ActionIntent::default()),
         };
         let ctx = GateContext::new(true, 0, 0.0);
         let result = gk.evaluate(&op, &ctx);

@@ -119,31 +119,40 @@ impl PatternPolicy {
             return true;
         }
         if let Some(prefix) = pattern.strip_suffix('*') {
-            // Normalize target to prevent path traversal bypasses (e.g., "workspace/../../etc/passwd")
-            let normalized = std::path::Path::new(target)
-                .components()
-                .filter(|c| matches!(c, std::path::Component::Normal(_)))
-                .collect::<Vec<_>>();
-            let prefix_path = std::path::Path::new(prefix);
-            
-            if prefix_path.components().count() == 0 {
-                return target.starts_with(prefix);
+            if prefix.is_empty() {
+                return true;
             }
-            
-            // Check if the normalized target starts with the prefix path
-            let mut target_iter = normalized.iter();
-            let mut prefix_iter = prefix_path.components();
-            
-            loop {
-                match (target_iter.next(), prefix_iter.next()) {
-                    (Some(t), Some(p)) if t == p => continue,
-                    (None, None) => return true,
-                    (_, None) => return true,
-                    _ => return false,
-                }
+            // Split action from resource on the first ':' so that action labels
+            // (e.g. "net:") are not fed into Path::components(), which would treat
+            // "net:" as a single path component and break wildcard matching.
+            let (action_prefix, resource_prefix) = match prefix.find(':') {
+                Some(i) => (&prefix[..=i], &prefix[i + 1..]),
+                None => (prefix, ""),
+            };
+            if !target.starts_with(action_prefix) {
+                return false;
             }
+            if resource_prefix.is_empty() {
+                return true; // "action:*" — any resource with this action
+            }
+            let target_resource = &target[action_prefix.len()..];
+            // Normalize both sides to block path traversal and handle absolute paths.
+            // Filtering RootDir/ParentDir components makes "/etc/passwd" → "etc/passwd"
+            // and "workspace/../../etc" → "workspace/etc" (both sides normalized equally).
+            let normalize = |s: &str| -> String {
+                std::path::Path::new(s)
+                    .components()
+                    .filter(|c| matches!(c, std::path::Component::Normal(_)))
+                    .map(|c| c.as_os_str().to_string_lossy().into_owned())
+                    .collect::<Vec<_>>()
+                    .join("/")
+            };
+            let norm_target = normalize(target_resource);
+            let norm_prefix = normalize(resource_prefix);
+            norm_target.starts_with(&norm_prefix)
+        } else {
+            pattern == target
         }
-        pattern == target
     }
 }
 
