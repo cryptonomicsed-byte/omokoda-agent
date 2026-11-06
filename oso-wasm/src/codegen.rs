@@ -64,17 +64,43 @@ impl WasmCodegen {
 
 fn sanitize_name(s: &str) -> String {
     s.chars()
-        .map(|c| if c.is_alphanumeric() || c == '_' { c } else { '_' })
+        .map(|c| {
+            if c.is_alphanumeric() || c == '_' {
+                c
+            } else {
+                '_'
+            }
+        })
         .collect::<String>()
         .to_lowercase()
 }
 
 fn emit_imports(out: &mut String) {
-    writeln!(out, "  ;; Host ABI — implemented by the ỌSỌVM execution layer").unwrap();
-    writeln!(out, r#"  (import "oso_host" "emit_receipt" (func $emit_receipt (param i64 i64)))"#).unwrap();
-    writeln!(out, r#"  (import "oso_host" "get_balance" (func $get_balance (param i32) (result i64)))"#).unwrap();
-    writeln!(out, r#"  (import "oso_host" "transfer" (func $transfer (param i32 i32 i64)))"#).unwrap();
-    writeln!(out, r#"  (import "oso_host" "get_timestamp" (func $get_timestamp (result i64)))"#).unwrap();
+    writeln!(
+        out,
+        "  ;; Host ABI — implemented by the ỌSỌVM execution layer"
+    )
+    .unwrap();
+    writeln!(
+        out,
+        r#"  (import "oso_host" "emit_receipt" (func $emit_receipt (param i64 i64)))"#
+    )
+    .unwrap();
+    writeln!(
+        out,
+        r#"  (import "oso_host" "get_balance" (func $get_balance (param i32) (result i64)))"#
+    )
+    .unwrap();
+    writeln!(
+        out,
+        r#"  (import "oso_host" "transfer" (func $transfer (param i32 i32 i64)))"#
+    )
+    .unwrap();
+    writeln!(
+        out,
+        r#"  (import "oso_host" "get_timestamp" (func $get_timestamp (result i64)))"#
+    )
+    .unwrap();
     writeln!(out).unwrap();
 }
 
@@ -144,7 +170,11 @@ fn emit_settlement(out: &mut String, ir: &OsoIR) {
     writeln!(out, "    (local $net i64)").unwrap();
     writeln!(out, "    i64.const {amount}").unwrap();
     writeln!(out, "    local.set $gross").unwrap();
-    writeln!(out, "    ;; tithe = gross * {tithe_bp} / 10000  (Èṣù 3.69%)").unwrap();
+    writeln!(
+        out,
+        "    ;; tithe = gross * {tithe_bp} / 10000  (Èṣù 3.69%)"
+    )
+    .unwrap();
     writeln!(out, "    local.get $gross").unwrap();
     writeln!(out, "    i64.const {tithe_bp}").unwrap();
     writeln!(out, "    i64.mul").unwrap();
@@ -170,11 +200,27 @@ fn emit_settlement(out: &mut String, ir: &OsoIR) {
 }
 
 fn emit_policy_gate(out: &mut String, _ir: &OsoIR) {
-    writeln!(out, "  ;; Policy gate — called before every lifecycle transition").unwrap();
+    writeln!(
+        out,
+        "  ;; Policy gate — called before every lifecycle transition"
+    )
+    .unwrap();
     writeln!(out, "  (func $check_policy").unwrap();
-    writeln!(out, "    ;; TODO: read caller tier from host and compare to $min_tier").unwrap();
-    writeln!(out, "    ;; TODO: if $require_evidence=1, verify evidence hash from host").unwrap();
-    writeln!(out, "    ;; For now: pass-through (enforcement via ỌSỌVM outer gate)").unwrap();
+    writeln!(
+        out,
+        "    ;; TODO: read caller tier from host and compare to $min_tier"
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "    ;; TODO: if $require_evidence=1, verify evidence hash from host"
+    )
+    .unwrap();
+    writeln!(
+        out,
+        "    ;; For now: pass-through (enforcement via ỌSỌVM outer gate)"
+    )
+    .unwrap();
     writeln!(out, "    nop").unwrap();
     writeln!(out, "  )").unwrap();
     writeln!(out).unwrap();
@@ -221,13 +267,13 @@ mod tests {
                 types: vec![WitnessType::Agent],
             }),
             settlement: SettlementSpec {
-                currency:       Some("ASE".into()),
-                fee_routing:    Some("6-pool".into()),
-                creator_share:  Some(0.0),
-                burn_share:     Some(0.05),
+                currency: Some("ASE".into()),
+                fee_routing: Some("6-pool".into()),
+                creator_share: Some(0.0),
+                burn_share: Some(0.05),
                 provider_share: Some(0.90),
-                amount:         Some(1000),
-                tithe_rate:     Some(0.0369),
+                amount: Some(1000),
+                tithe_rate: Some(0.0369),
             },
             policy: Default::default(),
             lifecycle: vec!["deposit".into(), "withdraw".into(), "settle".into()],
@@ -248,7 +294,7 @@ mod tests {
     fn settlement_encodes_tithe() {
         let ir = sample_ir();
         let wat = WasmCodegen::compile(&ir).unwrap();
-        assert!(wat.contains("369"));   // tithe basis points
+        assert!(wat.contains("369")); // tithe basis points
         assert!(wat.contains("10000")); // divisor
         assert!(wat.contains("$settle"));
     }

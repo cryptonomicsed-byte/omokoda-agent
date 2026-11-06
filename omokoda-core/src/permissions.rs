@@ -125,18 +125,20 @@ impl PatternPolicy {
                 .filter(|c| matches!(c, std::path::Component::Normal(_)))
                 .collect::<Vec<_>>();
             let prefix_path = std::path::Path::new(prefix);
-            
-            if prefix_path.components().count() == 0 {
+
+            // If prefix has no path separator, use simple string prefix match
+            // (handles action:resource patterns like "net:*", "read:*").
+            if prefix_path.components().count() == 0 || !prefix.contains('/') {
                 return target.starts_with(prefix);
             }
-            
+
             // Check if the normalized target starts with the prefix path
             let mut target_iter = normalized.iter();
             let mut prefix_iter = prefix_path.components();
-            
+
             loop {
                 match (target_iter.next(), prefix_iter.next()) {
-                    (Some(t), Some(p)) if t == p => continue,
+                    (Some(t), Some(p)) if *t == p => continue,
                     (None, None) => return true,
                     (_, None) => return true,
                     _ => return false,

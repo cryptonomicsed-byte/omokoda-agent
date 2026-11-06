@@ -11,20 +11,20 @@ use crate::IrProgram;
 /// Maps opcode_name → the capability string it requires.
 fn required_capability(opcode_name: &str) -> Option<&'static str> {
     match opcode_name {
-        "TRANSFER_ASE"   => Some("TRANSFER"),
-        "BURN_ASE"       => Some("BURN"),
-        "EMIT_ASE"       => Some("EMIT"),
-        "LOCK_ASE"       => Some("LOCK"),
-        "PROPOSE"        => Some("GOVERN"),
-        "VOTE"           => Some("GOVERN"),
-        "EXECUTE"        => Some("GOVERN"),
-        "SEAL_DATA"      => Some("SEAL"),
-        "UNSEAL_DATA"    => Some("SEAL"),
-        "GPU_CONTRIB"    => Some("COMPUTE"),
-        "SIM_STEP"       => Some("SIMULATE"),
-        "SIM_VERIFY"     => Some("SIMULATE"),
-        "AGENT_BIRTH"    => Some("BIRTH"),
-        _                => None,
+        "TRANSFER_ASE" => Some("TRANSFER"),
+        "BURN_ASE" => Some("BURN"),
+        "EMIT_ASE" => Some("EMIT"),
+        "LOCK_ASE" => Some("LOCK"),
+        "PROPOSE" => Some("GOVERN"),
+        "VOTE" => Some("GOVERN"),
+        "EXECUTE" => Some("GOVERN"),
+        "SEAL_DATA" => Some("SEAL"),
+        "UNSEAL_DATA" => Some("SEAL"),
+        "GPU_CONTRIB" => Some("COMPUTE"),
+        "SIM_STEP" => Some("SIMULATE"),
+        "SIM_VERIFY" => Some("SIMULATE"),
+        "AGENT_BIRTH" => Some("BIRTH"),
+        _ => None,
     }
 }
 
@@ -32,10 +32,10 @@ fn required_capability(opcode_name: &str) -> Option<&'static str> {
 fn opcode_min_tier(opcode_name: &str) -> u8 {
     match opcode_name {
         "PROPOSE" | "VOTE" | "EXECUTE" => 5, // governance
-        "AGENT_BIRTH"                  => 2,
-        "GPU_CONTRIB"                  => 3,
-        "SEAL_DATA" | "UNSEAL_DATA"    => 2,
-        _                              => 0,
+        "AGENT_BIRTH" => 2,
+        "GPU_CONTRIB" => 3,
+        "SEAL_DATA" | "UNSEAL_DATA" => 2,
+        _ => 0,
     }
 }
 
@@ -66,8 +66,12 @@ impl<'a> CapabilityChecker<'a> {
             return;
         }
 
-        let declared: std::collections::HashSet<&str> =
-            self.program.capabilities.iter().map(|s| s.as_str()).collect();
+        let declared: std::collections::HashSet<&str> = self
+            .program
+            .capabilities
+            .iter()
+            .map(|s| s.as_str())
+            .collect();
 
         for instr in &self.program.instructions {
             if let Some(cap) = required_capability(&instr.opcode_name) {
@@ -75,8 +79,7 @@ impl<'a> CapabilityChecker<'a> {
                     errors.push(format!(
                         "CAP1: instruction '{}' at line {} requires capability '{}' \
                          but it is not declared in the program capabilities list {:?}",
-                        instr.opcode_name, instr.line, cap,
-                        self.program.capabilities
+                        instr.opcode_name, instr.line, cap, self.program.capabilities
                     ));
                 }
             }
@@ -104,7 +107,9 @@ impl<'a> CapabilityChecker<'a> {
                 continue;
             }
             let caller = instr.args.get("caller").and_then(|v| v.as_str());
-            let recipient = instr.args.get("recipient")
+            let recipient = instr
+                .args
+                .get("recipient")
                 .or_else(|| instr.args.get("to"))
                 .and_then(|v| v.as_str());
 
@@ -130,7 +135,11 @@ mod tests {
         IrInstruction {
             opcode: 0,
             opcode_name: name.into(),
-            args: if let serde_json::Value::Object(m) = args { m } else { Default::default() },
+            args: if let serde_json::Value::Object(m) = args {
+                m
+            } else {
+                Default::default()
+            },
             line,
         }
     }
@@ -148,7 +157,7 @@ mod tests {
     fn cap1_missing_transfer_capability() {
         let p = prog(
             vec![make_instr("TRANSFER_ASE", json!({"amount": 100}), 1)],
-            vec!["BURN"],  // TRANSFER not declared
+            vec!["BURN"], // TRANSFER not declared
             0,
         );
         let errs = CapabilityChecker::new(&p).check();
@@ -169,22 +178,14 @@ mod tests {
     #[test]
     fn cap2_tier_too_low() {
         // PROPOSE requires tier 5 but program says minimum_tier=2
-        let p = prog(
-            vec![make_instr("PROPOSE", json!({}), 3)],
-            vec!["GOVERN"],
-            2,
-        );
+        let p = prog(vec![make_instr("PROPOSE", json!({}), 3)], vec!["GOVERN"], 2);
         let errs = CapabilityChecker::new(&p).check();
         assert!(errs.iter().any(|e| e.contains("CAP2")));
     }
 
     #[test]
     fn cap2_tier_sufficient_passes() {
-        let p = prog(
-            vec![make_instr("PROPOSE", json!({}), 3)],
-            vec!["GOVERN"],
-            5,
-        );
+        let p = prog(vec![make_instr("PROPOSE", json!({}), 3)], vec!["GOVERN"], 5);
         let errs = CapabilityChecker::new(&p).check();
         assert!(errs.iter().all(|e| !e.contains("CAP2")));
     }
@@ -192,7 +193,11 @@ mod tests {
     #[test]
     fn cap3_self_escalation_delegate() {
         let p = prog(
-            vec![make_instr("DELEGATE", json!({"caller": "did:v:agent:alice", "recipient": "did:v:agent:alice"}), 5)],
+            vec![make_instr(
+                "DELEGATE",
+                json!({"caller": "did:v:agent:alice", "recipient": "did:v:agent:alice"}),
+                5,
+            )],
             vec![],
             0,
         );
@@ -203,7 +208,11 @@ mod tests {
     #[test]
     fn cap3_different_recipient_passes() {
         let p = prog(
-            vec![make_instr("DELEGATE", json!({"caller": "did:v:agent:alice", "recipient": "did:v:agent:bob"}), 5)],
+            vec![make_instr(
+                "DELEGATE",
+                json!({"caller": "did:v:agent:alice", "recipient": "did:v:agent:bob"}),
+                5,
+            )],
             vec![],
             0,
         );

@@ -24,7 +24,7 @@ The kernel is divided into seven functional domains, each serving a critical rol
 | **Wisdom** | Deep reasoning, internal consistency, and abstraction depth. |
 | **Memory** | Long-term continuity via the Living Odu key chain (RACK pattern). |
 | **Creation** | Agent birth, lifecycle, and identity forging in SEAL enclaves. |
-| **Execution** | Verifiable action performance via sandboxed WASM tools. |
+| **Execution** | Verifiable action performance via tools; bash runs on host by default (sandbox is optional, server-side controlled by `OMOKODA_BASH_SANDBOX`). |
 | **Justice** | Immutable receipts, reputation, and tier-based gatekeeping. |
 | **Flow** | Temporal rhythm, cooldowns, and metabolic resource allocation. |
 
@@ -47,9 +47,9 @@ A daily resonance engine that modulates agent behavior based on the time-stream,
 Ọmọ Kọ́dà maintains a rigorous testing standard across its multi-language ecosystem.
 
 **Current Audit Status (September 2026, post-Phase-9 forensic audit):** `PASSED` ✅
-*   **Total Verified Tests**: `1,052`
-*   **Rust Workspace**: `942` lib + `110` integration tests (0 failures)
-*   **Go/Elixir/Julia** services archived — ideas absorbed into Rust core
+*   **Total Verified Tests**: `1,650`
+*   **Rust Workspace**: `942` lib + `708` integration tests (0 failures)
+*   **Go/Elixir/Julia** services are live (wave7-C wired them into the CI pipeline)
 *   **Economic Simulation**: `Verified` (365-day cycle, reputation & synapse decay)
 *   **E2E Flow**: `Verified` (Birth → Think → Act via WASM)
 
@@ -74,7 +74,7 @@ A daily resonance engine that modulates agent behavior based on the time-stream,
 *   **Identity Forging**: BIPỌ̀N39 mnemonic engine and DNA fingerprints integrated. `CloakSeed` display-layer cipher, `DuressHandler` BLAKE3-hashed panic phrase, `PoisonRadar` address poisoning scan, `IdentityMerkleTree`.
 *   **Privacy Engine**: Sealed session memory using Argon2id key derivation and ChaCha20Poly1305 encryption. `/private` is a hard fail on non-local providers.
 *   **Permission System**: Tier-gated tool permissions with bash security, SSRF guard, and sandbox adapter — `omokoda-core/src/permissions.rs`.
-*   **Session Lifecycle**: Auto-compact (configurable threshold), dream-state consolidation, Odu memdir persistence. `MAX_TOOL_ITERATIONS_PER_TURN=16`; TwelfthFace triggers at `dispatch_depth > 1024`.
+*   **Session Lifecycle**: Auto-compact (configurable threshold), dream-state consolidation, Odu memdir persistence. `MAX_TOOL_ITERATIONS_PER_TURN=16` (enforced via `OMOKODA_MAX_AGENTIC_TURNS` env var); TwelfthFace triggers at `dispatch_depth > 1024`.
 *   **Hook System**: 16 event types (`PreThink`, `PostThink`, `PreAct`, `PostAct`, `OnError`, `OnCompact`, `OnDream`, …), shell and Python hook handlers, and a glob-based rule engine in `omokoda-hermetic`.
 *   **Plugin Ecosystem**: Garden Marketplace manifest validation, command forge, plugin toolkits with sequential/parallel/hierarchical/pipeline activation — `omokoda-frontend/lib/`.
 *   **On-chain Registry (Move)**: 8 contracts — `soul.move`, `agent.move`, `zbt_errors.move`, `zbt_guard.move`, `zbt_core.move`, `consensus_ledger.move`, `epistemic_nft.move`, `hive.move` (DOPAMINE_TOTAL_POOL=86B).
@@ -96,20 +96,24 @@ A daily resonance engine that modulates agent behavior based on the time-stream,
 
 ## Developer Setup
 
-The Rust workspace depends on two sibling repositories via path dependencies:
+The Rust workspace depends on sibling repositories via path dependencies:
 
 ```
 parent/
 ├── Omo-Koda2/
-├── Bipon39-Rust/
-└── Ifascript/
+├── GIX/
+├── ARP/
+├── DIP/
+└── sovereign-stack/
 ```
 
 Clone the external dependencies next to this repository before running Rust checks:
 
 ```sh
-git clone https://github.com/omo-koda/Bipon39-Rust ../Bipon39-Rust
-git clone https://github.com/omo-koda/Ifascript ../Ifascript
+git clone https://github.com/cryptonomicsed-byte/GIX ../GIX
+git clone https://github.com/cryptonomicsed-byte/ARP ../ARP
+git clone https://github.com/cryptonomicsed-byte/DIP ../DIP
+git clone https://github.com/cryptonomicsed-byte/sovereign-stack ../sovereign-stack
 ```
 
 ### Environment Notes

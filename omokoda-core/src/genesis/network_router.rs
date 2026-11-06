@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 //! NetworkRouter — transport-agnostic message routing for Ọmọ Kọ́dà agents.
 //!
 //! An agent knows WHERE it wants to reach (agent_id or address) but doesn't

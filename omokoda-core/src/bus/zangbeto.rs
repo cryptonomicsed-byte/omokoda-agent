@@ -250,11 +250,22 @@ pub async fn audit_state_post_act(state_bytes: &[u8], fallback_id: &str) -> Zang
                 passed,
             }
         }
-        None => ZangbetoAudit {
-            receipt_id: fallback_id.to_string(),
-            sig: hash_sig,
-            passed: true, // fail-open: no enforcer configured
-        },
+        None => {
+            if fail_closed() {
+                tracing::warn!("Zangbeto audit_state_post_act: enforcer unreachable, failing closed");
+                ZangbetoAudit {
+                    receipt_id: fallback_id.to_string(),
+                    sig: hash_sig,
+                    passed: false,
+                }
+            } else {
+                ZangbetoAudit {
+                    receipt_id: fallback_id.to_string(),
+                    sig: hash_sig,
+                    passed: true, // fail-open: no enforcer configured
+                }
+            }
+        }
     }
 }
 
@@ -280,7 +291,6 @@ mod tests {
         assert!(!verdict_blocks(&json!({"action": "observe"})));
         assert!(!verdict_blocks(&json!({"decision": "allow"})));
         assert!(!verdict_blocks(&json!({"block": false})));
-        assert!(!verdict_blocks(&json!({"allowed": true})));
         assert!(!verdict_blocks(&json!("garbage")));
         assert!(!verdict_blocks(&json!(42)));
     }

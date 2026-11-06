@@ -6,8 +6,8 @@
 //! Each step either passes or fails-fast with the step name and the error message.
 //! `SecurityPipeline::run` is the single entry point that wires all tools together.
 
-use serde::{Deserialize, Serialize};
 use crate::{capability, formal, resource, IrInput, IrProgram, SecurityReport};
+use serde::{Deserialize, Serialize};
 
 /// Result of a single pipeline step.
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -56,7 +56,7 @@ fn required_tier_for(target: &str) -> u8 {
     match target {
         "mainnet" => 5,
         "testnet" => 2,
-        _         => 0, // local
+        _ => 0, // local
     }
 }
 
@@ -93,13 +93,19 @@ impl SecurityPipeline {
                     error: Some(format!("JSON parse error: {}", e)),
                     warnings: vec![],
                 });
-                return PipelineResult { passed: false, steps, report: None };
+                return PipelineResult {
+                    passed: false,
+                    steps,
+                    report: None,
+                };
             }
         };
 
         // ── Step 3: TYPE CHECK (opcode validity) ────────────────────────────────
         {
-            let unknown: Vec<String> = program.instructions.iter()
+            let unknown: Vec<String> = program
+                .instructions
+                .iter()
                 .filter(|i| i.opcode == 0 && i.opcode_name != "NOP" && !i.opcode_name.is_empty())
                 .filter(|i| crate::opcode_for(&i.opcode_name).is_none())
                 .map(|i| format!("unknown opcode '{}' at line {}", i.opcode_name, i.line))
@@ -112,7 +118,11 @@ impl SecurityPipeline {
                     error: Some(unknown.join("; ")),
                     warnings: vec![],
                 });
-                return PipelineResult { passed: false, steps, report: None };
+                return PipelineResult {
+                    passed: false,
+                    steps,
+                    report: None,
+                };
             }
             steps.push(StepResult {
                 step: "TYPE_CHECK".into(),
@@ -131,7 +141,11 @@ impl SecurityPipeline {
                 error: Some(cap_errors.join("; ")),
                 warnings: vec![],
             });
-            return PipelineResult { passed: false, steps, report: None };
+            return PipelineResult {
+                passed: false,
+                steps,
+                report: None,
+            };
         }
         steps.push(StepResult {
             step: "CAP_CHECK".into(),
@@ -178,7 +192,11 @@ impl SecurityPipeline {
                 formal_errors,
                 risk_score: 0.8,
             };
-            return PipelineResult { passed: false, steps, report: Some(report) };
+            return PipelineResult {
+                passed: false,
+                steps,
+                report: Some(report),
+            };
         }
         steps.push(StepResult {
             step: "FORMAL".into(),
@@ -200,7 +218,11 @@ impl SecurityPipeline {
                 error: Some(auth_err),
                 warnings: vec![],
             });
-            return PipelineResult { passed: false, steps, report: None };
+            return PipelineResult {
+                passed: false,
+                steps,
+                report: None,
+            };
         }
         steps.push(StepResult {
             step: "AUTH".into(),
@@ -214,7 +236,10 @@ impl SecurityPipeline {
             step: "DEPLOY".into(),
             passed: true,
             error: None,
-            warnings: vec![format!("ready to deploy to '{}' with tier {}", target, signer_tier)],
+            warnings: vec![format!(
+                "ready to deploy to '{}' with tier {}",
+                target, signer_tier
+            )],
         });
 
         // Build final report
@@ -227,7 +252,11 @@ impl SecurityPipeline {
             risk_score,
         };
 
-        PipelineResult { passed: true, steps, report: Some(report) }
+        PipelineResult {
+            passed: true,
+            steps,
+            report: Some(report),
+        }
     }
 }
 
@@ -242,7 +271,11 @@ fn simulate_inline(program: &IrProgram) -> Vec<String> {
         ));
     }
     // Warn if any instruction is missing an opcode_name
-    let unnamed = program.instructions.iter().filter(|i| i.opcode_name.is_empty()).count();
+    let unnamed = program
+        .instructions
+        .iter()
+        .filter(|i| i.opcode_name.is_empty())
+        .count();
     if unnamed > 0 {
         warnings.push(format!("SIM: {} instructions have no opcode_name", unnamed));
     }
@@ -253,52 +286,52 @@ fn simulate_inline(program: &IrProgram) -> Vec<String> {
 /// Duplicated here to avoid a cross-crate dependency in this MVP.
 pub fn opcode_for(name: &str) -> Option<u8> {
     match name {
-        "NOP"          => Some(0x00),
-        "PUSH"         => Some(0x01),
-        "POP"          => Some(0x02),
-        "LOAD_CONST"   => Some(0x03),
-        "STORE"        => Some(0x04),
-        "LOAD"         => Some(0x05),
-        "ADD"          => Some(0x10),
-        "SUB"          => Some(0x11),
-        "MUL"          => Some(0x12),
-        "DIV"          => Some(0x13),
-        "MOD"          => Some(0x14),
-        "EQ"           => Some(0x20),
-        "NEQ"          => Some(0x21),
-        "LT"           => Some(0x22),
-        "GT"           => Some(0x23),
-        "AND"          => Some(0x30),
-        "OR"           => Some(0x31),
-        "NOT"          => Some(0x32),
-        "JUMP"         => Some(0x40),
-        "JUMP_IF"      => Some(0x41),
-        "CALL"         => Some(0x50),
-        "RETURN"       => Some(0x51),
-        "HALT"         => Some(0x52),
-        "AGENT_BIRTH"  => Some(0x60),
-        "AGENT_THINK"  => Some(0x61),
-        "AGENT_ACT"    => Some(0x62),
-        "AGENT_SENSE"  => Some(0x63),
+        "NOP" => Some(0x00),
+        "PUSH" => Some(0x01),
+        "POP" => Some(0x02),
+        "LOAD_CONST" => Some(0x03),
+        "STORE" => Some(0x04),
+        "LOAD" => Some(0x05),
+        "ADD" => Some(0x10),
+        "SUB" => Some(0x11),
+        "MUL" => Some(0x12),
+        "DIV" => Some(0x13),
+        "MOD" => Some(0x14),
+        "EQ" => Some(0x20),
+        "NEQ" => Some(0x21),
+        "LT" => Some(0x22),
+        "GT" => Some(0x23),
+        "AND" => Some(0x30),
+        "OR" => Some(0x31),
+        "NOT" => Some(0x32),
+        "JUMP" => Some(0x40),
+        "JUMP_IF" => Some(0x41),
+        "CALL" => Some(0x50),
+        "RETURN" => Some(0x51),
+        "HALT" => Some(0x52),
+        "AGENT_BIRTH" => Some(0x60),
+        "AGENT_THINK" => Some(0x61),
+        "AGENT_ACT" => Some(0x62),
+        "AGENT_SENSE" => Some(0x63),
         "AGENT_MEMORY" => Some(0x64),
-        "EMIT_ASE"     => Some(0x70),
-        "BURN_ASE"     => Some(0x71),
+        "EMIT_ASE" => Some(0x70),
+        "BURN_ASE" => Some(0x71),
         "TRANSFER_ASE" => Some(0x72),
-        "LOCK_ASE"     => Some(0x73),
-        "STORE_BLOB"   => Some(0x80),
-        "LOAD_BLOB"    => Some(0x81),
-        "SEAL_DATA"    => Some(0x82),
-        "UNSEAL_DATA"  => Some(0x83),
-        "PROPOSE"      => Some(0x90),
-        "VOTE"         => Some(0x91),
-        "EXECUTE"      => Some(0x92),
-        "SIM_STEP"     => Some(0xA0),
-        "SIM_VERIFY"   => Some(0xA1),
-        "GPU_CONTRIB"  => Some(0xA2),
-        "GATE_CHECK"   => Some(0xB0),
-        "DNA_BIND"     => Some(0xB1),
-        "CUSTOM"       => Some(0xFF),
-        _              => None,
+        "LOCK_ASE" => Some(0x73),
+        "STORE_BLOB" => Some(0x80),
+        "LOAD_BLOB" => Some(0x81),
+        "SEAL_DATA" => Some(0x82),
+        "UNSEAL_DATA" => Some(0x83),
+        "PROPOSE" => Some(0x90),
+        "VOTE" => Some(0x91),
+        "EXECUTE" => Some(0x92),
+        "SIM_STEP" => Some(0xA0),
+        "SIM_VERIFY" => Some(0xA1),
+        "GPU_CONTRIB" => Some(0xA2),
+        "GATE_CHECK" => Some(0xB0),
+        "DNA_BIND" => Some(0xB1),
+        "CUSTOM" => Some(0xFF),
+        _ => None,
     }
 }
 
@@ -311,7 +344,8 @@ mod tests {
         json!([
             {"opcode": 0x00, "opcode_name": "NOP", "args": {}, "line": 1},
             {"opcode": 0x52, "opcode_name": "HALT", "args": {}, "line": 2}
-        ]).to_string()
+        ])
+        .to_string()
     }
 
     #[test]
@@ -346,7 +380,8 @@ mod tests {
             {"opcode": 0x71, "opcode_name": "BURN_ASE",
              "args": {"asset": "ASE", "amount": 100}, "line": 1},
             {"opcode": 0x52, "opcode_name": "HALT", "args": {}, "line": 2}
-        ]).to_string();
+        ])
+        .to_string();
         let result = SecurityPipeline::run(&prog, "local", 0);
         assert!(!result.passed);
         assert!(result.steps.iter().any(|s| s.step == "FORMAL" && !s.passed));

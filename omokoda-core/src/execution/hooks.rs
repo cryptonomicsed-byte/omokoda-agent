@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 use crate::interpreter::ExecutionResult;
 use crate::receipt::Receipt;
 use async_trait::async_trait;

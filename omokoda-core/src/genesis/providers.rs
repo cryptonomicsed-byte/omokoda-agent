@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 use super::receipt::*;
 use async_trait::async_trait;
 use thiserror::Error;

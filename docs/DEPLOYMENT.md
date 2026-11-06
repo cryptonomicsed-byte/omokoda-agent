@@ -38,7 +38,7 @@ Without `OMOKODA_TEE_SEAL=1`, private memory is stored unencrypted inside the va
 
 | Variable | Default | Notes |
 |---|---|---|
-| `ZANGBETO_URL` | — | e.g. `http://localhost:7780` — enforcement bridge. When set, post-act audits make real HTTP calls; when unset, SHA-256 hash fallback (always passes). |
+| `ZANGBETO_URL` | — | e.g. `http://localhost:8787` — enforcement bridge. When set, post-act audits make real HTTP calls; when unset, SHA-256 hash fallback (always passes). |
 
 ## Vantage Hub
 
@@ -166,7 +166,7 @@ OMOKODA_HEARTBEAT_KEY=<base64url-32-byte-ed25519>
 WALRUS_PUBLISHER_URL=https://publisher.walrus-testnet.walrus.space
 WALRUS_AGGREGATOR_URL=https://aggregator.walrus-testnet.walrus.space
 OMOKODA_TEE_SEAL=1
-ZANGBETO_URL=http://localhost:7780
+ZANGBETO_URL=http://localhost:8787
 VANTAGE_URL=https://vantage.omokoda.com
 VANTAGE_API_KEY=<agent-vantage-key>
 NOSTR_RELAYS=wss://relay.damus.io,wss://nos.lol

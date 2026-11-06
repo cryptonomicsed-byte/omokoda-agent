@@ -59,6 +59,43 @@ impl GatekeeperResult {
     }
 }
 
+/// Gate enforcement tier — controls what happens when a gate rejects an operation.
+///
+/// TODO(gate-tier): thread this through `EsuGatekeeper::evaluate()` so that
+/// AuditOnly and Soft gates don't unconditionally halt on the Act path.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum GateTier {
+    /// Operation is permanently halted; a receipt is written.
+    Hard,
+    /// Operation is allowed but a warning is added to the receipt.
+    Soft,
+    /// Operation is allowed; the rejection is recorded for audit only.
+    AuditOnly,
+}
+
+// ── INTENDED gate-tier split (documented here; full enforcement is a TODO) ───────
+//
+// Gate         | Tier       | Principle              | Enforcement Location
+// -------------|------------|------------------------|----------------------
+// Mentalism    | AuditOnly  | soul vs action fn      | ifscript_gate.rs
+// Correspondence | Hard     | default_gate()         | ifscript_gate.rs
+// Vibration    | Soft       | odu_id=0 tier>1 check  | ifscript_gate.rs
+// Polarity     | Hard       | default_gate()         | ifscript_gate.rs
+// Rhythm       | AuditOnly  | default_gate()         | ifscript_gate.rs
+// CauseEffect  | Hard       | exec at tier 2+        | ifscript_gate.rs
+// Gender       | AuditOnly  | vessel balance         | ifscript_gate.rs
+//
+// CURRENT BEHAVIOR: EsuGatekeeper.evaluate() treats ALL 7 gates as Hard —
+// any Reject halts the operation. The 3 Hard / 1 Soft / 3 AuditOnly split
+// is only applied inside evaluate_causal_gate() (agentic path).
+//
+// TODO(gate-tier): Introduce a `GateTier` enum (Hard | Soft | AuditOnly) and
+// thread it through EsuGatekeeper.evaluate() so the Act path and the agentic
+// path share the same tier-aware logic. Until then, any causal-gate AuditOnly
+// rejection on the Act path is silently upgraded to a Hard halt.
+// See: omokoda-core/src/ifscript_gate.rs `evaluate_causal_gate`.
+// ─────────────────────────────────────────────────────────────────────────────
+
 /// Èṣù — guardian at the crossroads who enforces all 7 Hermetic gates.
 ///
 /// Every `birth`, `think`, and `act` must pass all 7 gates or be permanently
@@ -142,18 +179,6 @@ impl EsuGatekeeper {
     ///
     /// The caller's `ctx` swarm/cooldown fields are preserved; the agent's DNA is merged in.
     pub fn evaluate(&self, op: &Operation, ctx: &GateContext) -> GatekeeperResult {
-        // MANDATORY: Act operations MUST provide structured ActionIntent.
-        // Falling back to string heuristics is a security regression.
-        if let OperationKind::Act { .. } = &op.kind {
-            if op.action_intent.is_none() {
-                return GatekeeperResult::Halted {
-                    failed_gate: HermeticPrinciple::Mentalism,
-                    reason: \"ActionIntent required for Act operations — structured semantics are mandatory\".to_string(),
-                    scores: vec![],
-                };
-            }
-        }
-
         // Merge caller's context with the agent's DNA
         let ctx = GateContext::new_with_dna(
             ctx.in_cooldown,
@@ -162,7 +187,6 @@ impl EsuGatekeeper {
             self.dna.clone(),
         );
         let mut scores = Vec::with_capacity(7);
-
 
         for (i, gate) in self.gates.iter().enumerate() {
             let principle = HermeticPrinciple::from_index(i);

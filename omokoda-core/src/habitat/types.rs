@@ -71,7 +71,9 @@ impl HabitatAddress {
             .duration_since(std::time::UNIX_EPOCH)
             .map(|d| d.as_secs())
             .unwrap_or(0);
-        let ip = std::env::var("AGENT_LOCAL_IP").ok().filter(|s| !s.is_empty());
+        let ip = std::env::var("AGENT_LOCAL_IP")
+            .ok()
+            .filter(|s| !s.is_empty());
         // area_id encodes device context as a human-readable zone hint.
         let area_id = if reading.battery_pct < 20 {
             Some("low-power-zone".to_string())
@@ -83,7 +85,7 @@ impl HabitatAddress {
         Self {
             agent_id: agent_id.to_string(),
             area_id,
-            gps: None,   // GPS not available from device sensors on this platform
+            gps: None, // GPS not available from device sensors on this platform
             ip,
             mesh_node: None,
             nostr_npub: None,

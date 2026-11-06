@@ -3543,6 +3543,20 @@ impl Steward {
                     sandbox_mode: force_sandbox,
                 };
 
+                // M5: Reserve synapse budget BEFORE tool execution to fail early.
+                // This prevents tools from running when budget is exhausted.
+                let _pre_act_cost = crate::usage::estimate_tool_cost(&tool);
+                {
+                    let agent = self.ensure_born()?;
+                    if agent.synapse() < _pre_act_cost {
+                        return Err(format!(
+                            "Insufficient synapse budget. Required: {:.0}, Available: {:.0}",
+                            _pre_act_cost,
+                            agent.synapse()
+                        ));
+                    }
+                }
+
                 let (output, tool_usage) = match self
                     .tools
                     .execute(
@@ -3742,6 +3756,10 @@ impl Steward {
                         };
                         let _ = self.event_bus.publish(audit_event);
                     } else {
+                        tracing::error!(
+                            "Zangbeto post-act BLOCK after execution: tool={} receipt={} -- side effects cannot be rolled back; audit trail flagged",
+                            tool, receipt.receipt_id
+                        );
                         // A failed post-act audit is no longer swallowed silently —
                         // surface it as a Denial telemetry event for observers.
                         let denial = SovereignEvent {
@@ -6002,7 +6020,11 @@ impl Steward {
         //       let _ = crate::bootstrap_artifact::archive_bootstrap_md(&home);
         //   }
 
-        let max_turns = max_turns.clamp(1, 25);
+        let server_max: u32 = std::env::var("OMOKODA_MAX_AGENTIC_TURNS")
+            .ok()
+            .and_then(|v| v.parse().ok())
+            .unwrap_or(8u32);
+        let max_turns = max_turns.clamp(1, server_max);
 
         // 1. Safety checks (same as regular think)
         if private {
@@ -6258,9 +6280,19 @@ impl Steward {
                         usage: None,
                     });
 
+                    let mut tool_calls_this_turn = 0u32;
+                    const MAX_TOOL_CALLS_PER_TURN: u32 = 16;
                     // Execute each tool call
                     let mut tool_result_blocks = Vec::new();
                     for call in &calls {
+                        tool_calls_this_turn += 1;
+                        if tool_calls_this_turn > MAX_TOOL_CALLS_PER_TURN {
+                            tracing::warn!(
+                                "Agentic turn exceeded {} tool calls -- stopping",
+                                MAX_TOOL_CALLS_PER_TURN
+                            );
+                            break;
+                        }
                         let tool_result = self
                             .execute_tool_call_for_agentic(&call.name, &call.input, private)
                             .await;
@@ -6390,6 +6422,13 @@ impl Steward {
         // This is not a policy check — it enforces the cause→action invariant
         // (an agent cannot invoke capabilities outside its Odù alignment tier).
         // Capture warnings count to compute gate_alignment for the ActReceipt.
+        //
+        // TODO(gate-tier): The gate tiers applied here (via evaluate_causal_gate)
+        // diverge from the Act path in EsuGatekeeper.evaluate(). On the agentic
+        // path, 3 gates are AuditOnly (Mentalism, Rhythm, Gender) and 1 is Soft
+        // (Vibration). On the Act path (EsuGatekeeper), ALL gates are Hard.
+        // Once GateTier is threaded through EsuGatekeeper, the two paths should
+        // converge. See: omokoda-core/src/steward/gatekeeper.rs gate-tier TODO.
         let gate_warnings: usize = {
             let decision = crate::ifscript_gate::evaluate_causal_gate(
                 &crate::ifscript_gate::CausalGateInput {

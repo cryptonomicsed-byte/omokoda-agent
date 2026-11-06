@@ -559,10 +559,25 @@ through the relationship `{}`.\n\n## Context\n{}\n",
     // ─── file access ─────────────────────────────────────────────────────────
 
     pub fn read_file(&self, rel_path: &str) -> Result<String, String> {
-        let full = self.vault_path.join(rel_path);
-        // Path traversal guard
-        full.strip_prefix(&self.vault_path)
-            .map_err(|_| "invalid path".to_string())?;
+        // Reject path components that could escape the vault root
+        let rel = std::path::Path::new(rel_path);
+        if rel.components().any(|c| matches!(c,
+            std::path::Component::ParentDir
+            | std::path::Component::RootDir
+            | std::path::Component::Prefix(_)
+        )) {
+            return Err("invalid path".to_string());
+        }
+        let full = self.vault_path.join(rel);
+        // Canonicalize-based containment check for existing paths
+        let canon_vault = self.vault_path.canonicalize()
+            .map_err(|e| e.to_string())?;
+        if full.exists() {
+            let canon_full = full.canonicalize().map_err(|e| e.to_string())?;
+            if !canon_full.starts_with(&canon_vault) {
+                return Err("invalid path".to_string());
+            }
+        }
         if !full.exists() || !full.is_file() {
             return Err("not found".to_string());
         }

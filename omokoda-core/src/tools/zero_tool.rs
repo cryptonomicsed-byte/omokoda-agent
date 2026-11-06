@@ -224,6 +224,8 @@ impl Tool for ZeroTool {
 
 #[cfg(test)]
 mod tests {
+    use std::sync::Mutex;
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
     use super::*;
 
     #[test]
@@ -263,7 +265,9 @@ mod tests {
     async fn execute_forwards_args_via_zero_bin() {
         // Point ZERO_BIN at /bin/echo: the tool must exec it directly with
         // the validated args, proving no shell is involved.
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("OMOKODA_TEST_ZERO_BIN_GUARD", "1");
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let t = ZeroTool;
         let ctx = ExecutionContext {

@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 use crate::emotion::EmotionState;
 use crate::identity::AgentId;
 use crate::steward::soul::SomaContext;

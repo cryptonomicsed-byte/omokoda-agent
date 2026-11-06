@@ -102,7 +102,12 @@ impl AgentRuntime {
         let agent_id = agent_id.into();
         let tier = tier.into();
         let genesis = AgentHeartbeat::genesis(&agent_id, &tier);
-        let signing_key = std::env::var("OMOKODA_HEARTBEAT_KEY").ok().filter(|k| !k.is_empty());
+        let signing_key = std::env::var("OMOKODA_HEARTBEAT_KEY")
+            .ok()
+            .filter(|k| !k.is_empty());
+        if signing_key.is_none() {
+            tracing::warn!("OMOKODA_HEARTBEAT_KEY not set — heartbeats will be unsigned");
+        }
         Arc::new(Mutex::new(Self {
             agent_id,
             tier,

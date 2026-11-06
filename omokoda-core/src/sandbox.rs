@@ -431,7 +431,10 @@ mod container_sandbox_tests {
         let quoted = shlex_quote("echo 'hello world'");
         assert!(quoted.starts_with('\''));
         assert!(quoted.ends_with('\''));
-        assert!(quoted.contains("'\"'\"'"), "inner single-quotes must be escaped");
+        assert!(
+            quoted.contains("'\"'\"'"),
+            "inner single-quotes must be escaped"
+        );
     }
 
     #[test]

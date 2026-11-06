@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 pub mod aliases;
 pub mod streaming;
 

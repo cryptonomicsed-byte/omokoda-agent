@@ -233,8 +233,24 @@ pub async fn get_access_log(
 
 pub async fn get_vault_file(
     State(state): State<AppState>,
+    headers: axum::http::HeaderMap,
     Path(file_path): Path<String>,
 ) -> impl IntoResponse {
+    // Auth: if OMOKODA_COGNITION_TOKEN is set, require a matching Bearer token.
+    // If the env var is unset (dev mode), allow through.
+    if let Some(expected) = std::env::var("OMOKODA_COGNITION_TOKEN").ok().filter(|v| !v.is_empty()) {
+        let presented = headers
+            .get(axum::http::header::AUTHORIZATION)
+            .and_then(|v| v.to_str().ok())
+            .and_then(|v| v.strip_prefix("Bearer "));
+        if presented != Some(expected.as_str()) {
+            return (
+                StatusCode::UNAUTHORIZED,
+                "invalid or missing bearer token",
+            )
+                .into_response();
+        }
+    }
     let Some((agent_id, agent_name)) = active_agent(&state).await else {
         return (StatusCode::NOT_FOUND, "no active agent").into_response();
     };

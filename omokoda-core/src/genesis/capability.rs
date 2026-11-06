@@ -1,3 +1,4 @@
+#![allow(clippy::double_must_use)]
 //! CapabilityFabric — WHO + WHAT + HOW
 //!
 //! Every agent action in the sovereign ecosystem is authorized through this

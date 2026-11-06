@@ -1048,3 +1048,17 @@ graph LR
 ---
 
 *End of Forensic Audit Report — generated 2026-09-22 (Sections 15–21 appended)*
+
+
+## Addendum — 2026-11-06
+
+**Findings added after original report:**
+- Bind address was 0.0.0.0 (now 127.0.0.1 by default via OMOKODA_BIND_ADDR) — commit 96fc932
+- CorsLayer::permissive() (now restricted to OMOKODA_CORS_ORIGINS) — commit 96fc932
+- think_handler passed trusted=true unconditionally (now false for /v1/think) — commit 96fc932
+- Private prompts reached MEMORY_ENGINE_URL (now gated on !private) — commit 96fc932
+
+**Corrections to original report:**
+- W-08 (gate_alignment_ema) marked DONE: refuted — field written but never read
+- grep_tool_basic marked broken: refuted — passes at 5956a57
+- Test baseline: 1,650 (not 1,052 as README stated; original report said 1,647)

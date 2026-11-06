@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
-use std::process::Command;
+use tokio::process::Command;
 use std::sync::{Arc, Mutex};
 
 use crate::execution::permission_enforcer::{enforce_mode, validate_path_boundary};
@@ -869,12 +869,26 @@ impl Tool for BashTool {
         params: &str,
         context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        // P0 Security: Validate bash commands to prevent injection
-        if let Err(e) = crate::execution::bash_validation::validate_bash_command(params) {
-            return Err(format!("Security blocked: {}", e.reason));
+        // H3: Use full multi-stage validation pipeline as primary validator
+        let val_result = crate::execution::bash_validation::validate_bash_full(
+            params,
+            Some(&context.workspace_root),
+            false,
+            context.sandbox_mode,
+        );
+        if !val_result.allowed {
+            let reason = val_result
+                .block
+                .map(|e| e.reason)
+                .unwrap_or_else(|| "policy violation".to_string());
+            return Err(format!("Security blocked: {}", reason));
         }
 
-        let sandbox = context.sandbox_mode;
+        // H3: Server-side sandbox forcing — OMOKODA_BASH_SANDBOX=1 always sandboxes
+        let force_sandbox = std::env::var("OMOKODA_BASH_SANDBOX")
+            .map(|v| v == "1")
+            .unwrap_or(false);
+        let sandbox = context.sandbox_mode || force_sandbox;
 
         if sandbox && params.contains("..") {
             return Err("sandboxed bash commands must not contain '..'".to_string());
@@ -894,17 +908,31 @@ impl Tool for BashTool {
                 params,
             ]);
             c.current_dir(workspace_root);
+            // H3: Clear environment — do not inherit HOME, CARGO, secrets, tokens
+            c.env_clear().env("PATH", "/usr/local/bin:/usr/bin:/bin");
             c
         } else {
             let mut c = Command::new("bash");
             c.args(["-c", params]);
             c.current_dir(workspace_root);
+            // H3: Clear environment — do not inherit HOME, CARGO, secrets, tokens
+            c.env_clear().env("PATH", "/usr/local/bin:/usr/bin:/bin");
             c
         };
 
-        let output = cmd
-            .output()
-            .map_err(|e| format!("failed to execute bash: {}", e))?;
+        // H3: Configurable timeout — default 30s, override via OMOKODA_BASH_TIMEOUT_SECS
+        let timeout_secs = std::env::var("OMOKODA_BASH_TIMEOUT_SECS")
+            .ok()
+            .and_then(|v| v.parse::<u64>().ok())
+            .unwrap_or(30u64);
+
+        let output = tokio::time::timeout(
+            std::time::Duration::from_secs(timeout_secs),
+            cmd.output(),
+        )
+        .await
+        .map_err(|_| format!("bash command timed out after {}s", timeout_secs))?
+        .map_err(|e| format!("failed to execute bash: {}", e))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

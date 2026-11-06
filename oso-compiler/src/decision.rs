@@ -27,7 +27,9 @@ impl IfDecision {
     /// Aggregate gate alignment: mean of all gate scores.
     /// Used as the `gate_alignment` constant injected into Ọ̀ṢỌ́ programs.
     pub fn gate_alignment(&self) -> f32 {
-        if self.gate_scores.is_empty() { return 0.0; }
+        if self.gate_scores.is_empty() {
+            return 0.0;
+        }
         let sum: f32 = self.gate_scores.iter().map(|g| g.score).sum();
         sum / self.gate_scores.len() as f32
     }

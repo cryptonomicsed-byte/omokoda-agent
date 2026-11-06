@@ -35,10 +35,7 @@ pub fn validate_state(state: &AgentPublicState) -> Result<String, ContractError>
 /// NOTE: Ed25519 signature verification is enforced in the WASM build only;
 /// the native build trusts the caller (used from omokoda-core where the key
 /// check already happened).
-pub fn validate_delta(
-    current: &AgentPublicState,
-    delta: &StateDelta,
-) -> Result<(), ContractError> {
+pub fn validate_delta(current: &AgentPublicState, delta: &StateDelta) -> Result<(), ContractError> {
     if delta.agent_npub != current.agent_npub {
         return Err(ContractError::NpubMismatch);
     }
@@ -67,8 +64,8 @@ pub fn summarize(state: &AgentPublicState) -> StateSummary {
 #[cfg(feature = "contract")]
 mod wasm_contract {
     use freenet_stdlib::prelude::{
-        contract, ContractError as FnError, ContractInterface, Parameters, RelatedContracts,
-        State, StateDelta as FnDelta, StateSummary as FnSummary, UpdateData, UpdateModification,
+        contract, ContractError as FnError, ContractInterface, Parameters, RelatedContracts, State,
+        StateDelta as FnDelta, StateSummary as FnSummary, UpdateData, UpdateModification,
         ValidateResult,
     };
 
@@ -87,8 +84,7 @@ mod wasm_contract {
             state: State<'static>,
             _related: RelatedContracts<'static>,
         ) -> Result<ValidateResult, FnError> {
-            let parsed: AgentPublicState =
-                serde_json::from_slice(&state).map_err(deser_err)?;
+            let parsed: AgentPublicState = serde_json::from_slice(&state).map_err(deser_err)?;
             crate::validate_state(&parsed).map_err(|e| FnError::Other(e.to_string()))?;
             Ok(ValidateResult::Valid)
         }
@@ -106,8 +102,8 @@ mod wasm_contract {
                     UpdateData::Delta(delta_bytes) => {
                         let delta: crate::types::StateDelta =
                             serde_json::from_slice(&delta_bytes).map_err(deser_err)?;
-                        current = merge::apply_delta(&current, &delta)
-                            .map_err(|e| FnError::Other(e))?;
+                        current =
+                            merge::apply_delta(&current, &delta).map_err(|e| FnError::Other(e))?;
                     }
                     UpdateData::State(new_state_bytes) => {
                         let incoming: AgentPublicState =
@@ -126,8 +122,7 @@ mod wasm_contract {
             _parameters: Parameters<'static>,
             state: State<'static>,
         ) -> Result<FnSummary<'static>, FnError> {
-            let parsed: AgentPublicState =
-                serde_json::from_slice(&state).map_err(deser_err)?;
+            let parsed: AgentPublicState = serde_json::from_slice(&state).map_err(deser_err)?;
             let summary = crate::summarize(&parsed);
             let bytes = serde_json::to_vec(&summary).map_err(deser_err)?;
             Ok(FnSummary::from(bytes))
@@ -138,8 +133,7 @@ mod wasm_contract {
             state: State<'static>,
             summary: FnSummary<'static>,
         ) -> Result<FnDelta<'static>, FnError> {
-            let current: AgentPublicState =
-                serde_json::from_slice(&state).map_err(deser_err)?;
+            let current: AgentPublicState = serde_json::from_slice(&state).map_err(deser_err)?;
             let incoming: crate::types::StateSummary =
                 serde_json::from_slice(&summary).map_err(deser_err)?;
             if current.version > incoming.version {
@@ -184,7 +178,10 @@ mod tests {
     #[test]
     fn validate_state_rejects_empty_npub() {
         let state = make_state("", 1);
-        assert!(matches!(validate_state(&state), Err(ContractError::InvalidNpub)));
+        assert!(matches!(
+            validate_state(&state),
+            Err(ContractError::InvalidNpub)
+        ));
     }
 
     #[test]

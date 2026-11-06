@@ -75,21 +75,18 @@ pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
 
     // Task 3 — parallel supervisor heartbeat ping (fire-and-forget).
     // Errors are silently discarded; Vantage heartbeat result is unaffected.
-    let supervisor_url = std::env::var("SWARM_SUPERVISOR_URL")
-        .unwrap_or_else(|_| "http://localhost:7701".to_string());
-    // Extract agent_id from Vantage key prefix if available, fall back to "agent".
-    let agent_id = key
-        .split('_')
-        .nth(2)
-        .unwrap_or("agent")
-        .to_string();
-    tokio::spawn(async move {
-        let _ = reqwest::Client::new()
-            .post(&format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))
-            .timeout(std::time::Duration::from_secs(3))
-            .send()
-            .await;
-    });
+    // Only fires when SWARM_SUPERVISOR_URL is explicitly set; never pings by default.
+    if let Ok(supervisor_url) = std::env::var("SWARM_SUPERVISOR_URL") {
+        // Extract agent_id from Vantage key prefix if available, fall back to "agent".
+        let agent_id = key.split('_').nth(2).unwrap_or("agent").to_string();
+        tokio::spawn(async move {
+            let _ = reqwest::Client::new()
+                .post(format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))
+                .timeout(std::time::Duration::from_secs(3))
+                .send()
+                .await;
+        });
+    }
 
     http()
         .post(format!("{}/api/me/heartbeat", vantage_base()))

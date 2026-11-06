@@ -529,9 +529,26 @@ async fn dispatch_for_request(
                 .agent_core()
                 .and_then(|a| a.vantage_key())
                 .map(|s| s.to_string())
-                .unwrap_or_else(|| id.clone());
+                .unwrap_or_else(|| {
+                    // Guest has no Vantage key: generate a random 32-byte hex key instead
+                    // of falling back to the public agent_id.
+                    use rand::Rng;
+                    let bytes: [u8; 32] = rand::thread_rng().gen();
+                    hex::encode(bytes)
+                });
             let presented = headers.get("x-agent-key").and_then(|v| v.to_str().ok());
-            if presented != Some(expected_key.as_str()) {
+            // Constant-time comparison to prevent timing side-channels.
+            let authorized = match presented {
+                Some(p) => {
+                    use subtle::ConstantTimeEq;
+                    let expected_b = expected_key.as_bytes();
+                    let presented_b = p.as_bytes();
+                    expected_b.len() == presented_b.len()
+                        && presented_b.ct_eq(expected_b).unwrap_u8() == 1
+                }
+                None => false,
+            };
+            if !authorized {
                 return Err((
                     StatusCode::UNAUTHORIZED,
                     Json(serde_json::json!({"error": "invalid or missing X-Agent-Key"})),

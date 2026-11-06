@@ -16,7 +16,7 @@
 use hkdf::Hkdf;
 use sha2::Sha256;
 use std::io::Write;
-use std::os::unix::fs::PermissionsExt;
+use std::os::unix::fs::{OpenOptionsExt, PermissionsExt};
 use std::path::PathBuf;
 
 fn master_secret_path() -> PathBuf {
@@ -45,16 +45,15 @@ fn machine_master_secret() -> Result<[u8; 32], String> {
     if let Some(parent) = path.parent() {
         let _ = std::fs::create_dir_all(parent);
     }
+    // Use create_new + mode(0o600) atomically to avoid a write-then-chmod race window.
     let mut file = std::fs::OpenOptions::new()
         .write(true)
-        .create(true)
-        .truncate(true)
+        .create_new(true)
+        .mode(0o600)
         .open(&path)
         .map_err(|e| format!("failed to create vault master secret file: {e}"))?;
     file.write_all(hex::encode(secret).as_bytes())
         .map_err(|e| format!("failed to write vault master secret: {e}"))?;
-    file.set_permissions(std::fs::Permissions::from_mode(0o600))
-        .map_err(|e| format!("failed to set vault master secret permissions: {e}"))?;
 
     Ok(secret)
 }

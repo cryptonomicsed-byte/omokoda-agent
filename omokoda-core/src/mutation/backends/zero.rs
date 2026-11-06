@@ -212,6 +212,10 @@ impl MutationBackend for ZeroBackend {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::sync::Mutex;
+
+    // Serialize tests that mutate ZERO_BIN to avoid env-var races.
+    static ENV_LOCK: Mutex<()> = Mutex::new(());
     use crate::ifscript_gate::ActionCategory;
     use crate::mutation::router::BackendContext;
     use crate::mutation::{MutationDomain, MutationPlan};
@@ -232,6 +236,7 @@ mod tests {
     #[test]
     fn validate_fails_without_binary() {
         // If ZERO_BIN points to a non-existent path, validation should fail gracefully.
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("ZERO_BIN", "/tmp/__zero_does_not_exist_omokoda_test");
         let plan = program_plan("patch");
         let ctx = BackendContext::empty();
@@ -244,6 +249,7 @@ mod tests {
     #[test]
     fn validate_rejects_disallowed_subcommand() {
         // Point to /bin/echo so binary resolves but subcommand check runs.
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("install");
         plan.target = r#"{"args":["install","evil"]}"#.to_string();
@@ -256,6 +262,7 @@ mod tests {
 
     #[test]
     fn validate_accepts_read_subcommand_without_check() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("query");
         plan.target = r#"{"args":["query","--json"]}"#.to_string();
@@ -267,6 +274,7 @@ mod tests {
 
     #[test]
     fn apply_uses_echo_as_stub_binary() {
+        let _guard = ENV_LOCK.lock().unwrap();
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("query");
         plan.target = r#"{"args":["query","--json"]}"#.to_string();

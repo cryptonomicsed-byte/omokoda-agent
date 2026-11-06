@@ -46,12 +46,17 @@ fn main() {
     let cli = Cli::parse();
 
     match cli.command {
-        Command::Analyze { program, strict, pipeline, target, signer_tier } => {
-            let json_text = std::fs::read_to_string(&program)
-                .unwrap_or_else(|e| {
-                    eprintln!("error reading {}: {}", program, e);
-                    std::process::exit(1);
-                });
+        Command::Analyze {
+            program,
+            strict,
+            pipeline,
+            target,
+            signer_tier,
+        } => {
+            let json_text = std::fs::read_to_string(&program).unwrap_or_else(|e| {
+                eprintln!("error reading {}: {}", program, e);
+                std::process::exit(1);
+            });
 
             if pipeline {
                 let result = SecurityPipeline::run(&json_text, &target, signer_tier);

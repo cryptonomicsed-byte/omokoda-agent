@@ -119,7 +119,10 @@ async fn handle_message(state: &AcpState, msg: Value, stdout: &std::io::Stdout) 
             }
         }
         "session/new" => {
-            let cwd = params.get("cwd").and_then(|c| c.as_str()).map(|s| s.to_string());
+            let cwd = params
+                .get("cwd")
+                .and_then(|c| c.as_str())
+                .map(|s| s.to_string());
             let session_id = uuid::Uuid::new_v4().to_string();
             state
                 .sessions
@@ -254,11 +257,20 @@ async fn publish_to_buzz(content: &str) -> Result<(), String> {
         .ok()
         .and_then(|s| s.split(',').next().map(|c| c.trim().to_string()))
         .filter(|s| !s.is_empty())
-        .ok_or_else(|| "BUZZ_ACP_CHANNELS not set, don't know which channel to reply in".to_string())?;
+        .ok_or_else(|| {
+            "BUZZ_ACP_CHANNELS not set, don't know which channel to reply in".to_string()
+        })?;
     let cli = std::env::var("BUZZ_CLI_PATH").unwrap_or_else(|_| "buzz".to_string());
 
     let output = tokio::process::Command::new(&cli)
-        .args(["messages", "send", "--channel", &channel, "--content", content])
+        .args([
+            "messages",
+            "send",
+            "--channel",
+            &channel,
+            "--content",
+            content,
+        ])
         .output()
         .await
         .map_err(|e| format!("failed to spawn '{cli}': {e}"))?;

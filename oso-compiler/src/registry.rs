@@ -10,7 +10,9 @@ pub struct RitualRegistry {
 
 impl RitualRegistry {
     pub fn new() -> Self {
-        Self { rituals: HashMap::new() }
+        Self {
+            rituals: HashMap::new(),
+        }
     }
 
     pub fn register(&mut self, name: impl Into<String>, source: impl Into<String>) {
@@ -27,5 +29,7 @@ impl RitualRegistry {
 }
 
 impl Default for RitualRegistry {
-    fn default() -> Self { Self::new() }
+    fn default() -> Self {
+        Self::new()
+    }
 }

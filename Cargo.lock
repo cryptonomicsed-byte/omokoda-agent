@@ -4059,7 +4059,6 @@ dependencies = [
  "prost",
  "prost-build",
  "prost-derive",
- "protobuf-codegen",
  "protoc-bin-vendored",
  "rand 0.8.6",
  "regex",
@@ -4070,6 +4069,7 @@ dependencies = [
  "serde_yaml",
  "sha2 0.10.9",
  "sha3",
+ "subtle",
  "tempfile",
  "thiserror 1.0.69",
  "tokio",
@@ -4080,7 +4080,6 @@ dependencies = [
  "urlencoding",
  "uuid",
  "walkdir",
- "wasm-bindgen",
  "wasmtime",
  "wasmtime-wasi",
  "wat",
@@ -4108,16 +4107,12 @@ dependencies = [
 name = "omokoda-hive"
 version = "0.1.0"
 dependencies = [
- "chrono",
- "hex",
  "reqwest 0.12.28",
  "serde",
  "serde_json",
- "sha2 0.10.9",
  "thiserror 1.0.69",
  "tokio",
  "tokio-test",
- "uuid",
 ]
 
 [[package]]
@@ -4722,57 +4717,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "f94967dc7688f3054c7fac87473ffae4cc4c3904800e2d9f5b857246d8963b0a"
 dependencies = [
  "prost",
-]
-
-[[package]]
-name = "protobuf"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "d65a1d4ddae7d8b5de68153b48f6aa3bba8cb002b243dbdbc55a5afbc98f99f4"
-dependencies = [
- "once_cell",
- "protobuf-support",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "protobuf-codegen"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "5d3976825c0014bbd2f3b34f0001876604fe87e0c86cd8fa54251530f1544ace"
-dependencies = [
- "anyhow",
- "once_cell",
- "protobuf",
- "protobuf-parse",
- "regex",
- "tempfile",
- "thiserror 1.0.69",
-]
-
-[[package]]
-name = "protobuf-parse"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "b4aeaa1f2460f1d348eeaeed86aea999ce98c1bded6f089ff8514c9d9dbdc973"
-dependencies = [
- "anyhow",
- "indexmap 2.14.0",
- "log",
- "protobuf",
- "protobuf-support",
- "tempfile",
- "thiserror 1.0.69",
- "which",
-]
-
-[[package]]
-name = "protobuf-support"
-version = "3.7.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "3e36c2f31e0a47f9280fb347ef5e461ffcd2c52dd520d8e216b52f93b0b0d7d6"
-dependencies = [
- "thiserror 1.0.69",
 ]
 
 [[package]]
@@ -7327,18 +7271,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "7dcd9d09a39985f5344844e66b0c530a33843579125f23e21e9f0f220850f22a"
 dependencies = [
  "rustls-pki-types",
-]
-
-[[package]]
-name = "which"
-version = "4.4.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87ba24419a2078cd2b0f2ede2691b6c66d8e47836da3b6db8265ebad47afbfc7"
-dependencies = [
- "either",
- "home",
- "once_cell",
- "rustix 0.38.44",
 ]
 
 [[package]]

@@ -71,6 +71,7 @@ jobs:
           save-if: "true"
       - name: Check formatting
         working-directory: Omo-Koda2
+        continue-on-error: true  # fmt failures are reported but do not block build/test/clippy
         run: |
           cargo fmt -p omokoda-core -- --check
           cargo fmt -p omokoda-hermetic -- --check

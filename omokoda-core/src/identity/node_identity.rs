@@ -79,14 +79,30 @@ impl NodeIdentity {
         }
         // Store both components space-separated so we can load without re-deriving
         let key_line = format!("{} {}", self.private_key, self.public_key);
-        std::fs::write(key_file, &key_line).map_err(IdentityError::Io)?;
-        std::fs::write(did_file, &self.did).map_err(IdentityError::Io)?;
+        // Use create_new + mode(0o600) atomically to avoid a write-then-chmod race.
         #[cfg(unix)]
         {
-            use std::os::unix::fs::PermissionsExt;
-            std::fs::set_permissions(key_file, std::fs::Permissions::from_mode(0o600))
+            use std::io::Write as _;
+            use std::os::unix::fs::OpenOptionsExt;
+            let mut f = std::fs::OpenOptions::new()
+                .write(true)
+                .create_new(true)
+                .mode(0o600)
+                .open(key_file)
+                .or_else(|_| {
+                    // File already exists (e.g. regeneration path): truncate + overwrite
+                    std::fs::OpenOptions::new()
+                        .write(true)
+                        .truncate(true)
+                        .mode(0o600)
+                        .open(key_file)
+                })
                 .map_err(IdentityError::Io)?;
+            f.write_all(key_line.as_bytes()).map_err(IdentityError::Io)?;
         }
+        #[cfg(not(unix))]
+        std::fs::write(key_file, &key_line).map_err(IdentityError::Io)?;
+        std::fs::write(did_file, &self.did).map_err(IdentityError::Io)?;
         Ok(())
     }
 }

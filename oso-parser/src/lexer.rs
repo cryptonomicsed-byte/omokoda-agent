@@ -1,5 +1,5 @@
-use crate::token::{Token, TokenKind};
 use crate::error::{OsoError, OsoResult};
+use crate::token::{Token, TokenKind};
 
 pub struct Lexer<'src> {
     src: &'src str,
@@ -22,47 +22,84 @@ impl<'src> Lexer<'src> {
                 let c = chars[i];
 
                 // Whitespace
-                if c.is_whitespace() { i += 1; continue; }
+                if c.is_whitespace() {
+                    i += 1;
+                    continue;
+                }
 
                 // Line comment
-                if i + 1 < chars.len() && chars[i] == '/' && chars[i+1] == '/' {
+                if i + 1 < chars.len() && chars[i] == '/' && chars[i + 1] == '/' {
                     break; // skip rest of line
                 }
 
                 match c {
-                    '@' => { tokens.push(Token::new(TokenKind::AtSym, "@", line_num, col)); i += 1; }
-                    '(' => { tokens.push(Token::new(TokenKind::LParen, "(", line_num, col)); i += 1; }
-                    ')' => { tokens.push(Token::new(TokenKind::RParen, ")", line_num, col)); i += 1; }
-                    '{' => { tokens.push(Token::new(TokenKind::LBrace, "{", line_num, col)); i += 1; }
-                    '}' => { tokens.push(Token::new(TokenKind::RBrace, "}", line_num, col)); i += 1; }
-                    ';' => { tokens.push(Token::new(TokenKind::Semi,   ";", line_num, col)); i += 1; }
-                    ',' => { tokens.push(Token::new(TokenKind::Comma,  ",", line_num, col)); i += 1; }
-                    '=' => { tokens.push(Token::new(TokenKind::Eq,     "=", line_num, col)); i += 1; }
+                    '@' => {
+                        tokens.push(Token::new(TokenKind::AtSym, "@", line_num, col));
+                        i += 1;
+                    }
+                    '(' => {
+                        tokens.push(Token::new(TokenKind::LParen, "(", line_num, col));
+                        i += 1;
+                    }
+                    ')' => {
+                        tokens.push(Token::new(TokenKind::RParen, ")", line_num, col));
+                        i += 1;
+                    }
+                    '{' => {
+                        tokens.push(Token::new(TokenKind::LBrace, "{", line_num, col));
+                        i += 1;
+                    }
+                    '}' => {
+                        tokens.push(Token::new(TokenKind::RBrace, "}", line_num, col));
+                        i += 1;
+                    }
+                    ';' => {
+                        tokens.push(Token::new(TokenKind::Semi, ";", line_num, col));
+                        i += 1;
+                    }
+                    ',' => {
+                        tokens.push(Token::new(TokenKind::Comma, ",", line_num, col));
+                        i += 1;
+                    }
+                    '=' => {
+                        tokens.push(Token::new(TokenKind::Eq, "=", line_num, col));
+                        i += 1;
+                    }
 
                     // String literal
                     '"' => {
                         i += 1;
                         let start = i;
-                        while i < chars.len() && chars[i] != '"' { i += 1; }
+                        while i < chars.len() && chars[i] != '"' {
+                            i += 1;
+                        }
                         let s: String = chars[start..i].iter().collect();
                         tokens.push(Token::new(TokenKind::StringLit, s, line_num, col));
-                        if i < chars.len() { i += 1; } // consume closing "
+                        if i < chars.len() {
+                            i += 1;
+                        } // consume closing "
                     }
 
                     // Hex literal 0x...
-                    '0' if i + 1 < chars.len() && chars[i+1] == 'x' => {
+                    '0' if i + 1 < chars.len() && chars[i + 1] == 'x' => {
                         let start = i;
                         i += 2;
-                        while i < chars.len() && chars[i].is_ascii_hexdigit() { i += 1; }
+                        while i < chars.len() && chars[i].is_ascii_hexdigit() {
+                            i += 1;
+                        }
                         let s: String = chars[start..i].iter().collect();
                         tokens.push(Token::new(TokenKind::HexLit, s, line_num, col));
                     }
 
                     // Number (decimal, float, or negative)
-                    c if c.is_ascii_digit() || (c == '-' && i + 1 < chars.len() && chars[i+1].is_ascii_digit()) => {
+                    c if c.is_ascii_digit()
+                        || (c == '-' && i + 1 < chars.len() && chars[i + 1].is_ascii_digit()) =>
+                    {
                         let start = i;
                         i += 1;
-                        while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') { i += 1; }
+                        while i < chars.len() && (chars[i].is_ascii_digit() || chars[i] == '.') {
+                            i += 1;
+                        }
                         let s: String = chars[start..i].iter().collect();
                         tokens.push(Token::new(TokenKind::Number, s, line_num, col));
                     }
@@ -70,14 +107,17 @@ impl<'src> Lexer<'src> {
                     // Identifier
                     c if c.is_alphabetic() || c == '_' => {
                         let start = i;
-                        while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') { i += 1; }
+                        while i < chars.len() && (chars[i].is_alphanumeric() || chars[i] == '_') {
+                            i += 1;
+                        }
                         let s: String = chars[start..i].iter().collect();
                         tokens.push(Token::new(TokenKind::Ident, s, line_num, col));
                     }
 
                     other => {
                         return Err(OsoError::Lex {
-                            line: line_num, col,
+                            line: line_num,
+                            col,
                             msg: format!("unexpected character {:?}", other),
                         });
                     }
@@ -123,7 +163,10 @@ mod tests {
     #[test]
     fn tokenizes_string_literal() {
         let toks = Lexer::new("@SET(k=\"hello\")").tokenize().unwrap();
-        let str_tok = toks.iter().find(|t| t.kind == TokenKind::StringLit).unwrap();
+        let str_tok = toks
+            .iter()
+            .find(|t| t.kind == TokenKind::StringLit)
+            .unwrap();
         assert_eq!(str_tok.value, "hello");
     }
 }

@@ -33,11 +33,10 @@ struct Cli {
 fn main() {
     let cli = Cli::parse();
 
-    let json_text = std::fs::read_to_string(&cli.program)
-        .unwrap_or_else(|e| {
-            eprintln!("error reading {}: {}", cli.program, e);
-            std::process::exit(1);
-        });
+    let json_text = std::fs::read_to_string(&cli.program).unwrap_or_else(|e| {
+        eprintln!("error reading {}: {}", cli.program, e);
+        std::process::exit(1);
+    });
 
     let output = DeployPipeline::run(&json_text, &cli.target, cli.signer_tier);
     println!("{}", serde_json::to_string_pretty(&output).unwrap());
