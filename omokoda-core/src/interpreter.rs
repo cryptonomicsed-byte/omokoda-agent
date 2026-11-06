@@ -462,6 +462,7 @@ impl AgentCore {
                     let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
                         crate::identity::duress::DuressHandler::from_stored_hash(
                             h,
+                            None,
                             crate::identity::duress::DuressResponse::SilentAlert,
                         )
                     });
@@ -484,6 +485,7 @@ impl AgentCore {
         let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
             crate::identity::duress::DuressHandler::from_stored_hash(
                 h,
+                None,
                 crate::identity::duress::DuressResponse::SilentAlert,
             )
         });
@@ -1815,6 +1817,7 @@ impl Steward {
             core.duress_handler = core.snapshot.duress_phrase_hash.as_deref().and_then(|h| {
                 crate::identity::duress::DuressHandler::from_stored_hash(
                     h,
+                    None,
                     crate::identity::duress::DuressResponse::Decoy { decoy_seed_hash },
                 )
             });
@@ -5303,6 +5306,13 @@ impl Steward {
             let warn_count = agent_mut.snapshot.session.warn_count;
             let swarm_load =
                 (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+            // Synthesise a minimal ActionIntent so the Mentalism gate
+            // accepts programmatic direct-act calls from think blocks.
+            let synth_intent = crate::gates::ActionIntent {
+                purpose: format!("think:direct_act:{}", call.tool),
+                target: call.tool.clone(),
+                ..Default::default()
+            };
             let op = Operation {
                 kind: OperationKind::Act {
                     tool: call.tool.clone(),
@@ -5310,7 +5320,7 @@ impl Steward {
                 },
                 intent: format!("execute tool {}", call.tool),
                 agent_id: Some(agent_id.clone()),
-                action_intent: None,
+                action_intent: Some(synth_intent),
             };
             let ctx =
                 GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);

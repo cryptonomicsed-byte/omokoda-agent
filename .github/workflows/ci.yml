@@ -6,6 +6,25 @@ on:
   pull_request:
 
 jobs:
+  # ── Rust formatting (independent job so clippy/test still run on fmt failure)
+  fmt:
+    name: Fmt
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          path: Omo-Koda2
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: stable
+          components: rustfmt
+      - name: Check formatting
+        working-directory: Omo-Koda2
+        run: |
+          cargo fmt -p omokoda-core -- --check
+          cargo fmt -p omokoda-hermetic -- --check
+          cargo fmt -p omokoda-cli -- --check
+
   # ── Rust / Steward ──────────────────────────────────────────────────────────
   rust:
     name: Rust
@@ -69,12 +88,6 @@ jobs:
         with:
           workspaces: Omo-Koda2
           save-if: "true"
-      - name: Check formatting
-        working-directory: Omo-Koda2
-        run: |
-          cargo fmt -p omokoda-core -- --check
-          cargo fmt -p omokoda-hermetic -- --check
-          cargo fmt -p omokoda-cli -- --check
       - name: Clippy
         working-directory: Omo-Koda2
         run: cargo clippy --workspace -j 1 -- -D warnings
@@ -86,6 +99,11 @@ jobs:
         env:
           CARGO_INCREMENTAL: "0"
           RUST_BACKTRACE: "1"
+      - name: Security audit
+        working-directory: Omo-Koda2
+        run: |
+          cargo install cargo-audit --quiet 2>/dev/null || true
+          cargo audit
 
   # ── Go / Gateway ────────────────────────────────────────────────────────────
   go:
