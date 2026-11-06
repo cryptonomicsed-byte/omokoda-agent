@@ -373,6 +373,10 @@ impl Tool for TorTool {
 
 #[cfg(test)]
 mod tests {
+    /// `ONIUX_BIN` is process-global; tests that mutate or depend on it must
+    /// serialize or they race under cargo's parallel harness.
+    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
     use super::*;
 
     #[test]
@@ -442,6 +446,8 @@ mod tests {
 
     #[tokio::test]
     async fn on_errors_without_oniux() {
+        // Hold the env lock: `run_via_echo_bin` sets ONIUX_BIN process-wide.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         // If oniux is not installed (typical CI), /tor on should return an
         // informative Err, not panic.
         if resolve_oniux().is_some() {
@@ -517,6 +523,7 @@ mod tests {
         // Point ONIUX_BIN at /bin/echo to test the exec path without real Tor.
         // oniux is called as: oniux <cmd> <args...>, so echo will emit
         // "curl -s https://example.com" which proves we exec without a shell.
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         let prev = std::env::var("ONIUX_BIN").ok();
         std::env::set_var("ONIUX_BIN", "/bin/echo");
 

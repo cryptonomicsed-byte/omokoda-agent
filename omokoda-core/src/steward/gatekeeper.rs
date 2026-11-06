@@ -6,8 +6,8 @@
 
 use crate::gates::{
     CauseEffectGate, CorrespondenceGate, GateContext, GateResult, GenderGate, HermeticDna,
-    HermeticGate, HermeticPrinciple, HermeticRhythmGate, MentalismGate, Operation, PolarityGate,
-    VibrationGate,
+    HermeticGate, HermeticPrinciple, HermeticRhythmGate, MentalismGate, Operation, OperationKind,
+    PolarityGate, VibrationGate,
 };
 use omokoda_hermetic::HermeticState;
 
@@ -148,7 +148,7 @@ impl EsuGatekeeper {
             if op.action_intent.is_none() {
                 return GatekeeperResult::Halted {
                     failed_gate: HermeticPrinciple::Mentalism,
-                    reason: \"ActionIntent required for Act operations — structured semantics are mandatory\".to_string(),
+                    reason: "ActionIntent required for Act operations — structured semantics are mandatory".to_string(),
                     scores: vec![],
                 };
             }
@@ -299,7 +299,20 @@ mod tests {
             },
             intent: "list files".to_string(),
             agent_id: Some(id()),
-            action_intent: None,
+            // Act operations require structured intent (enforced before the
+            // 7 gates run), otherwise this would halt at Mentalism instead of
+            // exercising the Rhythm/cooldown path under test.
+            action_intent: Some(crate::gates::ActionIntent {
+                purpose: "list files".to_string(),
+                target: ".".to_string(),
+                mutations: Vec::new(),
+                data_sensitivity: crate::gates::DataSensitivity::Public,
+                network_access: false,
+                consent_required: false,
+                reversibility: crate::gates::Reversibility::Reversible,
+                expected_effects: Vec::new(),
+                receipt_required: false,
+            }),
         };
         let ctx = GateContext::new(true, 0, 0.0);
         let result = gk.evaluate(&op, &ctx);

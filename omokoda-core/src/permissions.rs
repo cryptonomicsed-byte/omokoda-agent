@@ -114,36 +114,52 @@ impl PatternPolicy {
         }
     }
 
+    /// Collapse `.` / `..` segments in a slash-separated string without
+    /// touching the filesystem. A `..` that would climb above the root is
+    /// recorded and forces the result to be treated as absolute, so
+    /// `workspace/../../etc/passwd` normalizes to `/etc/passwd` and is then
+    /// caught by the `read:/etc/*` deny rule instead of silently escaping.
+    fn normalize_segments(rest: &str) -> String {
+        let mut absolute = rest.starts_with('/');
+        let mut out: Vec<&str> = Vec::new();
+        for seg in rest.split('/') {
+            match seg {
+                "" | "." => {}
+                ".." => {
+                    if out.pop().is_none() {
+                        absolute = true;
+                    }
+                }
+                s => out.push(s),
+            }
+        }
+        let mut joined = out.join("/");
+        if absolute {
+            joined.insert(0, '/');
+        }
+        joined
+    }
+
+    /// Normalize the resource half of an `action:resource` target.
+    fn normalize_target(target: &str) -> String {
+        match target.split_once(':') {
+            Some((action, rest)) => format!("{}:{}", action, Self::normalize_segments(rest)),
+            None => Self::normalize_segments(target),
+        }
+    }
+
     fn match_pattern(&self, pattern: &str, target: &str) -> bool {
         if pattern == "*" {
             return true;
         }
+        let normalized = Self::normalize_target(target);
         if let Some(prefix) = pattern.strip_suffix('*') {
-            // Normalize target to prevent path traversal bypasses (e.g., "workspace/../../etc/passwd")
-            let normalized = std::path::Path::new(target)
-                .components()
-                .filter(|c| matches!(c, std::path::Component::Normal(_)))
-                .collect::<Vec<_>>();
-            let prefix_path = std::path::Path::new(prefix);
-            
-            if prefix_path.components().count() == 0 {
-                return target.starts_with(prefix);
-            }
-            
-            // Check if the normalized target starts with the prefix path
-            let mut target_iter = normalized.iter();
-            let mut prefix_iter = prefix_path.components();
-            
-            loop {
-                match (target_iter.next(), prefix_iter.next()) {
-                    (Some(t), Some(p)) if t == p => continue,
-                    (None, None) => return true,
-                    (_, None) => return true,
-                    _ => return false,
-                }
-            }
+            // Prefix match on the traversal-normalized target. Normalizing
+            // (rather than string-matching the raw target) is what closes
+            // `workspace/../../etc/passwd` -> `read:workspace/*`.
+            return normalized.starts_with(prefix);
         }
-        pattern == target
+        pattern == normalized
     }
 }
 

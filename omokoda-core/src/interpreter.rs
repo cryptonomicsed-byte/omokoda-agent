@@ -1618,7 +1618,7 @@ impl Steward {
             ];
             let koodu_birth_score = k_epoch_b
                 .wrapping_add(k_cycle_b)
-                .wrapping_add(k_phase_b)
+                .wrapping_add(k_phase_b as u64)
                 .wrapping_rem(256) as u8;
             let mut constitution = crate::constitution::AgentConstitution::new(
                 bipon39_phrase,
@@ -3465,7 +3465,7 @@ impl Steward {
                     let swarm_load =
                         (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     // 1. Generate structured ActionIntent via ActionInterpreter
-                    let odu_index = agent.odu_identity().primary_index;
+                    let odu_index = agent_mut.odu_identity().primary_index;
                     let decision = crate::execution::action_interpreter::ActionInterpreter::evaluate(
                         odu_index,
                         &tool,
@@ -5294,6 +5294,31 @@ impl Steward {
             let warn_count = agent_mut.snapshot.session.warn_count;
             let swarm_load =
                 (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+            // Structured ActionIntent is mandatory for Act — the gatekeeper
+            // hard-halts Act operations that arrive with `None`.
+            let odu_index = agent_mut.odu_identity().primary_index;
+            let decision = crate::execution::action_interpreter::ActionInterpreter::evaluate(
+                odu_index,
+                &call.tool,
+                &call.params,
+            );
+            let action_intent = match decision {
+                crate::execution::action_interpreter::InterpretDecision::Proceed {
+                    receipt_required,
+                    ..
+                } => Some(crate::gates::ActionIntent {
+                    purpose: format!("execute tool {}", call.tool),
+                    target: call.params.clone(),
+                    mutations: Vec::new(),
+                    data_sensitivity: crate::gates::DataSensitivity::Internal,
+                    network_access: call.params.contains("http") || call.params.contains("fetch"),
+                    consent_required: false,
+                    reversibility: crate::gates::Reversibility::Reversible,
+                    expected_effects: Vec::new(),
+                    receipt_required,
+                }),
+                _ => None,
+            };
             let op = Operation {
                 kind: OperationKind::Act {
                     tool: call.tool.clone(),
@@ -5301,7 +5326,7 @@ impl Steward {
                 },
                 intent: format!("execute tool {}", call.tool),
                 agent_id: Some(agent_id.clone()),
-                action_intent: None,
+                action_intent,
             };
             let ctx =
                 GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);

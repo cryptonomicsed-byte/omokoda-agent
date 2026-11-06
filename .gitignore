@@ -26,3 +26,10 @@ omokoda-simulation/tools/__pycache__/
 .omokoda/
 omokoda-core/skills.forged.json
 .DS_Store
+
+# Local scratch / foreign clones absorbed during ecosystem study (never commit)
+absorbed/
+OSOVM/
+organism-core/
+study/
+build.log

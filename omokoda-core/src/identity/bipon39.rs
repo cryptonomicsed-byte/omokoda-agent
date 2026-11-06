@@ -7,12 +7,16 @@ use serde::{Deserialize, Serialize};
 use sha2::Sha256;
 use std::collections::HashMap;
 
-/// BIPỌ̀N39 256-token Yoruba wordlist (canonical)
-/// Generated at build time from assets/bipon39_wordlist.txt
-const BIPON39_WORDLIST: &[&str] = include_str!("../../assets/bipon39_wordlist.txt");
-
-/// Odù-to-index mapping (256 Odù → 0-255)
-const ODU_INDEX_MAP: &[(u8, &str)] = include!("../../assets/odu_index_map.rs");
+/// Canonical BIPỌ̀N39 encoding tokens (256), sourced from the `bipon39` crate.
+///
+/// Single source of truth: the same canonical set that backs
+/// `bipon39::entropy_to_mnemonic`, so locally-generated mnemonics and
+/// crate-generated ones index the identical list. (Previously this was an
+/// `include_str!` of an asset that was never committed, which made the crate
+/// uncompilable from a clean checkout.)
+fn wordlist() -> &'static [&'static str] {
+    bipon39::wordlist::all_encoding_tokens()
+}
 
 pub struct Bipon39;
 
@@ -89,22 +93,28 @@ impl Bipon39Mnemonic {
             return Err(Bipon39Error::InvalidEntropyLength);
         }
 
-        // Convert entropy to 24 word indices (11 bits each = 264 bits, use 256 + 8 checksum)
-        let mut indices = Vec::with_capacity(24);
-        let mut bits = entropy.to_vec();
-        bits.push(entropy[0]); // Add 8 bits for checksum (simplified)
+        // Convert entropy to 24 word indices. 256 bits of entropy + an 8-bit
+        // checksum = 264 bits = exactly 24 x 11 bits. Packing must be done at
+        // the *bit* level: chunking the byte buffer with `chunks(11)` only
+        // yields 3 chunks and silently produced 3-word mnemonics.
+        let mut bytes = entropy.to_vec();
+        bytes.push(entropy[0]); // 8-bit checksum (simplified, deterministic)
 
-        for chunk in bits.chunks(11) {
-            let mut idx = 0u16;
-            for &b in chunk {
-                idx = (idx << 1) | (b & 1) as u16;
+        let mut indices = Vec::with_capacity(24);
+        let mut idx: u16 = 0;
+        for bit_pos in 0..264usize {
+            let byte = bytes[bit_pos / 8];
+            let bit = (byte >> (7 - (bit_pos % 8))) & 1;
+            idx = (idx << 1) | bit as u16;
+            if (bit_pos + 1) % 11 == 0 {
+                indices.push((idx as usize) % 256);
+                idx = 0;
             }
-            indices.push((idx % 256) as usize);
         }
-        indices.truncate(24);
+        debug_assert_eq!(indices.len(), 24);
 
         let words: Vec<String> = indices.iter()
-            .map(|&i| BIPON39_WORDLIST[i].to_string())
+            .map(|&i| wordlist()[i].to_string())
             .collect();
 
         // Derive Odù from first 2 words
@@ -142,7 +152,7 @@ impl Bipon39Mnemonic {
     }
 
     fn word_to_odù(word: &str) -> Result<u8, Bipon39Error> {
-        BIPON39_WORDLIST.iter()
+        wordlist().iter()
             .position(|&w| w == word)
             .map(|i| i as u8)
             .ok_or(Bipon39Error::WordNotInWordlist)
@@ -189,7 +199,13 @@ pub struct SuiAddress(pub String); // 0x... format
 
 impl SuiAddress {
     pub fn derive_from_seed(seed: &[u8; 32], path: &str) -> Self {
-        let derived = blake3::keyed_hash(b"sui-derivation", seed);
+        // blake3::keyed_hash requires a fixed 32-byte key; derive it from the
+        // derivation label + path so distinct paths give distinct addresses.
+        let mut key = [0u8; 32];
+        key.copy_from_slice(
+            blake3::hash(format!("sui-derivation:{path}").as_bytes()).as_bytes(),
+        );
+        let derived = blake3::keyed_hash(&key, seed);
         Self(format!("0x{}", hex::encode(&derived.as_bytes()[..32])))
     }
 }
@@ -237,7 +253,7 @@ impl BirthReceipt {
             dna_fingerprint: identity.dna_fingerprint.clone(),
             odù_primary: identity.odù_primary,
             odù_secondary: identity.odù_secondary,
-            bipon39_fingerprint: bipon39_fp,
+            bipon39_fingerprint: bipon39_fp.to_string(),
             ip_root,
             timestamp,
             signature: String::new(),
