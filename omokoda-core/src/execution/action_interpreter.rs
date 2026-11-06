@@ -251,7 +251,7 @@ impl ActionInterpreter {
                 passed: true,
                 passed_specs: vec!["(no specs — trivially passed)".to_string()],
                 failed_specs: vec![],
-                evidence: json!({"output_preview": &output[..output.len().min(200)]}),
+                evidence: json!({"output_preview": &output[..output.char_indices().nth(200).map(|(i, _)| i).unwrap_or(output.len())]}),
             };
         }
 
@@ -318,7 +318,7 @@ impl ActionInterpreter {
             passed_specs: passed,
             failed_specs: failed,
             evidence: json!({
-                "output_preview": &output[..output.len().min(300)],
+                "output_preview": &output[..output.char_indices().nth(300).map(|(i, _)| i).unwrap_or(output.len())],
                 "spec_count": verify_specs.len()
             }),
         }
@@ -474,10 +474,24 @@ impl ActionInterpreter {
         let memory_event = InterpretMemoryEvent {
             action: format!("Executed {} via {}", opcode, tool),
             decision: "execute".to_string(),
-            reason: format!("Tool execution failed: {}", &error[..error.len().min(200)]),
+            reason: format!(
+                "Tool execution failed: {}",
+                &error[..error
+                    .char_indices()
+                    .nth(200)
+                    .map(|(i, _)| i)
+                    .unwrap_or(error.len())]
+            ),
             outcome: "Failed".to_string(),
             evidence: None,
-            failure: Some(error[..error.len().min(500)].to_string()),
+            failure: Some(
+                error[..error
+                    .char_indices()
+                    .nth(500)
+                    .map(|(i, _)| i)
+                    .unwrap_or(error.len())]
+                    .to_string(),
+            ),
             lesson: Some(format!(
                 "Tool '{}' failed under Odu {}. Consider alternative approach.",
                 tool, odu_index
@@ -679,7 +693,14 @@ fn build_memory_event(
 ) -> InterpretMemoryEvent {
     let outcome_str = format!("{:?}", outcome);
     let evidence_preview = if raw_output.len() > 200 {
-        format!("{}...(truncated)", &raw_output[..200])
+        format!(
+            "{}...(truncated)",
+            &raw_output[..raw_output
+                .char_indices()
+                .nth(200)
+                .map(|(i, _)| i)
+                .unwrap_or(raw_output.len())]
+        )
     } else {
         raw_output.to_string()
     };

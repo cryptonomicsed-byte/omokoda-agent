@@ -617,7 +617,7 @@ async fn think_handler(
     Json(req): Json<ThinkRequest>,
 ) -> impl IntoResponse {
     mark_external_activity();
-    let stmt = prompt_to_statement(req.prompt, req.private, req.agentic, req.max_turns, true);
+    let stmt = prompt_to_statement(req.prompt, req.private, req.agentic, req.max_turns, false);
     match dispatch_for_request(&state, &headers, stmt).await {
         Ok(result) => Json(ExecutionResponse::from(result)).into_response(),
         Err(resp) => resp,
@@ -1428,7 +1428,42 @@ pub fn create_router(state: AppState) -> Router {
         .route("/v1/vault/file/*path", get(get_vault_file))
         // Rhythm route
         .route("/v1/rhythm/today", get(rhythm_today_handler))
-        .layer(CorsLayer::permissive())
+        .layer({
+            use tower_http::cors::AllowOrigin;
+            let allowed: Vec<_> = std::env::var("OMOKODA_CORS_ORIGINS")
+                .unwrap_or_default()
+                .split(',')
+                .filter(|s| !s.is_empty())
+                .filter_map(|s| s.trim().parse::<axum::http::HeaderValue>().ok())
+                .collect();
+            if allowed.is_empty() {
+                CorsLayer::new()
+                    .allow_origin(tower_http::cors::AllowOrigin::exact(
+                        "http://localhost:3000".parse().unwrap(),
+                    ))
+                    .allow_headers([
+                        axum::http::header::AUTHORIZATION,
+                        axum::http::header::CONTENT_TYPE,
+                    ])
+                    .allow_methods([
+                        axum::http::Method::GET,
+                        axum::http::Method::POST,
+                        axum::http::Method::DELETE,
+                    ])
+            } else {
+                CorsLayer::new()
+                    .allow_origin(AllowOrigin::list(allowed))
+                    .allow_headers([
+                        axum::http::header::AUTHORIZATION,
+                        axum::http::header::CONTENT_TYPE,
+                    ])
+                    .allow_methods([
+                        axum::http::Method::GET,
+                        axum::http::Method::POST,
+                        axum::http::Method::DELETE,
+                    ])
+            }
+        })
         .with_state(state)
 }
 
@@ -1649,7 +1684,11 @@ pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
             .unwrap_or(300),
     );
     let router = create_router(state);
-    let addr = std::net::SocketAddr::from(([0, 0, 0, 0], port));
+    let bind_ip: std::net::IpAddr = std::env::var("OMOKODA_BIND_ADDR")
+        .ok()
+        .and_then(|s| s.parse().ok())
+        .unwrap_or_else(|| std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
+    let addr = std::net::SocketAddr::new(bind_ip, port);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Ọmọ Kọ́dà HTTP server listening on {addr}");
     axum::serve(listener, router).await

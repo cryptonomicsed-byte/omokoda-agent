@@ -1598,9 +1598,18 @@ impl Steward {
         // Nostr private key is in scope; constitutional DNA locks at birth and
         // never changes. Persisted alongside agent.json in the session dir.
         {
-            let k_epoch_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_epoch).unwrap_or(0);
-            let k_cycle_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_cycle).unwrap_or(0);
-            let k_phase_b = genesis_receipt_v2.as_ref().map(|g| g.koodu_phase).unwrap_or(0);
+            let k_epoch_b = genesis_receipt_v2
+                .as_ref()
+                .map(|g| g.koodu_epoch)
+                .unwrap_or(0);
+            let k_cycle_b = genesis_receipt_v2
+                .as_ref()
+                .map(|g| g.koodu_cycle)
+                .unwrap_or(0);
+            let k_phase_b = genesis_receipt_v2
+                .as_ref()
+                .map(|g| g.koodu_phase)
+                .unwrap_or(0);
             let bipon39_phrase = mnemonic
                 .split_whitespace()
                 .take(3)
@@ -3466,11 +3475,10 @@ impl Steward {
                         (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
                     // 1. Generate structured ActionIntent via ActionInterpreter
                     let odu_index = agent_mut.odu_identity().primary_index;
-                    let decision = crate::execution::action_interpreter::ActionInterpreter::evaluate(
-                        odu_index,
-                        &tool,
-                        &params,
-                    );
+                    let decision =
+                        crate::execution::action_interpreter::ActionInterpreter::evaluate(
+                            odu_index, &tool, &params,
+                        );
 
                     let action_intent = match decision {
                         crate::execution::action_interpreter::InterpretDecision::Proceed {
@@ -5070,12 +5078,13 @@ impl Steward {
             // Runs alongside the existing odu_dir.recall above. Merges remote
             // results into the "Recalled from memory" section. Fail-open: an
             // unreachable service contributes zero results.
-            {
+            // Skip when private mode is set — private prompts must not leave the process.
+            if !private {
                 let memory_url = std::env::var("MEMORY_ENGINE_URL")
                     .unwrap_or_else(|_| "http://localhost:7703".to_string());
                 let body = serde_json::json!({ "query": prompt, "limit": 3usize });
                 let remote_results: Vec<String> = match reqwest::Client::new()
-                    .post(&format!("{}/search", memory_url))
+                    .post(format!("{}/search", memory_url))
                     .json(&body)
                     .timeout(std::time::Duration::from_secs(5))
                     .send()
@@ -6663,7 +6672,8 @@ impl Steward {
             // W-08 — SOMA gate-alignment EMA: α=0.1 per act (slow moving average).
             // Tracks hermetic DNA alignment health across the agent's lifetime.
             const SOMA_EMA_ALPHA: f64 = 0.1;
-            agent.snapshot.gate_alignment_ema = (1.0 - SOMA_EMA_ALPHA) * agent.snapshot.gate_alignment_ema
+            agent.snapshot.gate_alignment_ema = (1.0 - SOMA_EMA_ALPHA)
+                * agent.snapshot.gate_alignment_ema
                 + SOMA_EMA_ALPHA * gate_alignment;
             // Capture for OSOVM attest spawn below (before receipt moves into ring).
             attest_receipt_id = receipt.receipt_id.clone();
@@ -6786,30 +6796,32 @@ impl Steward {
             let now_ms = now_secs * 1000;
             let emotion = crate::emotion::EmotionState::birth();
             if let Ok(agent_mut) = self.ensure_born_mut() {
-                let content = format!("{}: {}", tool_name, &output[..output.len().min(256)]);
-                // W-07: ReflectionLedger — introspective journal with emotional context.
-                agent_mut.snapshot.reflection.record_with_emotion(
-                    "act",
-                    &content,
-                    now_ms,
-                    &emotion,
+                let content = format!(
+                    "{}: {}",
+                    tool_name,
+                    &output[..output
+                        .char_indices()
+                        .nth(256)
+                        .map(|(i, _)| i)
+                        .unwrap_or(output.len())]
                 );
+                // W-07: ReflectionLedger — introspective journal with emotional context.
+                agent_mut
+                    .snapshot
+                    .reflection
+                    .record_with_emotion("act", &content, now_ms, &emotion);
                 // W-09: CausalMemoryDag — cryptographically chained action lineage
                 // (parallel to the GIX-store chain; persists with the snapshot).
                 let node_id = format!("act-{}-{}", tool_name, now_secs);
-                let node = crate::memory::dag::MemNode::new(
-                    node_id.clone(),
-                    content,
-                    now_secs,
-                )
-                .with_parents(
-                    agent_mut
-                        .snapshot
-                        .last_causal_node
-                        .clone()
-                        .into_iter()
-                        .collect(),
-                );
+                let node = crate::memory::dag::MemNode::new(node_id.clone(), content, now_secs)
+                    .with_parents(
+                        agent_mut
+                            .snapshot
+                            .last_causal_node
+                            .clone()
+                            .into_iter()
+                            .collect(),
+                    );
                 agent_mut.snapshot.causal_dag.insert(node);
                 agent_mut.snapshot.last_causal_node = Some(node_id);
             }
