@@ -869,18 +869,31 @@ impl Tool for BashTool {
         params: &str,
         context: &ExecutionContext,
     ) -> Result<(String, crate::usage::TokenUsage), String> {
-        // P0 Security: Validate bash commands to prevent injection
-        if let Err(e) = crate::execution::bash_validation::validate_bash_command(params) {
-            return Err(format!("Security blocked: {}", e.reason));
-        }
-
+        // H3: Use validate_bash_full (not just validate_bash_command) so path
+        // boundary checks and destructive-operation detection run too.
         let sandbox = context.sandbox_mode;
-
+        let workspace_root = &context.workspace_root;
+        let validation = crate::execution::bash_validation::validate_bash_full(
+            params,
+            Some(workspace_root.as_path()),
+            false,
+            sandbox,
+        );
+        if let Some(blocked) = validation.block {
+            return Err(format!("Security blocked: {}", blocked.reason));
+        }
+        // Sandbox: block ".." path traversal (stage_sandbox_checks only warns).
         if sandbox && params.contains("..") {
             return Err("sandboxed bash commands must not contain '..'".to_string());
         }
 
-        let workspace_root = &context.workspace_root;
+        // H3: clear potentially-sensitive env vars before exec
+        let dangerous_env_keys = [
+            "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
+            "GITHUB_TOKEN", "NPM_TOKEN", "CARGO_REGISTRY_TOKEN",
+            "DATABASE_URL", "OMOKODA_BEARER_TOKEN", "VANTAGE_API_KEY",
+        ];
+
         let mut cmd = if sandbox {
             let mut c = Command::new("unshare");
             c.args([
@@ -894,17 +907,27 @@ impl Tool for BashTool {
                 params,
             ]);
             c.current_dir(workspace_root);
+            for k in &dangerous_env_keys { c.env_remove(k); }
             c
         } else {
             let mut c = Command::new("bash");
             c.args(["-c", params]);
             c.current_dir(workspace_root);
+            for k in &dangerous_env_keys { c.env_remove(k); }
             c
         };
 
-        let output = cmd
-            .output()
-            .map_err(|e| format!("failed to execute bash: {}", e))?;
+        // H3: 60-second hard timeout via spawn_blocking so the async
+        // executor is not blocked by a hung bash subprocess.
+        use std::time::Duration;
+        let output = tokio::time::timeout(
+            Duration::from_secs(60),
+            tokio::task::spawn_blocking(move || cmd.output()),
+        )
+        .await
+        .map_err(|_| "bash command timed out after 60 seconds".to_string())?
+        .map_err(|e| format!("spawn_blocking panic: {}", e))?
+        .map_err(|e| format!("failed to execute bash: {}", e))?;
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

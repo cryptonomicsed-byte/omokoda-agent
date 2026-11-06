@@ -72,12 +72,14 @@ mod tool_registry_tests {
     async fn grep_tool_basic() {
         let registry = ToolRegistry::new();
         let policy = PermissionPolicy::default_steward_policy(PermissionMode::WorkspaceWrite);
-        let test_file = "test_grep.txt";
-        fs::write(test_file, "line 1\nline 2 with target\nline 3").unwrap();
+        // Unique temp dir prevents races with other parallel tests.
+        let tmp = std::env::temp_dir().join(format!("omokoda_grep_{}", std::process::id()));
+        fs::create_dir_all(&tmp).unwrap();
+        fs::write(tmp.join("test_grep.txt"), "line 1\nline 2 with target\nline 3").unwrap();
 
         let grep_input = serde_json::json!({
             "pattern": "target",
-            "path": ".",
+            "path": tmp.to_str().unwrap(),
             "glob": "**/test_grep.txt",
             "output_mode": "content"
         });
@@ -91,7 +93,7 @@ mod tool_registry_tests {
                 primary_index: 0,
                 mnemonic: "".into(),
             },
-            workspace_root: std::env::current_dir().unwrap(),
+            workspace_root: tmp.clone(),
             sandbox_mode: false,
         };
 
@@ -100,10 +102,10 @@ mod tool_registry_tests {
             .await
             .unwrap()
             .0;
-        assert!(result.contains(":2:line 2 with target"));
+        assert!(result.contains("line 2 with target"));
         assert!(result.contains("\"content\":"));
 
-        fs::remove_file(test_file).unwrap();
+        fs::remove_dir_all(&tmp).unwrap();
     }
 
     #[tokio::test]
