@@ -16,7 +16,21 @@ use serde_json::json;
 
 static HTTP: OnceLock<Client> = OnceLock::new();
 fn http() -> &'static Client {
-    HTTP.get_or_init(Client::new)
+    HTTP.get_or_init(|| {
+        Client::builder()
+            .timeout(std::time::Duration::from_secs(
+                std::env::var("ZANGBETO_TIMEOUT_SECS")
+                    .ok()
+                    .and_then(|v| v.parse().ok())
+                    .unwrap_or(5u64),
+            ))
+            .build()
+            .unwrap_or_else(|_| Client::new())
+    })
+}
+
+fn fail_closed() -> bool {
+    std::env::var("ZANGBETO_FAIL_CLOSED").as_deref() == Ok("1")
 }
 
 fn normalize_base(raw: &str) -> Option<String> {
@@ -82,7 +96,7 @@ pub async fn report_anomaly(
 /// [`verdict_blocks`]) denies an otherwise-allowed act. Fail-open.
 pub async fn review_act(agent_id: &str, tool: &str, detail: &str) -> Option<serde_json::Value> {
     let base = base_url()?;
-    let resp = http()
+    let send_result = http()
         .post(format!("{base}/review"))
         .json(&json!({
             "agent_id": agent_id,
@@ -90,11 +104,25 @@ pub async fn review_act(agent_id: &str, tool: &str, detail: &str) -> Option<serd
             "detail": detail,
         }))
         .send()
-        .await
-        .ok()?;
+        .await;
+    let resp = match send_result {
+        Ok(r) => r,
+        Err(e) => {
+            tracing::warn!("Zangbeto review_act failed: {e}");
+            if fail_closed() {
+                return Some(json!({"block": true, "reason": "zangbeto unreachable"}));
+            }
+            return None;
+        }
+    };
     if !resp.status().is_success() {
+        tracing::warn!("Zangbeto review_act non-success status: {}", resp.status());
+        if fail_closed() {
+            return Some(json!({"block": true, "reason": "zangbeto unreachable"}));
+        }
         return None;
     }
+    // TODO(H4): add signature field to ZangbetoResponse and verify here
     resp.json::<serde_json::Value>().await.ok()
 }
 
@@ -250,11 +278,22 @@ pub async fn audit_state_post_act(state_bytes: &[u8], fallback_id: &str) -> Zang
                 passed,
             }
         }
-        None => ZangbetoAudit {
-            receipt_id: fallback_id.to_string(),
-            sig: hash_sig,
-            passed: true, // fail-open: no enforcer configured
-        },
+        None => {
+            if fail_closed() {
+                tracing::warn!(Zàngbétò audit_state_post_act: enforcer unreachable, failing closed);
+                ZangbetoAudit {
+                    receipt_id: fallback_id.to_string(),
+                    sig: hash_sig,
+                    passed: false,
+                }
+            } else {
+                ZangbetoAudit {
+                    receipt_id: fallback_id.to_string(),
+                    sig: hash_sig,
+                    passed: true, // fail-open: no enforcer configured
+                }
+            }
+        }
     }
 }
 
