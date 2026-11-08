@@ -6558,6 +6558,81 @@ impl Steward {
             }
         }
 
+        // H1: wire the agentic path through the same gate stack as Statement::Act.
+        // Previously the agentic LLM tool-call path skipped EsuGatekeeper, Zangbeto
+        // pre-act review, and the Justice pre-act hook.
+
+        // H1a: pre-act Zàngbétò review (fail-open — same as Act path).
+        if let Some(verdict) =
+            crate::bus::zangbeto::review_act(agent_id.as_str(), tool_name, params).await
+        {
+            if crate::bus::zangbeto::verdict_blocks(&verdict) {
+                return Err(format!(
+                    "Blocked by ZÀNGBÉTÒ enforcement (agentic): {}",
+                    tool_name
+                ));
+            }
+        }
+
+        // H1b: Justice HookRunner pre-act.
+        let hook_ctx = crate::justice::HookContext {
+            tool_name: tool_name.to_string(),
+            input: params.to_string(),
+            output: None,
+            reputation,
+            tier,
+        };
+        match self.justice.hook_runner.run_pre(&hook_ctx, &self.event_bus) {
+            crate::justice::HookDecision::Deny(reason) => {
+                return Err(format!("Hook denied agentic execution: {}", reason));
+            }
+            crate::justice::HookDecision::Warn(warning) => {
+                tracing::warn!(tool = tool_name, warning, "agentic pre-act hook warning");
+            }
+            crate::justice::HookDecision::Allow => {}
+        }
+
+        // H1c: EsuGatekeeper — all 7 hermetic gates (same as Statement::Act).
+        {
+            let agent_mut = self.ensure_born_mut()?;
+            let warn_count = agent_mut.snapshot.session.warn_count;
+            let swarm_load =
+                (agent_mut.snapshot.odu_dir.swarm_agents().len() as f32 / 10.0).min(1.0);
+            let synth_intent = crate::gates::ActionIntent {
+                purpose: format!("agentic:tool:{}", tool_name),
+                target: tool_name.to_string(),
+                ..Default::default()
+            };
+            let op = Operation {
+                kind: OperationKind::Act {
+                    tool: tool_name.to_string(),
+                    params: params.to_string(),
+                },
+                intent: format!("agentic tool call: {}", tool_name),
+                agent_id: Some(agent_id.clone()),
+                action_intent: Some(synth_intent),
+            };
+            let ctx = GateContext::new(
+                self.rhythm_tracker.has_any_active(),
+                warn_count,
+                swarm_load,
+            );
+            match self.gatekeeper.evaluate(&op, &ctx) {
+                GatekeeperResult::Approved { .. } => {}
+                GatekeeperResult::Halted {
+                    failed_gate,
+                    reason,
+                    ..
+                } => {
+                    return Err(format!(
+                        "❌ HALTED by {} Gate (agentic): {}",
+                        failed_gate.name(),
+                        reason
+                    ));
+                }
+            }
+        }
+
         let context = crate::tools::ExecutionContext {
             agent_id,
             name,
