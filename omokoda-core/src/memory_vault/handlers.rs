@@ -287,7 +287,10 @@ pub async fn get_vault_ls(
 
 // ─── GET /v1/vault/download ─────────────────────────────────────────────────
 
-pub async fn get_vault_download(State(state): State<AppState>, headers: HeaderMap) -> impl IntoResponse {
+pub async fn get_vault_download(
+    State(state): State<AppState>,
+    headers: HeaderMap,
+) -> impl IntoResponse {
     if !crate::server::owner_authorized(&headers) {
         return (StatusCode::UNAUTHORIZED, "owner token required").into_response();
     }

@@ -890,12 +890,18 @@ impl Tool for BashTool {
 
         // H3: clear potentially-sensitive env vars before exec
         let dangerous_env_keys = [
-            "AWS_ACCESS_KEY_ID", "AWS_SECRET_ACCESS_KEY", "AWS_SESSION_TOKEN",
-            "GITHUB_TOKEN", "NPM_TOKEN", "CARGO_REGISTRY_TOKEN",
-            "DATABASE_URL", "OMOKODA_BEARER_TOKEN", "VANTAGE_API_KEY",
+            "AWS_ACCESS_KEY_ID",
+            "AWS_SECRET_ACCESS_KEY",
+            "AWS_SESSION_TOKEN",
+            "GITHUB_TOKEN",
+            "NPM_TOKEN",
+            "CARGO_REGISTRY_TOKEN",
+            "DATABASE_URL",
+            "OMOKODA_BEARER_TOKEN",
+            "VANTAGE_API_KEY",
         ];
 
-        let mut cmd = if sandbox {
+        let cmd = if sandbox {
             let mut c = Command::new("unshare");
             c.args([
                 "--map-root-user",
@@ -908,17 +914,21 @@ impl Tool for BashTool {
                 params,
             ]);
             c.current_dir(workspace_root);
-            for k in &dangerous_env_keys { c.env_remove(k); }
+            for k in &dangerous_env_keys {
+                c.env_remove(k);
+            }
             c
         } else {
             let mut c = Command::new("bash");
             c.args(["-c", params]);
             c.current_dir(workspace_root);
-            for k in &dangerous_env_keys { c.env_remove(k); }
+            for k in &dangerous_env_keys {
+                c.env_remove(k);
+            }
             c
         };
 
-// A command that never returns used to hang the agent forever: the old
+        // A command that never returns used to hang the agent forever: the old
         // code blocked on `Command::output()` with no deadline. Bound it, and
         // kill the child on timeout/drop.
         //
@@ -935,20 +945,18 @@ impl Tool for BashTool {
             .ok()
             .and_then(|v| v.parse::<u64>().ok())
             .unwrap_or(120);
-        let output = match tokio::time::timeout(
-            std::time::Duration::from_secs(timeout_secs),
-            cmd.output(),
-        )
-        .await
-        {
-            Ok(Ok(o)) => o,
-            Ok(Err(e)) => return Err(format!("failed to execute bash: {}", e)),
-            Err(_) => {
-                return Err(format!(
-                    "bash command timed out after {timeout_secs}s and was killed"
-                ))
-            }
-        };
+        let output =
+            match tokio::time::timeout(std::time::Duration::from_secs(timeout_secs), cmd.output())
+                .await
+            {
+                Ok(Ok(o)) => o,
+                Ok(Err(e)) => return Err(format!("failed to execute bash: {}", e)),
+                Err(_) => {
+                    return Err(format!(
+                        "bash command timed out after {timeout_secs}s and was killed"
+                    ))
+                }
+            };
 
         let stdout = String::from_utf8_lossy(&output.stdout).to_string();
         let stderr = String::from_utf8_lossy(&output.stderr).to_string();

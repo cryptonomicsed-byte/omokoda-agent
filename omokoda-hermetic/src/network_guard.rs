@@ -377,7 +377,9 @@ mod tests {
     /// so `http://evil.com@127.0.0.1/` reached loopback unchecked.
     #[test]
     fn test_userinfo_cannot_hide_loopback() {
-        assert!(guard().check("http://evil.com@127.0.0.1/admin").is_blocked());
+        assert!(guard()
+            .check("http://evil.com@127.0.0.1/admin")
+            .is_blocked());
         assert!(guard()
             .check("http://user:pass@127.0.0.1:8000/seed")
             .is_blocked());
@@ -390,13 +392,13 @@ mod tests {
     #[test]
     fn test_non_canonical_ip_spellings_are_blocked() {
         for url in [
-            "http://2130706433/",            // 127.0.0.1 as decimal
-            "http://0x7f000001/",            // 127.0.0.1 as hex
-            "http://0177.0.0.1/",            // 127.0.0.1 as octal
-            "http://[::ffff:127.0.0.1]/",    // IPv4-mapped IPv6
-            "http://[::1]/",                 // IPv6 loopback
-            "http://127.1/",                 // shorthand loopback
-            "http://2852039166/latest/",     // 169.254.169.254 as decimal
+            "http://2130706433/",         // 127.0.0.1 as decimal
+            "http://0x7f000001/",         // 127.0.0.1 as hex
+            "http://0177.0.0.1/",         // 127.0.0.1 as octal
+            "http://[::ffff:127.0.0.1]/", // IPv4-mapped IPv6
+            "http://[::1]/",              // IPv6 loopback
+            "http://127.1/",              // shorthand loopback
+            "http://2852039166/latest/",  // 169.254.169.254 as decimal
         ] {
             assert!(guard().check(url).is_blocked(), "expected block for {url}");
         }

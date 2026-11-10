@@ -2758,7 +2758,8 @@ impl Steward {
                     let tier_cap = crate::intent::tier_iteration_cap(
                         self.agent.as_ref().map_or(0, |a| a.tier()),
                     );
-                    let max_turns = modifiers.max_iterations
+                    let max_turns = modifiers
+                        .max_iterations
                         .unwrap_or(8)
                         .min(tier_cap)
                         .min(crate::intent::MAX_TOOL_ITERATIONS_PER_TURN);
@@ -6630,11 +6631,8 @@ impl Steward {
                 agent_id: Some(agent_id.clone()),
                 action_intent: Some(synth_intent),
             };
-            let ctx = GateContext::new(
-                self.rhythm_tracker.has_any_active(),
-                warn_count,
-                swarm_load,
-            );
+            let ctx =
+                GateContext::new(self.rhythm_tracker.has_any_active(), warn_count, swarm_load);
             match self.gatekeeper.evaluate(&op, &ctx) {
                 GatekeeperResult::Approved { .. } => {}
                 GatekeeperResult::Halted {

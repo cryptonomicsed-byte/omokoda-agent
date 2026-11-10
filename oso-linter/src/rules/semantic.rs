@@ -85,8 +85,13 @@ pub fn check(
 
         // S3: circular agent reference
         // Check CALL/AGENT_* target arg against caller's own agent_id
-        if matches!(instr.opcode_name.as_str(), "CALL" | "AGENT_THINK" | "AGENT_ACT") {
-            if let Some(serde_json::Value::String(target)) = instr.args.get("target")
+        if matches!(
+            instr.opcode_name.as_str(),
+            "CALL" | "AGENT_THINK" | "AGENT_ACT"
+        ) {
+            if let Some(serde_json::Value::String(target)) = instr
+                .args
+                .get("target")
                 .or_else(|| instr.args.get("agent_id"))
             {
                 if declared_agents.contains(target) {
@@ -125,18 +130,50 @@ pub fn check(
 fn is_known_opcode(name: &str) -> bool {
     matches!(
         name,
-        "NOP" | "PUSH" | "POP" | "LOAD_CONST" | "STORE" | "LOAD"
-        | "ADD" | "SUB" | "MUL" | "DIV" | "MOD"
-        | "EQ" | "NEQ" | "LT" | "GT"
-        | "AND" | "OR" | "NOT"
-        | "JUMP" | "JUMP_IF"
-        | "CALL" | "RETURN" | "HALT"
-        | "AGENT_BIRTH" | "AGENT_THINK" | "AGENT_ACT" | "AGENT_SENSE" | "AGENT_MEMORY"
-        | "EMIT_ASE" | "BURN_ASE" | "TRANSFER_ASE" | "LOCK_ASE"
-        | "STORE_BLOB" | "LOAD_BLOB" | "SEAL_DATA" | "UNSEAL_DATA"
-        | "PROPOSE" | "VOTE" | "EXECUTE"
-        | "SIM_STEP" | "SIM_VERIFY" | "GPU_CONTRIB"
-        | "GATE_CHECK" | "DNA_BIND"
-        | "CUSTOM"
+        "NOP"
+            | "PUSH"
+            | "POP"
+            | "LOAD_CONST"
+            | "STORE"
+            | "LOAD"
+            | "ADD"
+            | "SUB"
+            | "MUL"
+            | "DIV"
+            | "MOD"
+            | "EQ"
+            | "NEQ"
+            | "LT"
+            | "GT"
+            | "AND"
+            | "OR"
+            | "NOT"
+            | "JUMP"
+            | "JUMP_IF"
+            | "CALL"
+            | "RETURN"
+            | "HALT"
+            | "AGENT_BIRTH"
+            | "AGENT_THINK"
+            | "AGENT_ACT"
+            | "AGENT_SENSE"
+            | "AGENT_MEMORY"
+            | "EMIT_ASE"
+            | "BURN_ASE"
+            | "TRANSFER_ASE"
+            | "LOCK_ASE"
+            | "STORE_BLOB"
+            | "LOAD_BLOB"
+            | "SEAL_DATA"
+            | "UNSEAL_DATA"
+            | "PROPOSE"
+            | "VOTE"
+            | "EXECUTE"
+            | "SIM_STEP"
+            | "SIM_VERIFY"
+            | "GPU_CONTRIB"
+            | "GATE_CHECK"
+            | "DNA_BIND"
+            | "CUSTOM"
     )
 }

@@ -538,8 +538,8 @@ impl Tool for AgentsListTool {
 fn extract_fetch_url(params: &str) -> Result<String, String> {
     let trimmed = params.trim();
     if trimmed.starts_with('{') {
-        let v: serde_json::Value = serde_json::from_str(trimmed)
-            .map_err(|e| format!("invalid web_fetch params: {e}"))?;
+        let v: serde_json::Value =
+            serde_json::from_str(trimmed).map_err(|e| format!("invalid web_fetch params: {e}"))?;
         let url = v
             .get("url")
             .and_then(|u| u.as_str())

@@ -31,19 +31,37 @@ pub fn apply_delta(
     }
 
     let mut next = state.clone();
-    if let Some(v) = &delta.display_name          { next.display_name = v.clone(); }
-    if let Some(v) = &delta.bio                   { next.bio = v.clone(); }
-    if let Some(v) = &delta.relay_list            { next.relay_list = v.clone(); }
-    if let Some(v) = delta.tier                   { next.tier = v; }
-    if let Some(v) = delta.last_seen              { next.last_seen = v; }
-    if let Some(v) = &delta.declared_capabilities { next.declared_capabilities = v.clone(); }
-    if let Some(v) = &delta.lifecycle_stage       { next.lifecycle_stage = v.clone(); }
-    if let Some(v) = &delta.sui_object_id         { next.sui_object_id = v.clone(); }
-    if let Some(v) = &delta.bipon39_hint          { next.bipon39_hint = v.clone(); }
+    if let Some(v) = &delta.display_name {
+        next.display_name = v.clone();
+    }
+    if let Some(v) = &delta.bio {
+        next.bio = v.clone();
+    }
+    if let Some(v) = &delta.relay_list {
+        next.relay_list = v.clone();
+    }
+    if let Some(v) = delta.tier {
+        next.tier = v;
+    }
+    if let Some(v) = delta.last_seen {
+        next.last_seen = v;
+    }
+    if let Some(v) = &delta.declared_capabilities {
+        next.declared_capabilities = v.clone();
+    }
+    if let Some(v) = &delta.lifecycle_stage {
+        next.lifecycle_stage = v.clone();
+    }
+    if let Some(v) = &delta.sui_object_id {
+        next.sui_object_id = v.clone();
+    }
+    if let Some(v) = &delta.bipon39_hint {
+        next.bipon39_hint = v.clone();
+    }
 
-    next.version    = delta.new_version;
+    next.version = delta.new_version;
     next.updated_at = delta.updated_at;
-    next.signature  = delta.signature.clone();
+    next.signature = delta.signature.clone();
     Ok(next)
 }
 
@@ -52,17 +70,29 @@ pub fn apply_delta(
 /// produce the same winner.
 pub fn merge(a: &AgentPublicState, b: &AgentPublicState) -> AgentPublicState {
     // Higher version always wins.
-    if a.version > b.version { return a.clone(); }
-    if b.version > a.version { return b.clone(); }
+    if a.version > b.version {
+        return a.clone();
+    }
+    if b.version > a.version {
+        return b.clone();
+    }
 
     // Tie: use the more recently updated.
-    if a.updated_at > b.updated_at { return a.clone(); }
-    if b.updated_at > a.updated_at { return b.clone(); }
+    if a.updated_at > b.updated_at {
+        return a.clone();
+    }
+    if b.updated_at > a.updated_at {
+        return b.clone();
+    }
 
     // Final tiebreak: lexicographically lower state_hash.
     let ha = hex::encode(a.state_hash());
     let hb = hex::encode(b.state_hash());
-    if ha <= hb { a.clone() } else { b.clone() }
+    if ha <= hb {
+        a.clone()
+    } else {
+        b.clone()
+    }
 }
 
 #[cfg(test)]

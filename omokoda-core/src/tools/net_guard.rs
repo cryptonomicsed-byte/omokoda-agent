@@ -30,7 +30,8 @@ static ENABLED: LazyLock<bool> = LazyLock::new(|| {
         .ssrf_guard
 });
 
-static GUARD: LazyLock<NetworkGuard> = LazyLock::new(|| NetworkGuard::new(NetworkGuardConfig::default()));
+static GUARD: LazyLock<NetworkGuard> =
+    LazyLock::new(|| NetworkGuard::new(NetworkGuardConfig::default()));
 
 /// Reject a URL that the SSRF guard blocks. Returns `Ok(())` when the guard is
 /// disabled by config, or when the target is a public address.

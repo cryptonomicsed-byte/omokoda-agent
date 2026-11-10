@@ -7,13 +7,13 @@
 //!   - Full 8-step security pipeline (generate→parse→type→cap→resource→sim→formal→auth→deploy)
 
 pub mod capability;
-pub mod resource;
 pub mod formal;
-pub mod report;
 pub mod pipeline;
+pub mod report;
+pub mod resource;
 
+pub use pipeline::{opcode_for, PipelineResult, SecurityPipeline};
 pub use report::SecurityReport;
-pub use pipeline::{SecurityPipeline, PipelineResult, opcode_for};
 
 // ── Shared IR types (self-contained; mirrors oso-linter + oso-simulator) ────────
 
@@ -80,7 +80,7 @@ pub fn analyze(json_text: &str, strict: bool) -> SecurityReport {
         }
     };
 
-    let cap_errors   = capability::CapabilityChecker::new(&program).check();
+    let cap_errors = capability::CapabilityChecker::new(&program).check();
     let res_warnings = resource::ResourceChecker::new(&program).check();
     let formal_errors = formal::FormalAnalyzer::new(&program).analyze();
 
@@ -92,9 +92,8 @@ pub fn analyze(json_text: &str, strict: bool) -> SecurityReport {
     );
 
     // In strict mode resource warnings are treated as errors for pass/fail.
-    let passed = cap_errors.is_empty()
-        && formal_errors.is_empty()
-        && (!strict || res_warnings.is_empty());
+    let passed =
+        cap_errors.is_empty() && formal_errors.is_empty() && (!strict || res_warnings.is_empty());
 
     SecurityReport {
         passed,

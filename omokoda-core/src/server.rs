@@ -300,7 +300,11 @@ async fn birth_handler(
                 .map(|a| a.id().as_str().to_string());
             // M4: ensure every guest has a non-guessable API key stored in
             // snapshot.vantage_key so dispatch_for_request finds it via vantage_key().
-            if new_steward.agent_core().and_then(|a| a.vantage_key()).is_none() {
+            if new_steward
+                .agent_core()
+                .and_then(|a| a.vantage_key())
+                .is_none()
+            {
                 let random_key = uuid::Uuid::new_v4().to_string();
                 if let Ok(core) = new_steward.ensure_born_mut() {
                     core.set_vantage_key(random_key.clone());
@@ -577,7 +581,10 @@ async fn dispatch_for_request(
                 let a = presented.as_bytes();
                 let b = expected_key.as_bytes();
                 a.len() == b.len()
-                    && a.iter().zip(b.iter()).fold(0u8, |acc, (x, y)| acc | (x ^ y)) == 0
+                    && a.iter()
+                        .zip(b.iter())
+                        .fold(0u8, |acc, (x, y)| acc | (x ^ y))
+                        == 0
             };
             if !key_ok {
                 return Err((
@@ -1776,6 +1783,11 @@ fn bind_addr(port: u16) -> Result<std::net::SocketAddr, std::io::Error> {
 /// a permissive policy on an unauthenticated API lets any website the operator
 /// visits read the seed from `http://127.0.0.1:<port>`. Opt in per-origin with
 /// a comma-separated OMOKODA_CORS_ORIGINS.
+///
+/// NOTE (F1 audit): currently NOT wired into `create_router` — the server ships
+/// with CORS off entirely (the secure default). Whether to re-wire this is a
+/// behaviour decision, out of the fmt/clippy hygiene scope.
+#[allow(dead_code)]
 fn cors_layer() -> CorsLayer {
     let origins: Vec<axum::http::HeaderValue> = std::env::var("OMOKODA_CORS_ORIGINS")
         .unwrap_or_default()
@@ -1801,14 +1813,17 @@ fn cors_layer() -> CorsLayer {
 
 pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
     // M2: unsigned heartbeat chains are insecure — warn operators so they know
-    if std::env::var("OMOKODA_HEARTBEAT_KEY").unwrap_or_default().is_empty() {
+    if std::env::var("OMOKODA_HEARTBEAT_KEY")
+        .unwrap_or_default()
+        .is_empty()
+    {
         eprintln!(
             "WARNING: OMOKODA_HEARTBEAT_KEY is not set. Heartbeat chain is hash-only \
              (unsigned). Set this env var to an Ed25519 private key (base64url) to \
              enable cryptographic heartbeat signatures."
         );
     }
-    let addr = bind_addr(port)?;
+    let _addr = bind_addr(port)?;
     let state = AppState::new();
     spawn_heartbeat(state.steward.clone(), state.runtime.clone());
     crate::lifecycle::spawn_scheduler(
@@ -2320,10 +2335,16 @@ mod owner_auth_tests {
     fn owner_token_gate_enforces_bearer() {
         let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         std::env::remove_var("OMOKODA_OWNER_TOKEN");
-        assert!(owner_authorized(&HeaderMap::new()), "no token => open (loopback-only)");
+        assert!(
+            owner_authorized(&HeaderMap::new()),
+            "no token => open (loopback-only)"
+        );
 
         std::env::set_var("OMOKODA_OWNER_TOKEN", "s3cret");
-        assert!(!owner_authorized(&HeaderMap::new()), "token set => anonymous denied");
+        assert!(
+            !owner_authorized(&HeaderMap::new()),
+            "token set => anonymous denied"
+        );
         let mut wrong = HeaderMap::new();
         wrong.insert(
             axum::http::header::AUTHORIZATION,

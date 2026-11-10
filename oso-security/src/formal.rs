@@ -8,8 +8,8 @@
 //! FORM3 (Safety): BURN_ASE must always be preceded by LOCK_ASE on the same
 //!        asset identifier within the same reachable path.
 
-use std::collections::{HashMap, HashSet};
 use crate::IrProgram;
+use std::collections::{HashMap, HashSet};
 
 pub struct FormalAnalyzer<'a> {
     program: &'a IrProgram,
@@ -57,11 +57,14 @@ impl<'a> FormalAnalyzer<'a> {
                 }
             }
             if instr.opcode_name == "CALL" {
-                if let Some(target) = instr.args.get("target")
+                if let Some(target) = instr
+                    .args
+                    .get("target")
                     .or_else(|| instr.args.get("fn"))
                     .and_then(|v| v.as_str())
                 {
-                    call_graph.entry(current_scope.clone())
+                    call_graph
+                        .entry(current_scope.clone())
                         .or_default()
                         .push(target.to_string());
                 }
@@ -91,7 +94,12 @@ impl<'a> FormalAnalyzer<'a> {
     /// Terminal opcodes: HALT, RETURN, EMIT_ASE, BURN_ASE, TRANSFER_ASE, GATE_CHECK.
     fn check_form2_liveness(&self, errors: &mut Vec<String>) {
         const TERMINALS: &[&str] = &[
-            "HALT", "RETURN", "EMIT_ASE", "BURN_ASE", "TRANSFER_ASE", "GATE_CHECK",
+            "HALT",
+            "RETURN",
+            "EMIT_ASE",
+            "BURN_ASE",
+            "TRANSFER_ASE",
+            "GATE_CHECK",
         ];
 
         let instrs = &self.program.instructions;
@@ -100,7 +108,9 @@ impl<'a> FormalAnalyzer<'a> {
             return;
         }
 
-        let has_terminal = instrs.iter().any(|i| TERMINALS.contains(&i.opcode_name.as_str()));
+        let has_terminal = instrs
+            .iter()
+            .any(|i| TERMINALS.contains(&i.opcode_name.as_str()));
 
         if !has_terminal {
             errors.push(format!(
@@ -149,7 +159,9 @@ impl<'a> FormalAnalyzer<'a> {
 /// Extract a stable asset identifier from an instruction's args.
 /// Falls back to "__default__" if no asset/token/id arg is present.
 fn asset_id_from(instr: &crate::IrInstruction) -> String {
-    instr.args.get("asset")
+    instr
+        .args
+        .get("asset")
         .or_else(|| instr.args.get("token"))
         .or_else(|| instr.args.get("id"))
         .and_then(|v| v.as_str())
@@ -205,7 +217,11 @@ mod tests {
         IrInstruction {
             opcode: 0,
             opcode_name: name.into(),
-            args: if let serde_json::Value::Object(m) = args { m } else { Default::default() },
+            args: if let serde_json::Value::Object(m) = args {
+                m
+            } else {
+                Default::default()
+            },
             line,
         }
     }
@@ -222,7 +238,7 @@ mod tests {
     #[test]
     fn form2_no_terminal_errors() {
         let p = bare_prog(vec![
-            make_instr("NOP",  json!({}), 1),
+            make_instr("NOP", json!({}), 1),
             make_instr("PUSH", json!({"value": 42}), 2),
         ]);
         let errs = FormalAnalyzer::new(&p).analyze();
@@ -232,7 +248,7 @@ mod tests {
     #[test]
     fn form2_with_halt_passes() {
         let p = bare_prog(vec![
-            make_instr("NOP",  json!({}), 1),
+            make_instr("NOP", json!({}), 1),
             make_instr("HALT", json!({}), 2),
         ]);
         let errs = FormalAnalyzer::new(&p).analyze();
@@ -241,9 +257,11 @@ mod tests {
 
     #[test]
     fn form3_burn_without_lock_errors() {
-        let p = bare_prog(vec![
-            make_instr("BURN_ASE", json!({"asset": "ASE", "amount": 100}), 5),
-        ]);
+        let p = bare_prog(vec![make_instr(
+            "BURN_ASE",
+            json!({"asset": "ASE", "amount": 100}),
+            5,
+        )]);
         let errs = FormalAnalyzer::new(&p).analyze();
         assert!(errs.iter().any(|e| e.contains("FORM3")));
     }
@@ -253,7 +271,7 @@ mod tests {
         let p = bare_prog(vec![
             make_instr("LOCK_ASE", json!({"asset": "ASE", "amount": 100}), 1),
             make_instr("BURN_ASE", json!({"asset": "ASE", "amount": 100}), 2),
-            make_instr("HALT",     json!({}), 3),
+            make_instr("HALT", json!({}), 3),
         ]);
         let errs = FormalAnalyzer::new(&p).analyze();
         assert!(errs.iter().all(|e| !e.contains("FORM3")));
@@ -264,10 +282,10 @@ mod tests {
         // fn A calls fn B, fn B calls fn A → cycle
         let p = bare_prog(vec![
             make_instr("DEFINE", json!({"name": "fn_a"}), 1),
-            make_instr("CALL",   json!({"target": "fn_b"}), 2),
+            make_instr("CALL", json!({"target": "fn_b"}), 2),
             make_instr("RETURN", json!({}), 3),
             make_instr("DEFINE", json!({"name": "fn_b"}), 4),
-            make_instr("CALL",   json!({"target": "fn_a"}), 5),
+            make_instr("CALL", json!({"target": "fn_a"}), 5),
             make_instr("RETURN", json!({}), 6),
         ]);
         let errs = FormalAnalyzer::new(&p).analyze();
@@ -277,8 +295,8 @@ mod tests {
     #[test]
     fn form1_no_cycles_in_linear_program() {
         let p = bare_prog(vec![
-            make_instr("CALL",   json!({"target": "helper"}), 1),
-            make_instr("HALT",   json!({}), 2),
+            make_instr("CALL", json!({"target": "helper"}), 1),
+            make_instr("HALT", json!({}), 2),
         ]);
         let errs = FormalAnalyzer::new(&p).analyze();
         assert!(errs.iter().all(|e| !e.contains("FORM1")));

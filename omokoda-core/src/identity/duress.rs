@@ -57,13 +57,17 @@ impl DuressHandler {
         let mut salt = [0u8; 16];
         rand::rngs::OsRng.fill_bytes(&mut salt);
         let hash = argon2id_hash(panic_phrase, &salt);
-        Self { panic_phrase_hash: hash, salt, response }
+        Self {
+            panic_phrase_hash: hash,
+            salt,
+            response,
+        }
     }
 
     /// Reconstruct a handler from a stored hash hex.
     ///
-    ///  is  for Argon2id hashes (new agents) or 
-    /// for legacy blake3 hashes (pre-M6 snapshots).  The all-zeros 
+    ///  is  for Argon2id hashes (new agents) or
+    /// for legacy blake3 hashes (pre-M6 snapshots).  The all-zeros
     /// sentinel is stored internally so  knows which path to use.
     pub fn from_stored_hash(
         hash_hex: &str,
@@ -88,7 +92,11 @@ impl DuressHandler {
             }
             None => LEGACY_SALT,
         };
-        Some(Self { panic_phrase_hash: phrase_hash, salt, response })
+        Some(Self {
+            panic_phrase_hash: phrase_hash,
+            salt,
+            response,
+        })
     }
 
     /// Return the salt as hex (store alongside the hash for future verification).
@@ -168,8 +176,12 @@ mod tests {
         let handler = DuressHandler::new("roundtrip", DuressResponse::SilentAlert);
         let hash_hex = handler.hash_hex();
         let salt_hex = handler.salt_hex();
-        let restored = DuressHandler::from_stored_hash(&hash_hex, Some(&salt_hex), DuressResponse::SilentAlert)
-            .expect("restore failed");
+        let restored = DuressHandler::from_stored_hash(
+            &hash_hex,
+            Some(&salt_hex),
+            DuressResponse::SilentAlert,
+        )
+        .expect("restore failed");
         assert!(restored.is_duress("roundtrip"));
         assert!(!restored.is_duress("wrong"));
     }

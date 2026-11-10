@@ -568,9 +568,12 @@ through the relationship `{}`.\n\n## Context\n{}\n",
             return Err("not found".to_string());
         }
         // Canonicalize both paths to resolve symlinks; recheck prefix after resolution
-        let canonical_root = self.vault_path.canonicalize()
+        let canonical_root = self
+            .vault_path
+            .canonicalize()
             .map_err(|_| "invalid path".to_string())?;
-        let canonical_full = full.canonicalize()
+        let canonical_full = full
+            .canonicalize()
             .map_err(|_| "invalid path".to_string())?;
         canonical_full
             .strip_prefix(&canonical_root)

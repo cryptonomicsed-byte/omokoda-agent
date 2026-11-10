@@ -6,12 +6,12 @@
 //!
 //! Outputs JSON: { "passed": bool, "warnings": [...], "errors": [...] }
 
-use std::io::Read;
 use clap::Parser;
 use serde::{Deserialize, Serialize};
+use std::io::Read;
 
 mod rules;
-use rules::{semantic, security, resource};
+use rules::{resource, security, semantic};
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -97,8 +97,10 @@ fn main() {
             .expect("failed to read stdin");
         buf
     } else {
-        std::fs::read_to_string(&cli.file)
-            .unwrap_or_else(|e| { eprintln!("error reading {}: {}", cli.file, e); std::process::exit(1); })
+        std::fs::read_to_string(&cli.file).unwrap_or_else(|e| {
+            eprintln!("error reading {}: {}", cli.file, e);
+            std::process::exit(1);
+        })
     };
 
     let output = lint_json(&json_text);
@@ -135,7 +137,11 @@ pub fn lint_json(json_text: &str) -> LintOutput {
     resource::check(instructions, &mut warnings, &mut errors);
 
     let passed = errors.is_empty();
-    LintOutput { passed, warnings, errors }
+    LintOutput {
+        passed,
+        warnings,
+        errors,
+    }
 }
 
 #[cfg(test)]
@@ -145,13 +151,13 @@ mod tests {
     fn make_instr(opcode_name: &str, args: serde_json::Value, line: usize) -> serde_json::Value {
         let opcode = match opcode_name {
             "TRANSFER_ASE" => 0x72u8,
-            "BURN_ASE"     => 0x71,
-            "LOCK_ASE"     => 0x73,
-            "EMIT_ASE"     => 0x70,
-            "AGENT_BIRTH"  => 0x60,
-            "JUMP"         => 0x40,
-            "JUMP_IF"      => 0x41,
-            _              => 0x00,
+            "BURN_ASE" => 0x71,
+            "LOCK_ASE" => 0x73,
+            "EMIT_ASE" => 0x70,
+            "AGENT_BIRTH" => 0x60,
+            "JUMP" => 0x40,
+            "JUMP_IF" => 0x41,
+            _ => 0x00,
         };
         serde_json::json!({
             "opcode": opcode,
@@ -177,18 +183,24 @@ mod tests {
 
     #[test]
     fn valid_odu_passes() {
-        let prog = serde_json::json!([
-            make_instr("AGENT_BIRTH", serde_json::json!({"odu_id": 42, "tier": 3}), 1)
-        ]).to_string();
+        let prog = serde_json::json!([make_instr(
+            "AGENT_BIRTH",
+            serde_json::json!({"odu_id": 42, "tier": 3}),
+            1
+        )])
+        .to_string();
         let out = lint_json(&prog);
         assert!(out.passed, "{:?}", out.errors);
     }
 
     #[test]
     fn invalid_odu_fails() {
-        let prog = serde_json::json!([
-            make_instr("AGENT_BIRTH", serde_json::json!({"odu_id": 300, "tier": 1}), 1)
-        ]).to_string();
+        let prog = serde_json::json!([make_instr(
+            "AGENT_BIRTH",
+            serde_json::json!({"odu_id": 300, "tier": 1}),
+            1
+        )])
+        .to_string();
         let out = lint_json(&prog);
         assert!(!out.passed);
         assert!(out.errors.iter().any(|e| e.rule.contains("semantic")));
@@ -198,10 +210,17 @@ mod tests {
     fn resource_warn_on_too_many_transfers() {
         let mut instrs: Vec<serde_json::Value> = vec![];
         for i in 0..12 {
-            instrs.push(make_instr("TRANSFER_ASE", serde_json::json!({"amount": 1}), i));
+            instrs.push(make_instr(
+                "TRANSFER_ASE",
+                serde_json::json!({"amount": 1}),
+                i,
+            ));
         }
         let out = lint_json(&serde_json::json!(instrs).to_string());
-        assert!(out.warnings.iter().any(|w| w.rule.contains("resource")),
-            "expected resource warning: {:?}", out.warnings);
+        assert!(
+            out.warnings.iter().any(|w| w.rule.contains("resource")),
+            "expected resource warning: {:?}",
+            out.warnings
+        );
     }
 }

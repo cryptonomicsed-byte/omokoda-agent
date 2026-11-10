@@ -243,7 +243,8 @@ mod tests {
 
         let dir = std::env::temp_dir().join(format!("omokoda-test-{}", std::process::id()));
         let path = dir.join("constitution.json");
-        c.sign_and_persist(&priv_hex, &path).expect("sign_and_persist should succeed");
+        c.sign_and_persist(&priv_hex, &path)
+            .expect("sign_and_persist should succeed");
         assert!(c.is_signed());
         assert!(path.exists());
 

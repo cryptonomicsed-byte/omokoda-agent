@@ -13,17 +13,17 @@
 //! Julia `IR = Vector{Instruction}`.  Each instruction carries an opcode byte
 //! and a JSON-compatible argument map.
 
-pub mod token;
-pub mod lexer;
-pub mod ir;
-pub mod parser;
 pub mod error;
+pub mod ir;
+pub mod lexer;
+pub mod parser;
+pub mod token;
 
-pub use token::{Token, TokenKind};
-pub use lexer::Lexer;
-pub use ir::{IrInstruction, IrValue, IrProgram};
-pub use parser::OsoParser;
 pub use error::{OsoError, OsoResult};
+pub use ir::{IrInstruction, IrProgram, IrValue};
+pub use lexer::Lexer;
+pub use parser::OsoParser;
+pub use token::{Token, TokenKind};
 
 /// Convenience: tokenize + parse in one call.
 pub fn compile(source: &str) -> OsoResult<IrProgram> {

@@ -7,13 +7,13 @@
 //!
 //! Outputs JSON SimReport to stdout.
 
-mod mock_vm;
 mod executor;
+mod mock_vm;
 mod report;
 
-use std::io::Read;
 use clap::Parser;
 use serde::Deserialize;
+use std::io::Read;
 
 // ── CLI ───────────────────────────────────────────────────────────────────────
 
@@ -93,11 +93,10 @@ fn main() {
             .expect("failed to read stdin");
         buf
     } else {
-        std::fs::read_to_string(&cli.file)
-            .unwrap_or_else(|e| {
-                eprintln!("error reading {}: {}", cli.file, e);
-                std::process::exit(1);
-            })
+        std::fs::read_to_string(&cli.file).unwrap_or_else(|e| {
+            eprintln!("error reading {}: {}", cli.file, e);
+            std::process::exit(1);
+        })
     };
 
     let report = simulate_json(
@@ -155,14 +154,16 @@ mod tests {
     fn nop_program() -> String {
         serde_json::json!([
             {"opcode": 0x00, "opcode_name": "NOP", "args": {}, "line": 1}
-        ]).to_string()
+        ])
+        .to_string()
     }
 
     fn transfer_program(amount: u64) -> String {
         serde_json::json!([
             {"opcode": 0x72, "opcode_name": "TRANSFER_ASE",
              "args": {"to": "did:v:agent:recv", "amount": amount}, "line": 1}
-        ]).to_string()
+        ])
+        .to_string()
     }
 
     #[test]

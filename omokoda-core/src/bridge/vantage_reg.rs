@@ -78,11 +78,7 @@ pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
     let supervisor_url = std::env::var("SWARM_SUPERVISOR_URL")
         .unwrap_or_else(|_| "http://localhost:7701".to_string());
     // Extract agent_id from Vantage key prefix if available, fall back to "agent".
-    let agent_id = key
-        .split('_')
-        .nth(2)
-        .unwrap_or("agent")
-        .to_string();
+    let agent_id = key.split('_').nth(2).unwrap_or("agent").to_string();
     tokio::spawn(async move {
         let _ = reqwest::Client::new()
             .post(&format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))

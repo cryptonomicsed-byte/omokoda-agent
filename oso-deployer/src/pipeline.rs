@@ -6,8 +6,8 @@
 //! Step 4: Authorize — tier check against target
 //! Step 5: Deploy    — write manifest to ~/.oso/deployed/ (or pending/ for mainnet)
 
-use std::collections::HashSet;
 use serde::{Deserialize, Serialize};
+use std::collections::HashSet;
 
 use crate::auth::{AuthorizationGate, DeployTarget};
 use crate::manifest::DeployManifest;
@@ -99,7 +99,13 @@ impl DeployPipeline {
                     error: Some(format!("JSON parse error: {}", e)),
                     warnings: vec![],
                 });
-                return PipelineOutput { passed: false, target: target.into(), steps, manifest: None, pending_approval_path: None };
+                return PipelineOutput {
+                    passed: false,
+                    target: target.into(),
+                    steps,
+                    manifest: None,
+                    pending_approval_path: None,
+                };
             }
         };
 
@@ -112,7 +118,13 @@ impl DeployPipeline {
                 error: Some(lint_errors.join("; ")),
                 warnings: lint_warnings,
             });
-            return PipelineOutput { passed: false, target: target.into(), steps, manifest: None, pending_approval_path: None };
+            return PipelineOutput {
+                passed: false,
+                target: target.into(),
+                steps,
+                manifest: None,
+                pending_approval_path: None,
+            };
         }
         steps.push(PipelineStep {
             name: "LINT".into(),
@@ -130,7 +142,13 @@ impl DeployPipeline {
                 error: sim_err,
                 warnings: sim_warnings,
             });
-            return PipelineOutput { passed: false, target: target.into(), steps, manifest: None, pending_approval_path: None };
+            return PipelineOutput {
+                passed: false,
+                target: target.into(),
+                steps,
+                manifest: None,
+                pending_approval_path: None,
+            };
         }
         steps.push(PipelineStep {
             name: "SIMULATE".into(),
@@ -146,10 +164,19 @@ impl DeployPipeline {
                 steps.push(PipelineStep {
                     name: "AUTHORIZE".into(),
                     passed: false,
-                    error: Some(format!("unknown deploy target '{}'; valid: local|testnet|mainnet", target)),
+                    error: Some(format!(
+                        "unknown deploy target '{}'; valid: local|testnet|mainnet",
+                        target
+                    )),
                     warnings: vec![],
                 });
-                return PipelineOutput { passed: false, target: target.into(), steps, manifest: None, pending_approval_path: None };
+                return PipelineOutput {
+                    passed: false,
+                    target: target.into(),
+                    steps,
+                    manifest: None,
+                    pending_approval_path: None,
+                };
             }
         };
 
@@ -163,7 +190,13 @@ impl DeployPipeline {
                 )),
                 warnings: vec![],
             });
-            return PipelineOutput { passed: false, target: target.into(), steps, manifest: None, pending_approval_path: None };
+            return PipelineOutput {
+                passed: false,
+                target: target.into(),
+                steps,
+                manifest: None,
+                pending_approval_path: None,
+            };
         }
         steps.push(PipelineStep {
             name: "AUTHORIZE".into(),
@@ -176,31 +209,41 @@ impl DeployPipeline {
         let manifest = DeployManifest::new(program_json, target, signer_tier);
 
         // Mainnet: write to ~/.oso/pending/ and require governance approval
-        let pending_approval_path = if AuthorizationGate::requires_governance_approval(deploy_target) {
-            let pending_dir = shellexpand_tilde("~/.oso/pending");
-            let _ = std::fs::create_dir_all(&pending_dir);
-            let path = format!("{}/{}.pending.json", pending_dir, manifest.program_id);
-            let _ = std::fs::write(&path, serde_json::to_string_pretty(&manifest).unwrap_or_default());
-            steps.push(PipelineStep {
-                name: "DEPLOY".into(),
-                passed: true,
-                error: None,
-                warnings: vec![format!("mainnet deploy queued for governance approval: {}", path)],
-            });
-            Some(path)
-        } else {
-            let deployed_dir = shellexpand_tilde("~/.oso/deployed");
-            let _ = std::fs::create_dir_all(&deployed_dir);
-            let path = format!("{}/{}.manifest.json", deployed_dir, manifest.program_id);
-            let _ = std::fs::write(&path, serde_json::to_string_pretty(&manifest).unwrap_or_default());
-            steps.push(PipelineStep {
-                name: "DEPLOY".into(),
-                passed: true,
-                error: None,
-                warnings: vec![format!("manifest written to {}", path)],
-            });
-            None
-        };
+        let pending_approval_path =
+            if AuthorizationGate::requires_governance_approval(deploy_target) {
+                let pending_dir = shellexpand_tilde("~/.oso/pending");
+                let _ = std::fs::create_dir_all(&pending_dir);
+                let path = format!("{}/{}.pending.json", pending_dir, manifest.program_id);
+                let _ = std::fs::write(
+                    &path,
+                    serde_json::to_string_pretty(&manifest).unwrap_or_default(),
+                );
+                steps.push(PipelineStep {
+                    name: "DEPLOY".into(),
+                    passed: true,
+                    error: None,
+                    warnings: vec![format!(
+                        "mainnet deploy queued for governance approval: {}",
+                        path
+                    )],
+                });
+                Some(path)
+            } else {
+                let deployed_dir = shellexpand_tilde("~/.oso/deployed");
+                let _ = std::fs::create_dir_all(&deployed_dir);
+                let path = format!("{}/{}.manifest.json", deployed_dir, manifest.program_id);
+                let _ = std::fs::write(
+                    &path,
+                    serde_json::to_string_pretty(&manifest).unwrap_or_default(),
+                );
+                steps.push(PipelineStep {
+                    name: "DEPLOY".into(),
+                    passed: true,
+                    error: None,
+                    warnings: vec![format!("manifest written to {}", path)],
+                });
+                None
+            };
 
         PipelineOutput {
             passed: true,
@@ -234,10 +277,14 @@ fn lint_inline(instructions: &[IrInstruction]) -> (Vec<String>, Vec<String>) {
 
     // Security: self-escalation via grant_tier
     for instr in instructions {
-        let caller_tier = instr.args.get("caller_tier")
+        let caller_tier = instr
+            .args
+            .get("caller_tier")
             .or_else(|| instr.args.get("current_tier"))
             .and_then(|v| v.as_i64());
-        let grant_tier = instr.args.get("grant_tier")
+        let grant_tier = instr
+            .args
+            .get("grant_tier")
             .or_else(|| instr.args.get("new_tier"))
             .and_then(|v| v.as_i64());
         if let (Some(c), Some(g)) = (caller_tier, grant_tier) {
@@ -252,7 +299,8 @@ fn lint_inline(instructions: &[IrInstruction]) -> (Vec<String>, Vec<String>) {
 
     // Resource: warn on > 10 economy instructions
     const ECONOMY_OPS: &[&str] = &["TRANSFER_ASE", "LOCK_ASE", "BURN_ASE", "EMIT_ASE"];
-    let economy_count = instructions.iter()
+    let economy_count = instructions
+        .iter()
         .filter(|i| ECONOMY_OPS.contains(&i.opcode_name.as_str()))
         .count();
     if economy_count > 10 {
@@ -271,11 +319,19 @@ fn simulate_inline(instructions: &[IrInstruction]) -> (bool, Option<String>, Vec
     let mut warnings = Vec::new();
 
     // Check for duplicate AGENT_BIRTH (only one birth per program)
-    let birth_count = instructions.iter()
+    let birth_count = instructions
+        .iter()
         .filter(|i| i.opcode_name == "AGENT_BIRTH")
         .count();
     if birth_count > 1 {
-        return (false, Some(format!("sim: {} AGENT_BIRTH instructions — only one allowed per program", birth_count)), vec![]);
+        return (
+            false,
+            Some(format!(
+                "sim: {} AGENT_BIRTH instructions — only one allowed per program",
+                birth_count
+            )),
+            vec![],
+        );
     }
 
     // Warn on very large programs
@@ -288,17 +344,61 @@ fn simulate_inline(instructions: &[IrInstruction]) -> (bool, Option<String>, Vec
 
     // Verify all opcodes are known (opcode byte 0 + non-NOP name = suspicious)
     let known_opcodes: HashSet<&str> = [
-        "NOP","PUSH","POP","LOAD_CONST","STORE","LOAD","ADD","SUB","MUL","DIV","MOD",
-        "EQ","NEQ","LT","GT","AND","OR","NOT","JUMP","JUMP_IF","CALL","RETURN","HALT",
-        "AGENT_BIRTH","AGENT_THINK","AGENT_ACT","AGENT_SENSE","AGENT_MEMORY",
-        "EMIT_ASE","BURN_ASE","TRANSFER_ASE","LOCK_ASE",
-        "STORE_BLOB","LOAD_BLOB","SEAL_DATA","UNSEAL_DATA",
-        "PROPOSE","VOTE","EXECUTE",
-        "SIM_STEP","SIM_VERIFY","GPU_CONTRIB",
-        "GATE_CHECK","DNA_BIND","CUSTOM",
+        "NOP",
+        "PUSH",
+        "POP",
+        "LOAD_CONST",
+        "STORE",
+        "LOAD",
+        "ADD",
+        "SUB",
+        "MUL",
+        "DIV",
+        "MOD",
+        "EQ",
+        "NEQ",
+        "LT",
+        "GT",
+        "AND",
+        "OR",
+        "NOT",
+        "JUMP",
+        "JUMP_IF",
+        "CALL",
+        "RETURN",
+        "HALT",
+        "AGENT_BIRTH",
+        "AGENT_THINK",
+        "AGENT_ACT",
+        "AGENT_SENSE",
+        "AGENT_MEMORY",
+        "EMIT_ASE",
+        "BURN_ASE",
+        "TRANSFER_ASE",
+        "LOCK_ASE",
+        "STORE_BLOB",
+        "LOAD_BLOB",
+        "SEAL_DATA",
+        "UNSEAL_DATA",
+        "PROPOSE",
+        "VOTE",
+        "EXECUTE",
+        "SIM_STEP",
+        "SIM_VERIFY",
+        "GPU_CONTRIB",
+        "GATE_CHECK",
+        "DNA_BIND",
+        "CUSTOM",
         // pipeline extras
-        "DEFINE","LABEL","DELEGATE","GRANT_TIER","TITHE",
-    ].iter().copied().collect();
+        "DEFINE",
+        "LABEL",
+        "DELEGATE",
+        "GRANT_TIER",
+        "TITHE",
+    ]
+    .iter()
+    .copied()
+    .collect();
 
     for instr in instructions {
         if !instr.opcode_name.is_empty() && !known_opcodes.contains(instr.opcode_name.as_str()) {
@@ -332,13 +432,21 @@ mod tests {
         json!([
             {"opcode": 0x00, "opcode_name": "NOP", "args": {}, "line": 1},
             {"opcode": 0x52, "opcode_name": "HALT", "args": {}, "line": 2}
-        ]).to_string()
+        ])
+        .to_string()
     }
 
     #[test]
     fn local_deploy_passes() {
         let out = DeployPipeline::run(&nop_json(), "local", 0);
-        assert!(out.passed, "steps: {:?}", out.steps.iter().map(|s| (&s.name, &s.error)).collect::<Vec<_>>());
+        assert!(
+            out.passed,
+            "steps: {:?}",
+            out.steps
+                .iter()
+                .map(|s| (&s.name, &s.error))
+                .collect::<Vec<_>>()
+        );
         assert!(out.manifest.is_some());
     }
 
@@ -352,7 +460,14 @@ mod tests {
     #[test]
     fn testnet_tier_2_passes() {
         let out = DeployPipeline::run(&nop_json(), "testnet", 2);
-        assert!(out.passed, "steps: {:?}", out.steps.iter().map(|s| (&s.name, &s.error)).collect::<Vec<_>>());
+        assert!(
+            out.passed,
+            "steps: {:?}",
+            out.steps
+                .iter()
+                .map(|s| (&s.name, &s.error))
+                .collect::<Vec<_>>()
+        );
     }
 
     #[test]
@@ -376,7 +491,8 @@ mod tests {
             {"opcode": 0x60, "opcode_name": "AGENT_BIRTH", "args": {"tier": 1}, "line": 1},
             {"opcode": 0x60, "opcode_name": "AGENT_BIRTH", "args": {"tier": 2}, "line": 2},
             {"opcode": 0x52, "opcode_name": "HALT",        "args": {}, "line": 3}
-        ]).to_string();
+        ])
+        .to_string();
         let out = DeployPipeline::run(&prog, "local", 0);
         assert!(!out.passed);
         assert!(out.steps.iter().any(|s| s.name == "SIMULATE" && !s.passed));
