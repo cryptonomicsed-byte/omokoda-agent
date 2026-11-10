@@ -25,8 +25,10 @@ use crate::steward::gatekeeper::GatekeeperResult;
 pub mod taboo_cap;
 pub use taboo_cap::{is_obatala_lineage, TabooCapIssuer};
 
+/// waggled (agentic-waggle) listens on 127.0.0.1:7779; 7777 is ares-buzz-relay
+/// and 7778 is this kernel.
 fn waggle_url() -> String {
-    std::env::var("WAGGLE_URL").unwrap_or_else(|_| "http://127.0.0.1:7777".to_string())
+    std::env::var("WAGGLE_URL").unwrap_or_else(|_| "http://127.0.0.1:7779".to_string())
 }
 
 // ── Èṣù: capability tokens for field verbs ──────────────────────────────────
