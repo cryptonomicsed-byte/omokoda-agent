@@ -70,8 +70,8 @@ enum Command {
     },
     /// Start the HTTP/SSE server
     Serve {
-        /// Port to listen on
-        #[arg(short, long, default_value_t = 7777)]
+        /// Port to listen on (7777 is ares-buzz-relay on the VPS)
+        #[arg(short, long, default_value_t = 7778)]
         port: u16,
     },
     /// Launch the full-screen TUI

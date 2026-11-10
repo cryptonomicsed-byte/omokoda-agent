@@ -4426,7 +4426,7 @@ impl Steward {
                             BUZZ_ACP_CHANNELS={group_id}\n\
                             BUZZ_ACP_RESPOND_TO=anyone\n\
                             BUZZ_CLI_PATH=/opt/ares/buzz-relay/target/release/buzz\n\
-                            OMOKODA_KERNEL_URL=http://localhost:7777\n\
+                            OMOKODA_KERNEL_URL=http://localhost:7778\n\
                             OMOKODA_AGENT_ID={agent_id}\n\
                             OMOKODA_AGENT_KEY=<this agent's own X-Agent-Key, from /v1/birth>\n\
                             OMOKODA_COGNITION_TOKEN=<the kernel's OMOKODA_COGNITION_TOKEN>\n\n\
