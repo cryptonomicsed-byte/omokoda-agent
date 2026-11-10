@@ -462,6 +462,7 @@ impl AgentCore {
                     let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
                         crate::identity::duress::DuressHandler::from_stored_hash(
                             h,
+                            None, // pre-M6 snapshot: no persisted salt, falls back to LEGACY_SALT
                             crate::identity::duress::DuressResponse::SilentAlert,
                         )
                     });
@@ -484,6 +485,7 @@ impl AgentCore {
         let duress_handler = snapshot.duress_phrase_hash.as_deref().and_then(|h| {
             crate::identity::duress::DuressHandler::from_stored_hash(
                 h,
+                None, // pre-M6 snapshot: no persisted salt, falls back to LEGACY_SALT
                 crate::identity::duress::DuressResponse::SilentAlert,
             )
         });
@@ -1815,6 +1817,7 @@ impl Steward {
             core.duress_handler = core.snapshot.duress_phrase_hash.as_deref().and_then(|h| {
                 crate::identity::duress::DuressHandler::from_stored_hash(
                     h,
+                    None, // pre-M6 snapshot: no persisted salt, falls back to LEGACY_SALT
                     crate::identity::duress::DuressResponse::Decoy { decoy_seed_hash },
                 )
             });

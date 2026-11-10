@@ -387,10 +387,6 @@ impl Tool for TorTool {
 
 #[cfg(test)]
 mod tests {
-    /// `ONIUX_BIN` is process-global; tests that mutate or depend on it must
-    /// serialize or they race under cargo's parallel harness.
-    static ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
-
     use super::*;
 
     /// `ONIUX_BIN` is process-global. Two tests mutate it, so without a lock
@@ -488,11 +484,12 @@ mod tests {
 
     #[tokio::test]
     async fn on_errors_without_oniux() {
-        // Hold the env lock: `run_via_echo_bin` sets ONIUX_BIN process-wide.
-        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        // Hold the env lock: `run_via_echo_bin` sets ONIUX_BIN process-wide,
+        // and (merge note) a second un-nested lock() on this same
+        // non-reentrant Mutex here used to self-deadlock the test -- removed.
         // If oniux is not installed (typical CI), /tor on should return an
         // informative Err, not panic.
-        let _env = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        let _guard = ENV_LOCK.lock().unwrap_or_else(|e| e.into_inner());
         if resolve_oniux().is_some() {
             return; // skip when oniux is actually installed
         }
