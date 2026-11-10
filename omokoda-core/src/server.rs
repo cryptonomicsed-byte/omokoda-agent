@@ -1850,7 +1850,7 @@ pub async fn start_server(port: u16) -> Result<(), std::io::Error> {
     let bind_ip: std::net::IpAddr = std::env::var("OMOKODA_BIND_ADDR")
         .ok()
         .and_then(|s| s.parse().ok())
-        .unwrap_or_else(|| std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
+        .unwrap_or(std::net::IpAddr::V4(std::net::Ipv4Addr::LOCALHOST));
     let addr = std::net::SocketAddr::new(bind_ip, port);
     let listener = tokio::net::TcpListener::bind(addr).await?;
     println!("Ọmọ Kọ́dà HTTP server listening on {addr}");

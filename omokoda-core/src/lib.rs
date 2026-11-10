@@ -1,3 +1,9 @@
+// clippy 1.99 `double_must_use` false-positives on `#[async_trait]`: the macro emits
+// `#[must_use]` on generated methods returning `Pin<Box<dyn Future>>`, which is already
+// `#[must_use]`. The redundant attribute is macro-generated, not ours, so it is allowed
+// crate-wide rather than annotated on every trait.
+#![allow(clippy::double_must_use)]
+
 pub mod agent_catalog;
 pub mod agents;
 pub mod background;

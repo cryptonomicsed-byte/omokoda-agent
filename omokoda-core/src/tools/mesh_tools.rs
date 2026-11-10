@@ -267,7 +267,7 @@ pub async fn register_newborn(identity: NewbornIdentity<'_>) -> Option<String> {
                 "capabilities": ["omo-koda-sovereign"]
             });
             if let Err(e) = client
-                .post(&format!("{}/agents/spawn", supervisor_url))
+                .post(format!("{}/agents/spawn", supervisor_url))
                 .json(&body)
                 .timeout(std::time::Duration::from_secs(5))
                 .send()

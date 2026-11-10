@@ -1,11 +1,12 @@
 use bipon39::{entropy_to_mnemonic, mnemonic_to_seed, split_mnemonic};
 use blake3;
-use ed25519_dalek::{Signature, Signer, SigningKey, Verifier, VerifyingKey};
+use ed25519_dalek::SigningKey;
+#[cfg(test)]
+use ed25519_dalek::{Signer, Verifier};
 use pbkdf2::pbkdf2_hmac_array;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::collections::HashMap;
 
 /// Canonical BIPỌ̀N39 encoding tokens (256), sourced from the `bipon39` crate.
 ///

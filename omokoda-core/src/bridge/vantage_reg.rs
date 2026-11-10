@@ -81,7 +81,7 @@ pub async fn heartbeat(api_key_override: Option<&str>) -> bool {
     let agent_id = key.split('_').nth(2).unwrap_or("agent").to_string();
     tokio::spawn(async move {
         let _ = reqwest::Client::new()
-            .post(&format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))
+            .post(format!("{}/agents/{}/heartbeat", supervisor_url, agent_id))
             .timeout(std::time::Duration::from_secs(3))
             .send()
             .await;
