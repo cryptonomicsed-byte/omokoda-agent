@@ -212,11 +212,28 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
     // `anchored_v2` is what promotes it to live. Say so in the document rather
     // than letting a recorded height look like an independent proof.
     let status = "cast";
-    let clock = if r.bitcoin_height.is_some() && !r.gregorian_fallback {
-        "koodu-btc"
-    } else {
-        "gregorian-fallback"
-    };
+    // Two authorities, never one: Koodu is the CALENDAR (epoch/cycle/phase,
+    // derived from a height); OKF is the CLOCK (verified height + OTS proof).
+    // At birth the height Koodu read is unattested, so the clock is recorded as
+    // such and `anchored_v2` is what hands it to OKF.
+    let clock_source = "unattested";
+    let calendar = json!({
+        "epoch": r.koodu_epoch,
+        "cycle": r.koodu_cycle,
+        "phase": r.koodu_phase,
+        "basis": if r.gregorian_fallback { "gregorian" } else { "height" },
+    });
+    // A certificate whose calendar contradicts its own birth block must never
+    // be emitted: Koodu and the clock would then disagree inside one document.
+    if let Some(bh) = r.bitcoin_height {
+        let (e, c, p) = crate::genesis::koodu_time::koodu_from_height(bh);
+        if (r.koodu_epoch, r.koodu_cycle, r.koodu_phase) != (e, c, p) {
+            return Err(format!(
+                "Koodu calendar ({}, {}, {}) disagrees with birth block {bh}, which implies ({e}, {c}, {p})",
+                r.koodu_epoch, r.koodu_cycle, r.koodu_phase
+            ));
+        }
+    }
     let born_at = rfc3339_from_millis(r.born_at);
     let symbolic = name.unwrap_or(r.symbolic_address.as_str());
     let odu_secondary = (r.composed_odu & 0xff) as u8;
@@ -251,12 +268,7 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
         "harmonic_signature": r.harmonic_signature,
         "sigil_hash": r.sigil_hash,
         "cloak_commitment": r.cloak_commitment,
-        "koodu": {
-            "epoch": r.koodu_epoch,
-            "cycle": r.koodu_cycle,
-            "phase": r.koodu_phase,
-            "gregorian_fallback": r.gregorian_fallback,
-        },
+        "koodu_gregorian_fallback": r.gregorian_fallback,
         "soul": {
             "temperament": r.temperament,
             "orisha_alignment": r.orisha_alignment,
@@ -297,11 +309,15 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
             "keygen": "bipon39+derivation_root",
         },
         "time": {
+            // clock — OKF's authority
             "birth_block": r.bitcoin_height,
             "birth_block_hash": r.bitcoin_anchor,
-            "clock": clock,
+            "clock_source": clock_source,
             "ots_proof": Value::Null,
+            "ots_status": Value::Null,
             "anchored": false,
+            // calendar — Koodu's authority
+            "calendar": calendar,
         },
         "memory": {
             "locator": r.ip_root_event,
@@ -327,24 +343,32 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
     Ok(cert)
 }
 
-/// Promote a `cast` certificate to `live` once the pipeline has a real
+/// Promote a `cast` certificate to `live` once the OKF pipeline has a real
 /// OpenTimestamps proof. This is a MUTATION, so it mints v2 chained to v1 —
 /// never an in-place edit.
 ///
+/// Ownership: OKF supplies the CLOCK (proof, verified height, block hash);
+/// Koodu supplies the CALENDAR. The promotion therefore checks that the
+/// certificate's calendar is the one its anchored height actually implies —
+/// if Koodu and the clock disagree, the certificate is refused rather than
+/// carrying two contradictory facts.
+///
 /// `acting_hash` DOES change here, and should: `status` and `lifecycle` are
 /// acting keys, so a trust promotion from cast to live must reach consumers.
-/// (Writing only the time fields — a re-anchor of an already-live certificate —
-/// would leave `acting_hash` untouched, which is why `time` is excluded.)
 pub fn anchored_v2(
     cert: &Value,
     ots_proof: &str,
-    height: u64,
-    block_hash: Option<&str>,
+    ots_status: &str,
+    anchor_block: u64,
+    anchor_block_hash: Option<&str>,
     at: &str,
 ) -> Result<Value, String> {
     let problems = verify(cert);
     if !problems.is_empty() {
-        return Err(format!("cannot anchor an invalid certificate: {}", problems.join("; ")));
+        return Err(format!(
+            "cannot anchor an invalid certificate: {}",
+            problems.join("; ")
+        ));
     }
     if cert.get("status").and_then(Value::as_str) != Some("cast") {
         return Err(format!(
@@ -352,6 +376,43 @@ pub fn anchored_v2(
             cert.get("status").and_then(Value::as_str).unwrap_or("?")
         ));
     }
+    if ots_proof.trim().is_empty() {
+        return Err("anchoring requires an OTS proof path".into());
+    }
+    if ots_status != "complete" {
+        return Err(format!(
+            "the OTS proof is {ots_status}, not complete: it commits to a calendar \
+             server but no Bitcoin block has attested it yet. The okf-ots-upgrade \
+             timer completes it — re-run this once the attestation lands."
+        ));
+    }
+
+    // The calendar is a BIRTH fact: it must be the coordinates the BIRTH height
+    // implies. The anchor lands at a later block and does not rewrite birth.
+    let birth_height = cert
+        .get("time")
+        .and_then(|t| t.get("birth_block"))
+        .and_then(Value::as_u64);
+    let calendar = cert
+        .get("time")
+        .and_then(|t| t.get("calendar"))
+        .cloned()
+        .unwrap_or(Value::Null);
+    if let (Some(bh), Some(cal)) = (birth_height, calendar.as_object()) {
+        let (e, c, p) = crate::genesis::koodu_time::koodu_from_height(bh);
+        let same = cal.get("epoch").and_then(Value::as_u64) == Some(e)
+            && cal.get("cycle").and_then(Value::as_u64) == Some(c)
+            && cal.get("phase").and_then(Value::as_u64) == Some(p as u64);
+        if !same {
+            return Err(format!(
+                "Koodu calendar disagrees with the birth clock: certificate says ({}, {}, {}), birth block {bh} implies ({e}, {c}, {p})",
+                cal.get("epoch").and_then(Value::as_u64).unwrap_or(u64::MAX),
+                cal.get("cycle").and_then(Value::as_u64).unwrap_or(u64::MAX),
+                cal.get("phase").and_then(Value::as_u64).unwrap_or(u64::MAX),
+            ));
+        }
+    }
+
     let v1_hash = cert.get("hash").and_then(Value::as_str).unwrap_or("").to_string();
     let v1_version = cert.get("version").and_then(Value::as_i64).unwrap_or(1);
 
@@ -365,15 +426,26 @@ pub fn anchored_v2(
     obj.insert(
         "time".into(),
         json!({
-            "birth_block": height,
-            "birth_block_hash": block_hash,
-            "clock": "koodu-btc",
+            // clock — OKF
+            // clock — OKF: the proof lands at anchor_block, which is NOT the
+            // birth. Birth facts are preserved; proof facts are added.
+            "birth_block": birth_height,
+            "birth_block_hash": cert
+                .get("time")
+                .and_then(|t| t.get("birth_block_hash"))
+                .cloned()
+                .unwrap_or(Value::Null),
+            "clock_source": "okf",
             "ots_proof": ots_proof,
+            "ots_status": ots_status,
+            "anchor_block": anchor_block,
+            "anchor_block_hash": anchor_block_hash,
             "anchored": true,
+            // calendar — Koodu, unchanged from birth
+            "calendar": calendar,
         }),
     );
 
-    // lifecycle: append, never rewrite history
     let mut history = obj
         .get("lifecycle")
         .and_then(|l| l.get("history"))
@@ -392,15 +464,19 @@ pub fn anchored_v2(
         .cloned()
         .unwrap_or_default();
     changelog.push(json!(format!(
-        "v{} — anchored: OTS proof over the v{v1_version} hash, block {height}",
-        v1_version + 1
+        "v{} — anchored by the OKF clock: OTS proof over the v{v1_version} hash, proving existence at block {anchor_block} (Koodu calendar from birth block {})",
+        v1_version + 1,
+        birth_height.map(|h| h.to_string()).unwrap_or_else(|| "unknown".into())
     )));
     obj.insert("changelog".into(), Value::Array(changelog));
 
     finalize(&mut out);
     let problems = verify(&out);
     if !problems.is_empty() {
-        return Err(format!("anchored certificate does not verify: {}", problems.join("; ")));
+        return Err(format!(
+            "anchored certificate does not verify: {}",
+            problems.join("; ")
+        ));
     }
     Ok(out)
 }
@@ -520,13 +596,39 @@ pub fn verify(cert: &Value) -> Vec<String> {
             e.push("lifecycle.state must equal status".into());
         }
     }
-    if get("time").and_then(|t| t.get("anchored")).and_then(Value::as_bool) == Some(true)
-        && get("time")
-            .and_then(|t| t.get("ots_proof"))
+    let t = get("time");
+    let anchored = t.and_then(|x| x.get("anchored")).and_then(Value::as_bool) == Some(true);
+    if anchored
+        && t.and_then(|x| x.get("ots_proof"))
             .map(Value::is_null)
             .unwrap_or(true)
     {
         e.push("time.anchored = true requires time.ots_proof".into());
+    }
+    if anchored
+        && t.and_then(|x| x.get("ots_status"))
+            .and_then(Value::as_str)
+            != Some("complete")
+    {
+        // A fresh OTS stamp is a commitment to a calendar server, not a Bitcoin
+        // attestation. Claiming `anchored` on it is the exact overclaim this
+        // format exists to prevent.
+        e.push(
+            "time.anchored = true requires time.ots_status = \"complete\" (a pending proof is not an attestation)"
+                .into(),
+        );
+    }
+    if anchored && t.and_then(|x| x.get("clock_source")).and_then(Value::as_str) != Some("okf") {
+        // The clock has exactly one owner. An anchored certificate whose clock
+        // did not come from the pipeline is claiming time it cannot prove.
+        e.push("time.anchored = true requires time.clock_source = \"okf\"".into());
+    }
+    if let Some(cal) = t.and_then(|x| x.get("calendar")) {
+        for k in ["epoch", "cycle", "phase"] {
+            if cal.get(k).and_then(Value::as_u64).is_none() {
+                e.push(format!("time.calendar.{k} must be a non-negative integer"));
+            }
+        }
     }
 
     for forbidden in ["seed", "mnemonic", "private_key", "nsec", "secret"] {
@@ -740,9 +842,9 @@ mod tests {
             sigil_hash: "e".repeat(64),
             cloak_commitment: "f".repeat(64),
             born_at: 1_762_822_620_000,
-            koodu_epoch: 1,
-            koodu_cycle: 2,
-            koodu_phase: 3,
+            koodu_epoch: 3,   // koodu_from_height(975218)
+            koodu_cycle: 37,
+            koodu_phase: 4,
             bitcoin_height: Some(975_218),
             bitcoin_anchor: Some("0".repeat(64)),
             gregorian_fallback: false,
@@ -779,7 +881,10 @@ mod tests {
         // A recorded height is a clock reading, not an OTS proof: still cast.
         assert_eq!(cert["status"], "cast");
         assert_eq!(cert["time"]["anchored"], false);
-        assert_eq!(cert["time"]["clock"], "koodu-btc");
+        assert_eq!(cert["time"]["clock_source"], "unattested"); // OKF has not spoken
+        assert_eq!(cert["time"]["calendar"]["epoch"], 3);       // Koodu
+        assert_eq!(cert["time"]["calendar"]["cycle"], 37);
+        assert_eq!(cert["time"]["calendar"]["phase"], 4);
         assert_eq!(cert["identity"]["odu_link"], 4711);
         assert_eq!(cert["identity"]["odu_secondary"], 103); // 4711 & 0xff
         assert_eq!(cert["time"]["birth_block"], 975_218);
@@ -791,12 +896,17 @@ mod tests {
     fn anchoring_mints_v2_and_leaves_acting_hash_untouched() {
         let v1 = from_genesis_receipt(&receipt(), None).unwrap();
         assert_eq!(v1["status"], "cast");
-        let v2 = anchored_v2(&v1, "receipts/x.ots", 975_400, Some(&"9".repeat(64)), "2026-11-11T02:00:00Z")
+        let v2 = anchored_v2(&v1, "receipts/x.ots", "complete", 975_400, Some(&"9".repeat(64)), "2026-11-11T02:00:00Z")
             .expect("anchors");
         assert_eq!(v2["status"], "live");
         assert_eq!(v2["version"], 2);
         assert_eq!(v2["previous_hash"], v1["hash"]);
         assert_eq!(v2["time"]["anchored"], true);
+        // the anchor is a LATER block; birth is untouched
+        assert_eq!(v2["time"]["anchor_block"], 975_400);
+        assert_eq!(v2["time"]["birth_block"], 975_218);
+        assert_eq!(v2["time"]["calendar"]["phase"], 4);
+        assert_eq!(v2["time"]["clock_source"], "okf");
         assert!(verify(&v2).is_empty(), "{:?}", verify(&v2));
         // status and lifecycle are acting keys, so the trust promotion MUST
         // reach consumers: acting_hash moves with it.
@@ -807,7 +917,16 @@ mod tests {
         // history is appended, not rewritten
         assert_eq!(v2["lifecycle"]["history"].as_array().unwrap().len(), 2);
         // and a live certificate cannot be anchored twice
-        assert!(anchored_v2(&v2, "again", 1, None, "2026-11-11T03:00:00Z").is_err());
+        assert!(anchored_v2(&v2, "again", "complete", 1, None, "2026-11-11T03:00:00Z").is_err());
+    }
+
+    #[test]
+    fn calendar_must_match_the_birth_height() {
+        let mut r = receipt();
+        r.koodu_phase = 9; // not what block 975218 implies
+        let err = from_genesis_receipt(&r, None).unwrap_err();
+        // projection verifies, so an inconsistent calendar is refused outright
+        assert!(err.contains("calendar") || err.contains("verif"), "{err}");
     }
 
     #[test]

@@ -119,6 +119,18 @@ enum SidAction {
     Verify { path: String },
     /// Print the canonical JSON and both hashes
     Canonical { path: String },
+    /// Apply an OKF anchor artifact, minting the chained v2 (cast -> live)
+    Anchor {
+        /// Path to the cast certificate JSON
+        #[arg(long)]
+        cert: String,
+        /// Path to the OKF anchor artifact (cert.anchor.json)
+        #[arg(long)]
+        anchor: String,
+        /// Write v2 cert.json + SID.md here (default: alongside --cert)
+        #[arg(short, long)]
+        out: Option<String>,
+    },
 }
 
 #[derive(Subcommand)]
@@ -772,6 +784,83 @@ fn cmd_sid(action: SidAction) -> Result<()> {
                 }
                 anyhow::bail!("certificate failed verification ({} problem(s))", problems.len());
             }
+        }
+        SidAction::Anchor { cert, anchor, out } => {
+            let cert_json = std::fs::read_to_string(&cert)
+                .with_context(|| format!("reading {cert}"))?;
+            let mut v1: serde_json::Value = serde_json::from_str(&cert_json)
+                .with_context(|| format!("{cert} is not JSON"))?;
+            let anchor_json = std::fs::read_to_string(&anchor)
+                .with_context(|| format!("reading {anchor}"))?;
+            let a: serde_json::Value = serde_json::from_str(&anchor_json)
+                .with_context(|| format!("{anchor} is not JSON"))?;
+
+            // The proof must be over THIS certificate — an anchor for a
+            // different hash proves nothing about this document.
+            let cert_hash = v1.get("hash").and_then(|v| v.as_str()).unwrap_or("");
+            let anchor_hash = a.get("cert_hash").and_then(|v| v.as_str()).unwrap_or("");
+            if cert_hash.is_empty() || cert_hash != anchor_hash {
+                anyhow::bail!(
+                    "anchor is for {} but the certificate is {} — refusing",
+                    if anchor_hash.is_empty() { "an unknown hash" } else { anchor_hash },
+                    if cert_hash.is_empty() { "(no hash)" } else { cert_hash }
+                );
+            }
+            let ots_proof = a
+                .get("ots_proof")
+                .and_then(|v| v.as_str())
+                .context("the anchor carries no ots_proof — the clock has not stamped this")?;
+            let ots_status = a
+                .get("ots_status")
+                .and_then(|v| v.as_str())
+                .unwrap_or("unknown");
+            let block = a
+                .get("anchor_block")
+                .and_then(|v| v.as_u64())
+                .context("the anchor carries no anchor_block — the clock has not verified a tip")?;
+            let block_hash = a.get("anchor_block_hash").and_then(|v| v.as_str());
+
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .map(|d| d.as_millis() as u64)
+                .unwrap_or(0);
+            let at = omokoda_core::identity::sid::rfc3339_from_millis(now_ms);
+
+            let v2 = sid::anchored_v2(&v1, ots_proof, ots_status, block, block_hash, &at)
+                .map_err(anyhow::Error::msg)?;
+            let changelog: Vec<String> = v2["changelog"]
+                .as_array()
+                .map(|arr| {
+                    arr.iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            let dir = out.unwrap_or_else(|| {
+                std::path::Path::new(&cert)
+                    .parent()
+                    .map(|p| p.to_string_lossy().to_string())
+                    .unwrap_or_else(|| ".".into())
+            });
+            std::fs::create_dir_all(&dir).with_context(|| format!("creating {dir}"))?;
+            let cpath = std::path::Path::new(&dir).join("cert.json");
+            let mpath = std::path::Path::new(&dir).join("SID.md");
+            std::fs::write(&cpath, serde_json::to_string_pretty(&v2)?)
+                .with_context(|| format!("writing {}", cpath.display()))?;
+            std::fs::write(&mpath, sid::emit_md(&v2, &changelog).map_err(anyhow::Error::msg)?)
+                .with_context(|| format!("writing {}", mpath.display()))?;
+            v1 = v2.clone();
+
+            println!("{}", "SID anchored".bold().cyan());
+            println!("{}", "─".repeat(40).dimmed());
+            println!("{:<14} {}  (was cast)", "status:".bold(), v2["status"].as_str().unwrap_or("?"));
+            println!("{:<14} v{}  previous_hash {}…", "version:".bold(),
+                v2["version"], &v2["previous_hash"].as_str().unwrap_or("")[..12.min(v2["previous_hash"].as_str().unwrap_or("").len())]);
+            println!("{:<14} block {} ({})", "clock:".bold(), block, ots_status);
+            println!("{:<14} e{} c{} p{}", "calendar:".bold(),
+                v2["time"]["calendar"]["epoch"], v2["time"]["calendar"]["cycle"], v2["time"]["calendar"]["phase"]);
+            println!("wrote {} and {}", cpath.display(), mpath.display());
         }
         SidAction::Canonical { path } => {
             let raw = std::fs::read_to_string(&path)

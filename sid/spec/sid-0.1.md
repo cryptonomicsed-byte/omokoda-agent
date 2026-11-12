@@ -72,8 +72,30 @@ disagree with its link is malformed — the address is derived, never independen
 `keygen` (`gix_kdf_v1+bipon39`). **Hashes only.** The mnemonic, seed and keys never appear.
 
 ### 4.3 Time
-`birth_block` (integer), `birth_block_hash` (string), `ots_proof` (string ref \| null),
-`anchored` (boolean). `anchored: true` requires `ots_proof` — the verifier enforces it.
+
+Two authorities, never one. **Koodu is the calendar** (epoch / cycle / phase, derived from a
+block height: 780 000 genesis, 144 blocks/day). **The OKF pipeline is the clock** (a verified
+height plus an OpenTimestamps proof). A certificate records both, because a calendar without a
+clock is arithmetic and a clock without a calendar is a number.
+
+Clock fields — written by the OKF pipeline, never by the issuer:
+`birth_block` (integer \| null), `birth_block_hash` (string \| null),
+`clock_source` (`unattested` until OKF speaks, then `okf`),
+`ots_proof` (string ref \| null), `ots_status` (`pending` \| `complete` \| null),
+`anchor_block` / `anchor_block_hash` (the block the proof lands at — **not** the birth),
+`anchored` (boolean).
+
+Calendar fields — written by Koodu: `calendar.epoch`, `calendar.cycle`, `calendar.phase`
+(non-negative integers), `calendar.basis` (`height` \| `gregorian`).
+
+Three rules the verifier enforces:
+
+1. `anchored: true` requires `ots_proof` **and** `ots_status == "complete"`. A fresh OTS stamp
+   is a commitment to a calendar server, not a Bitcoin attestation; calling it anchored is the
+   exact overclaim this format exists to prevent.
+2. `anchored: true` requires `clock_source == "okf"`. The clock has one owner.
+3. `calendar` must equal the coordinates the **birth** height implies. The anchor lands at a
+   later block and never rewrites birth.
 
 ### 4.4 Capabilities
 `skills` (array of manifest names), `permissions` (array of capability strings),
