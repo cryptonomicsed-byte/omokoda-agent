@@ -42,7 +42,9 @@ impl<'a> ResourceChecker<'a> {
         let mut total: u128 = 0; // use u128 to detect u64 overflow
         for instr in &self.program.instructions {
             if SPEND_OPCODES.contains(&instr.opcode_name.as_str()) {
-                let amount = instr.args.get("amount")
+                let amount = instr
+                    .args
+                    .get("amount")
                     .and_then(|v| v.as_u64())
                     .unwrap_or(0);
                 total += amount as u128;
@@ -73,7 +75,9 @@ impl<'a> ResourceChecker<'a> {
                 // Back-edge: estimate loop body size and iterations
                 let loop_body_len = i - target + 1;
                 // Heuristic: without explicit bound arg, assume worst-case unbounded
-                let bound = instr.args.get("max_iters")
+                let bound = instr
+                    .args
+                    .get("max_iters")
                     .or_else(|| instr.args.get("iterations"))
                     .and_then(|v| v.as_u64());
                 let estimated_iters = bound.unwrap_or(u64::MAX);
@@ -83,8 +87,15 @@ impl<'a> ResourceChecker<'a> {
                         "RES2: potential unbounded loop at instruction {} (line {}) — \
                          back-edge to index {}, body size={} instructions, \
                          estimated iterations={} (threshold={})",
-                        i, instr.line, target, loop_body_len,
-                        if estimated_iters == u64::MAX { "unbounded".to_string() } else { estimated_iters.to_string() },
+                        i,
+                        instr.line,
+                        target,
+                        loop_body_len,
+                        if estimated_iters == u64::MAX {
+                            "unbounded".to_string()
+                        } else {
+                            estimated_iters.to_string()
+                        },
                         MAX_LOOP_ITERS
                     ));
                 }
@@ -96,7 +107,10 @@ impl<'a> ResourceChecker<'a> {
     /// Each STORE/STORE_BLOB/PUSH instruction contributes one slot.
     fn check_res3_memory(&self, warnings: &mut Vec<String>) {
         const MEMORY_OPCODES: &[&str] = &["STORE", "STORE_BLOB", "PUSH", "AGENT_MEMORY"];
-        let slot_count = self.program.instructions.iter()
+        let slot_count = self
+            .program
+            .instructions
+            .iter()
             .filter(|i| MEMORY_OPCODES.contains(&i.opcode_name.as_str()))
             .count();
         if slot_count > MAX_MEMORY_SLOTS {
@@ -119,7 +133,11 @@ mod tests {
         IrInstruction {
             opcode: 0,
             opcode_name: name.into(),
-            args: if let serde_json::Value::Object(m) = args { m } else { Default::default() },
+            args: if let serde_json::Value::Object(m) = args {
+                m
+            } else {
+                Default::default()
+            },
             line,
         }
     }
@@ -159,7 +177,7 @@ mod tests {
     fn res2_forward_jump_no_warning() {
         // JUMP to index 5 from index 1 = forward jump, safe
         let p = bare_prog(vec![
-            make_instr("NOP",  json!({}), 1),
+            make_instr("NOP", json!({}), 1),
             make_instr("JUMP", json!({"target": 5u64}), 2),
         ]);
         let warns = ResourceChecker::new(&p).check();
@@ -170,9 +188,9 @@ mod tests {
     fn res2_back_edge_warns() {
         // JUMP from index 3 back to index 0 = unbounded loop
         let p = bare_prog(vec![
-            make_instr("NOP",  json!({}), 1),
-            make_instr("NOP",  json!({}), 2),
-            make_instr("NOP",  json!({}), 3),
+            make_instr("NOP", json!({}), 1),
+            make_instr("NOP", json!({}), 2),
+            make_instr("NOP", json!({}), 3),
             make_instr("JUMP", json!({"target": 0u64}), 4),
         ]);
         let warns = ResourceChecker::new(&p).check();

@@ -14,6 +14,29 @@ jobs:
       - uses: actions/checkout@v4
         with:
           path: Omo-Koda2
+      # cargo fmt -p loads workspace metadata, which resolves omokoda-core's path
+      # deps (../../GIX, ../../ARP, ../../DIP) and oso-sdk's (../../sovereign-stack).
+      # Without these checkouts the job fails before formatting anything.
+      - name: Checkout GIX
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/GIX
+          path: GIX
+      - name: Checkout ARP
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/ARP
+          path: ARP
+      - name: Checkout DIP
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/DIP
+          path: DIP
+      - name: Checkout sovereign-stack
+        uses: actions/checkout@v4
+        with:
+          repository: cryptonomicsed-byte/sovereign-stack
+          path: sovereign-stack
       - uses: dtolnay/rust-toolchain@stable
         with:
           toolchain: stable

@@ -141,7 +141,6 @@ impl MemoryHealthMonitor {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::epistemic::BeliefSource;
 
     fn monitor() -> MemoryHealthMonitor {
         MemoryHealthMonitor::new(20)

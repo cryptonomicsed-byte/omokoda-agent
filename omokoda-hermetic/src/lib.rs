@@ -5,11 +5,11 @@ pub mod justice;
 pub mod network_guard;
 pub mod persona;
 pub mod plane;
+pub mod polyglot;
 pub mod rule_engine;
 pub mod safety;
 pub mod seven;
 pub mod spiral;
-pub mod polyglot;
 pub mod wisdom;
 
 use hkdf::Hkdf;

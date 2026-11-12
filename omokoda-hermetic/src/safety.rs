@@ -308,8 +308,8 @@ mod tests {
         let mut seed = [0u8; 32];
         // Fill with high values to get permissive scores
         seed[0] = seed_byte;
-        for i in 1..32 {
-            seed[i] = 200u8.wrapping_add(i as u8);
+        for (i, seed_elem) in seed.iter_mut().enumerate().skip(1) {
+            *seed_elem = 200u8.wrapping_add(i as u8);
         }
         HermeticState::from_odu_seed(&seed)
     }

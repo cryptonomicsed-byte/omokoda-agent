@@ -1,11 +1,12 @@
 use bipon39::{entropy_to_mnemonic, mnemonic_to_seed, split_mnemonic};
 use blake3;
-use ed25519_dalek::{SigningKey, VerifyingKey, Signature, Signer, Verifier};
+use ed25519_dalek::SigningKey;
+#[cfg(test)]
+use ed25519_dalek::{Signer, Verifier};
 use pbkdf2::pbkdf2_hmac_array;
 use rand::rngs::OsRng;
 use serde::{Deserialize, Serialize};
 use sha2::Sha256;
-use std::collections::HashMap;
 
 /// Canonical BIPỌ̀N39 encoding tokens (256), sourced from the `bipon39` crate.
 ///
@@ -79,10 +80,10 @@ impl DnaFingerprint {
 /// BIPỌ̀N39 Mnemonic — 24 words from 256-token wordlist
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Bipon39Mnemonic {
-    pub words: Vec<String>,           // 24 words
-    pub entropy: [u8; 32],            // Source entropy
-    pub odù_primary: u8,              // Primary Odù (0-255)
-    pub odù_secondary: u8,            // Secondary Odù
+    pub words: Vec<String>, // 24 words
+    pub entropy: [u8; 32],  // Source entropy
+    pub odù_primary: u8,    // Primary Odù (0-255)
+    pub odù_secondary: u8,  // Secondary Odù
     pub dna_fingerprint: DnaFingerprint,
 }
 
@@ -113,9 +114,7 @@ impl Bipon39Mnemonic {
         }
         debug_assert_eq!(indices.len(), 24);
 
-        let words: Vec<String> = indices.iter()
-            .map(|&i| wordlist()[i].to_string())
-            .collect();
+        let words: Vec<String> = indices.iter().map(|&i| wordlist()[i].to_string()).collect();
 
         // Derive Odù from first 2 words
         let odù_primary = Self::word_to_odù(&words[0])?;
@@ -152,7 +151,8 @@ impl Bipon39Mnemonic {
     }
 
     fn word_to_odù(word: &str) -> Result<u8, Bipon39Error> {
-        wordlist().iter()
+        wordlist()
+            .iter()
             .position(|&w| w == word)
             .map(|i| i as u8)
             .ok_or(Bipon39Error::WordNotInWordlist)
@@ -202,9 +202,7 @@ impl SuiAddress {
         // blake3::keyed_hash requires a fixed 32-byte key; derive it from the
         // derivation label + path so distinct paths give distinct addresses.
         let mut key = [0u8; 32];
-        key.copy_from_slice(
-            blake3::hash(format!("sui-derivation:{path}").as_bytes()).as_bytes(),
-        );
+        key.copy_from_slice(blake3::hash(format!("sui-derivation:{path}").as_bytes()).as_bytes());
         let derived = blake3::keyed_hash(&key, seed);
         Self(format!("0x{}", hex::encode(&derived.as_bytes()[..32])))
     }
@@ -225,23 +223,25 @@ pub enum Bipon39Error {
 /// Birth Receipt — Kind 31000 (Nostr)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct BirthReceipt {
-    pub kind: u16,                    // 31000
+    pub kind: u16, // 31000
     pub agent_npub: String,
     pub device_id: DeviceId,
     pub sui_address: SuiAddress,
     pub dna_fingerprint: DnaFingerprint,
     pub odù_primary: u8,
     pub odù_secondary: u8,
-    pub bipon39_fingerprint: String,  // SHA-256 of mnemonic words (not words!)
-    pub ip_root: String,              // sha256(npub || device_id || birth_ts)
+    pub bipon39_fingerprint: String, // SHA-256 of mnemonic words (not words!)
+    pub ip_root: String,             // sha256(npub || device_id || birth_ts)
     pub timestamp: u64,
-    pub signature: String,            // Signed by NIP-46 bunker
+    pub signature: String, // Signed by NIP-46 bunker
 }
 
 impl BirthReceipt {
     pub fn new(identity: &AgentIdentity, timestamp: u64) -> Self {
         let ip_root = Self::compute_ip_root(&identity.agent_npub, &identity.device_id, timestamp);
-        let bipon39_fp = identity.mnemonic.as_ref()
+        let bipon39_fp = identity
+            .mnemonic
+            .as_ref()
             .map(|m| blake3::hash(m.words.join(" ").as_bytes()).to_hex())
             .unwrap_or_default();
 
@@ -272,7 +272,7 @@ impl BirthReceipt {
 /// Device Binding Receipt — Kind 31001 (Nostr)
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DeviceBindingReceipt {
-    pub kind: u16,                    // 31001
+    pub kind: u16, // 31001
     pub agent_npub: String,
     pub device_id: DeviceId,
     pub sui_address: SuiAddress,
@@ -321,27 +321,33 @@ mod tests {
 
     #[test]
     fn test_ip_root_uniqueness() {
-        let receipt1 = BirthReceipt::new(&AgentIdentity {
-            agent_npub: "npub1abc".into(),
-            device_id: DeviceId([1u8; 32]),
-            sui_address: SuiAddress("0x123".into()),
-            mnemonic: None,
-            dna_fingerprint: DnaFingerprint([0u8; 16]),
-            born_at: 1000,
-            odù_primary: 1,
-            odù_secondary: 2,
-        }, 1000);
+        let receipt1 = BirthReceipt::new(
+            &AgentIdentity {
+                agent_npub: "npub1abc".into(),
+                device_id: DeviceId([1u8; 32]),
+                sui_address: SuiAddress("0x123".into()),
+                mnemonic: None,
+                dna_fingerprint: DnaFingerprint([0u8; 16]),
+                born_at: 1000,
+                odù_primary: 1,
+                odù_secondary: 2,
+            },
+            1000,
+        );
 
-        let receipt2 = BirthReceipt::new(&AgentIdentity {
-            agent_npub: "npub1abc".into(),
-            device_id: DeviceId([1u8; 32]),
-            sui_address: SuiAddress("0x123".into()),
-            mnemonic: None,
-            dna_fingerprint: DnaFingerprint([0u8; 16]),
-            born_at: 1001,
-            odù_primary: 1,
-            odù_secondary: 2,
-        }, 1001);
+        let receipt2 = BirthReceipt::new(
+            &AgentIdentity {
+                agent_npub: "npub1abc".into(),
+                device_id: DeviceId([1u8; 32]),
+                sui_address: SuiAddress("0x123".into()),
+                mnemonic: None,
+                dna_fingerprint: DnaFingerprint([0u8; 16]),
+                born_at: 1001,
+                odù_primary: 1,
+                odù_secondary: 2,
+            },
+            1001,
+        );
 
         assert_ne!(receipt1.ip_root, receipt2.ip_root);
     }

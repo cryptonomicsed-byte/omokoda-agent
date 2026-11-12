@@ -163,7 +163,6 @@ impl EsuGatekeeper {
         );
         let mut scores = Vec::with_capacity(7);
 
-
         for (i, gate) in self.gates.iter().enumerate() {
             let principle = HermeticPrinciple::from_index(i);
             match gate.evaluate(op, &ctx) {

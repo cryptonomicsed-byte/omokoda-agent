@@ -1,9 +1,9 @@
 //! oso_dispatch — the If-Script ↔ Ọ̀ṢỌ́ integration point.
 
-use crate::decision::IfDecision;
 use crate::context::CompileContext;
+use crate::decision::IfDecision;
 use crate::registry::RitualRegistry;
-use oso_parser::{OsoResult, OsoError, IrProgram, compile};
+use oso_parser::{compile, IrProgram, OsoError, OsoResult};
 
 /// Dispatch an If-Script decision to a compiled Ọ̀ṢỌ́ IrProgram.
 ///
@@ -16,9 +16,9 @@ pub fn oso_dispatch(
     registry: &RitualRegistry,
     hermetic_balance: f32,
 ) -> OsoResult<IrProgram> {
-    let ritual_src = registry.get(&decision.ritual).ok_or_else(|| {
-        OsoError::UnknownOpcode(format!("ritual not found: {}", decision.ritual))
-    })?;
+    let ritual_src = registry
+        .get(&decision.ritual)
+        .ok_or_else(|| OsoError::UnknownOpcode(format!("ritual not found: {}", decision.ritual)))?;
 
     let ctx = CompileContext {
         gate_alignment: decision.gate_alignment(),
@@ -34,12 +34,15 @@ pub fn oso_dispatch(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::decision::{IfDecision, GateScore};
+    use crate::decision::{GateScore, IfDecision};
 
     fn make_registry() -> RitualRegistry {
         let mut r = RitualRegistry::new();
         r.register("emit_work", "@EMIT_ASE(amount=100)\n@HALT()");
-        r.register("store_result", "@STORE_BLOB(key=\"result\", value=\"ok\")\n@HALT()");
+        r.register(
+            "store_result",
+            "@STORE_BLOB(key=\"result\", value=\"ok\")\n@HALT()",
+        );
         r
     }
 
@@ -47,8 +50,14 @@ mod tests {
         IfDecision {
             odu_index: 42,
             gate_scores: vec![
-                GateScore { gate_index: 0, score: 0.9 },
-                GateScore { gate_index: 1, score: 0.8 },
+                GateScore {
+                    gate_index: 0,
+                    score: 0.9,
+                },
+                GateScore {
+                    gate_index: 1,
+                    score: 0.8,
+                },
             ],
             ritual: ritual.into(),
             params: serde_json::json!({"agent": "abc"}),

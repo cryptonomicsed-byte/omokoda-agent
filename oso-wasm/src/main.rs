@@ -36,7 +36,10 @@ fn main() {
     });
 
     if cli.check {
-        println!("OK — {:?} parses as OsoIR (contract_class={})", cli.input, ir.contract_class);
+        println!(
+            "OK — {:?} parses as OsoIR (contract_class={})",
+            cli.input, ir.contract_class
+        );
         return;
     }
 
@@ -46,8 +49,9 @@ fn main() {
     });
 
     match cli.output {
-        Some(path) => std::fs::write(&path, &wat)
-            .unwrap_or_else(|e| panic!("cannot write {:?}: {e}", path)),
+        Some(path) => {
+            std::fs::write(&path, &wat).unwrap_or_else(|e| panic!("cannot write {:?}: {e}", path))
+        }
         None => print!("{wat}"),
     }
 }

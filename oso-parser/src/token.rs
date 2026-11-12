@@ -29,20 +29,29 @@ pub enum TokenKind {
 
 #[derive(Debug, Clone)]
 pub struct Token {
-    pub kind:  TokenKind,
+    pub kind: TokenKind,
     pub value: String,
-    pub line:  usize,
-    pub col:   usize,
+    pub line: usize,
+    pub col: usize,
 }
 
 impl Token {
     pub fn new(kind: TokenKind, value: impl Into<String>, line: usize, col: usize) -> Self {
-        Self { kind, value: value.into(), line, col }
+        Self {
+            kind,
+            value: value.into(),
+            line,
+            col,
+        }
     }
 }
 
 impl std::fmt::Display for Token {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(f, "{:?}({:?}) @{}:{}", self.kind, self.value, self.line, self.col)
+        write!(
+            f,
+            "{:?}({:?}) @{}:{}",
+            self.kind, self.value, self.line, self.col
+        )
     }
 }

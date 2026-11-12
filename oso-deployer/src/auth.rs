@@ -20,17 +20,17 @@ pub enum DeployTarget {
 impl DeployTarget {
     pub fn from_str(s: &str) -> Option<Self> {
         match s.to_lowercase().as_str() {
-            "local"   => Some(Self::Local),
+            "local" => Some(Self::Local),
             "testnet" => Some(Self::Testnet),
             "mainnet" => Some(Self::Mainnet),
-            _         => None,
+            _ => None,
         }
     }
 
     #[allow(dead_code)]
     pub fn as_str(&self) -> &'static str {
         match self {
-            Self::Local   => "local",
+            Self::Local => "local",
             Self::Testnet => "testnet",
             Self::Mainnet => "mainnet",
         }
@@ -39,7 +39,7 @@ impl DeployTarget {
     /// Minimum signer tier required to deploy to this target.
     pub fn required_tier(&self) -> u8 {
         match self {
-            Self::Local   => 0,
+            Self::Local => 0,
             Self::Testnet => 2,
             Self::Mainnet => 5,
         }

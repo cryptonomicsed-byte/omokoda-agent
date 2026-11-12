@@ -89,7 +89,7 @@ impl BootstrapGraph {
     /// `agent_id` is set on the habitat address (W-22: sensor → HabitatAddress wire).
     /// Returns the initialized SomaLifecycle to be held by the agent runtime.
     pub fn soma_wake_up(&mut self) -> SomaLifecycle {
-        let mut soma = SomaLifecycle::wake_up();
+        let soma = SomaLifecycle::wake_up();
         self.record_phase(
             BirthPhase::Memory,
             true,

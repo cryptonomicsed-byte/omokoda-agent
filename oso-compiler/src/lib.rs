@@ -8,13 +8,13 @@
 //! The compiler layers context (gate_alignment, params) onto the Ọ̀ṢỌ́ source
 //! before parsing, injecting them as `@LOAD_CONST` preamble instructions.
 
-pub mod decision;
 pub mod context;
+pub mod decision;
 pub mod dispatch;
 pub mod registry;
 
-pub use decision::{IfDecision, GateScore};
 pub use context::CompileContext;
+pub use decision::{GateScore, IfDecision};
 pub use dispatch::oso_dispatch;
+pub use oso_parser::{IrInstruction, IrProgram, IrValue, OsoError, OsoResult};
 pub use registry::RitualRegistry;
-pub use oso_parser::{IrProgram, IrInstruction, IrValue, OsoError, OsoResult};

@@ -9,8 +9,8 @@
 //! Implements all canonical OSO-IR opcodes as pure state transitions.
 //! No network, no chain — fully deterministic in-process.
 
-use std::collections::BTreeMap;
 use serde_json::Value;
+use std::collections::BTreeMap;
 
 #[derive(Debug, Clone)]
 pub struct JobEntry {
@@ -69,16 +69,24 @@ impl MockOsovmState {
 
     /// Snapshot the current state as a JSON object.
     pub fn snapshot(&self) -> Value {
-        let balances: serde_json::Map<String, Value> = self.balances.iter()
+        let balances: serde_json::Map<String, Value> = self
+            .balances
+            .iter()
             .map(|(k, v)| (k.clone(), Value::Number((*v).into())))
             .collect();
 
-        let jobs: Vec<Value> = self.jobs.values().map(|j| serde_json::json!({
-            "job_id": j.job_id,
-            "owner": j.owner,
-            "status": j.status,
-            "escrow_amount": j.escrow_amount,
-        })).collect();
+        let jobs: Vec<Value> = self
+            .jobs
+            .values()
+            .map(|j| {
+                serde_json::json!({
+                    "job_id": j.job_id,
+                    "owner": j.owner,
+                    "status": j.status,
+                    "escrow_amount": j.escrow_amount,
+                })
+            })
+            .collect();
 
         serde_json::json!({
             "caller_id": self.caller_id,
@@ -147,12 +155,15 @@ impl MockOsovmState {
             self.ase_spent += amount;
         }
         // Create or update job entry
-        let entry = self.jobs.entry(job_id.to_string()).or_insert_with(|| JobEntry {
-            job_id: job_id.to_string(),
-            owner: from.to_string(),
-            status: "escrowed".into(),
-            escrow_amount: 0,
-        });
+        let entry = self
+            .jobs
+            .entry(job_id.to_string())
+            .or_insert_with(|| JobEntry {
+                job_id: job_id.to_string(),
+                owner: from.to_string(),
+                status: "escrowed".into(),
+                escrow_amount: 0,
+            });
         entry.escrow_amount += amount;
         self.emit_receipt("LOCK", &format!("{}:{}:job={}", from, amount, job_id));
         Ok(())
@@ -170,12 +181,15 @@ impl MockOsovmState {
 
     #[allow(dead_code)]
     pub fn create_job(&mut self, job_id: &str, owner: &str) {
-        self.jobs.insert(job_id.to_string(), JobEntry {
-            job_id: job_id.to_string(),
-            owner: owner.to_string(),
-            status: "pending".into(),
-            escrow_amount: 0,
-        });
+        self.jobs.insert(
+            job_id.to_string(),
+            JobEntry {
+                job_id: job_id.to_string(),
+                owner: owner.to_string(),
+                status: "pending".into(),
+                escrow_amount: 0,
+            },
+        );
     }
 
     // ── KV / blob ─────────────────────────────────────────────────────────────

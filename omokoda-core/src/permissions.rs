@@ -120,7 +120,8 @@ impl PatternPolicy {
 
         // 1. Deny always wins
         for pattern in &self.deny {
-            if self.match_pattern(pattern, &target) || matches_exec_deny(pattern, action, resource) {
+            if self.match_pattern(pattern, &target) || matches_exec_deny(pattern, action, resource)
+            {
                 return PermissionOutcome::Deny {
                     reason: format!(
                         "PatternPolicy: action '{}' is explicitly denied by pattern '{}'",
@@ -390,7 +391,10 @@ fn shell_words(cmd: &str) -> Vec<String> {
         c.is_whitespace() || matches!(c, ';' | '|' | '&' | '(' | ')' | '`' | '$' | '\n' | '>')
     })
     .filter(|w| !w.is_empty())
-    .map(|w| w.trim_matches(|c| c == '"' || c == '\'' || c == ',').to_string())
+    .map(|w| {
+        w.trim_matches(|c| c == '"' || c == '\'' || c == ',')
+            .to_string()
+    })
     .collect()
 }
 

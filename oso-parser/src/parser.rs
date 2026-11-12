@@ -1,9 +1,9 @@
 //! Recursive descent parser: `Vec<Token>` → `IrProgram`.
 
-use std::collections::HashMap;
-use crate::token::{Token, TokenKind};
-use crate::ir::{IrInstruction, IrValue, IrProgram, canonicalize_name, opcode_for};
 use crate::error::{OsoError, OsoResult};
+use crate::ir::{canonicalize_name, opcode_for, IrInstruction, IrProgram, IrValue};
+use crate::token::{Token, TokenKind};
+use std::collections::HashMap;
 
 pub struct OsoParser {
     tokens: Vec<Token>,
@@ -21,7 +21,9 @@ impl OsoParser {
 
     fn advance(&mut self) -> Option<&Token> {
         let tok = self.tokens.get(self.pos);
-        if tok.is_some() { self.pos += 1; }
+        if tok.is_some() {
+            self.pos += 1;
+        }
         tok
     }
 
@@ -32,7 +34,8 @@ impl OsoParser {
                 Ok(&self.tokens[self.pos - 1])
             }
             Some(t) => Err(OsoError::Parse {
-                line: t.line, col: t.col,
+                line: t.line,
+                col: t.col,
                 expected: format!("{:?}", kind),
                 got: format!("{:?}({})", t.kind, t.value),
             }),
@@ -47,7 +50,8 @@ impl OsoParser {
         let name_tok = self.expect(&TokenKind::Ident)?;
         let raw_name = name_tok.value.clone();
         let canonical = canonicalize_name(&raw_name);
-        let opcode = opcode_for(&canonical).ok_or_else(|| OsoError::UnknownOpcode(canonical.clone()))?;
+        let opcode =
+            opcode_for(&canonical).ok_or_else(|| OsoError::UnknownOpcode(canonical.clone()))?;
 
         let mut args: HashMap<String, IrValue> = HashMap::new();
 
@@ -55,7 +59,9 @@ impl OsoParser {
         if self.peek().is_some_and(|t| t.kind == TokenKind::LParen) {
             self.advance(); // consume `(`
             loop {
-                if self.peek().is_none_or(|t| t.kind == TokenKind::RParen) { break; }
+                if self.peek().is_none_or(|t| t.kind == TokenKind::RParen) {
+                    break;
+                }
                 let key_tok = self.expect(&TokenKind::Ident)?;
                 let key = key_tok.value.clone();
                 self.expect(&TokenKind::Eq)?;
@@ -80,7 +86,12 @@ impl OsoParser {
             args.insert("__body__".into(), IrValue::Block(nested));
         }
 
-        Ok(IrInstruction { opcode, opcode_name: canonical, args, line })
+        Ok(IrInstruction {
+            opcode,
+            opcode_name: canonical,
+            args,
+            line,
+        })
     }
 
     fn parse_value(&mut self) -> OsoResult<IrValue> {
@@ -90,12 +101,20 @@ impl OsoParser {
                     let s = t.value.clone();
                     self.advance();
                     if s.contains('.') {
-                        Ok(IrValue::Float(s.parse::<f64>().map_err(|_| OsoError::Lex {
-                            line: 0, col: 0, msg: format!("bad float: {s}"),
+                        Ok(IrValue::Float(s.parse::<f64>().map_err(|_| {
+                            OsoError::Lex {
+                                line: 0,
+                                col: 0,
+                                msg: format!("bad float: {s}"),
+                            }
                         })?))
                     } else {
-                        Ok(IrValue::Int(s.parse::<i64>().map_err(|_| OsoError::Lex {
-                            line: 0, col: 0, msg: format!("bad int: {s}"),
+                        Ok(IrValue::Int(s.parse::<i64>().map_err(|_| {
+                            OsoError::Lex {
+                                line: 0,
+                                col: 0,
+                                msg: format!("bad int: {s}"),
+                            }
                         })?))
                     }
                 }
@@ -108,7 +127,9 @@ impl OsoParser {
                     let s = t.value.clone();
                     self.advance();
                     let n = u64::from_str_radix(&s[2..], 16).map_err(|_| OsoError::Lex {
-                        line: 0, col: 0, msg: format!("bad hex: {s}"),
+                        line: 0,
+                        col: 0,
+                        msg: format!("bad hex: {s}"),
                     })?;
                     Ok(IrValue::Hex(n))
                 }
@@ -119,7 +140,8 @@ impl OsoParser {
                     Ok(IrValue::Str(s))
                 }
                 _ => Err(OsoError::Parse {
-                    line: t.line, col: t.col,
+                    line: t.line,
+                    col: t.col,
                     expected: "value".into(),
                     got: format!("{:?}({})", t.kind, t.value),
                 }),
@@ -162,13 +184,16 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)] // the parser input is the literal "3.14", not π
     fn parse_load_const_float() {
         let prog = parse("@loadConst(value=3.14)");
         assert_eq!(prog[0].opcode_name, "LOAD_CONST");
         assert_eq!(prog[0].opcode, 0x03);
         if let IrValue::Float(f) = &prog[0].args["value"] {
             assert!((f - 3.14).abs() < 1e-9);
-        } else { panic!("expected float"); }
+        } else {
+            panic!("expected float");
+        }
     }
 
     #[test]
@@ -193,7 +218,9 @@ mod tests {
         assert_eq!(prog[0].opcode, 0x61); // AGENT_THINK
         if let IrValue::Block(inner) = &prog[0].args["__body__"] {
             assert_eq!(inner[0].opcode, 0x05); // LOAD
-        } else { panic!("expected block"); }
+        } else {
+            panic!("expected block");
+        }
     }
 
     #[test]

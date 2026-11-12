@@ -4,8 +4,8 @@
 //!   SEC2 — no infinite loops: cycle detection in the JUMP/JUMP_IF graph
 //!           (a backward jump to an already-visited target is a cycle)
 
-use std::collections::{HashSet, HashMap};
 use crate::{Diagnostic, IrInstruction};
+use std::collections::{HashMap, HashSet};
 
 #[allow(clippy::ptr_arg)]
 pub fn check(
@@ -24,11 +24,15 @@ pub fn check(
 /// a self-escalation attempt and is flagged as an error.
 fn check_self_escalation(instructions: &[IrInstruction], errors: &mut Vec<Diagnostic>) {
     for instr in instructions {
-        let caller_tier = instr.args.get("caller_tier")
+        let caller_tier = instr
+            .args
+            .get("caller_tier")
             .or_else(|| instr.args.get("current_tier"))
             .and_then(|v| v.as_i64());
 
-        let grant_tier = instr.args.get("grant_tier")
+        let grant_tier = instr
+            .args
+            .get("grant_tier")
             .or_else(|| instr.args.get("new_tier"))
             .and_then(|v| v.as_i64());
 
@@ -48,7 +52,7 @@ fn check_self_escalation(instructions: &[IrInstruction], errors: &mut Vec<Diagno
         // Also catch AGENT_BIRTH trying to birth an agent at higher tier than caller
         if instr.opcode_name == "AGENT_BIRTH" {
             let caller_tier = instr.args.get("caller_tier").and_then(|v| v.as_i64());
-            let birth_tier  = instr.args.get("tier").and_then(|v| v.as_i64());
+            let birth_tier = instr.args.get("tier").and_then(|v| v.as_i64());
             if let (Some(caller), Some(birth)) = (caller_tier, birth_tier) {
                 if birth > caller {
                     errors.push(Diagnostic {
@@ -106,7 +110,15 @@ fn check_infinite_loops(instructions: &[IrInstruction], errors: &mut Vec<Diagnos
     let mut path: Vec<usize> = Vec::new();
     let mut cycle_reported: HashSet<usize> = HashSet::new();
 
-    dfs(0, &graph, &mut visited, &mut path, &mut cycle_reported, instructions, errors);
+    dfs(
+        0,
+        &graph,
+        &mut visited,
+        &mut path,
+        &mut cycle_reported,
+        instructions,
+        errors,
+    );
 }
 
 fn dfs(
@@ -146,7 +158,15 @@ fn dfs(
     path.push(node);
     if let Some(neighbors) = graph.get(&node) {
         for &next in neighbors {
-            dfs(next, graph, visited, path, cycle_reported, instructions, errors);
+            dfs(
+                next,
+                graph,
+                visited,
+                path,
+                cycle_reported,
+                instructions,
+                errors,
+            );
         }
     }
     path.pop();

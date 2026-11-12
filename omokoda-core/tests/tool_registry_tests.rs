@@ -75,7 +75,11 @@ mod tool_registry_tests {
         // Unique temp dir prevents races with other parallel tests.
         let tmp = std::env::temp_dir().join(format!("omokoda_grep_{}", std::process::id()));
         fs::create_dir_all(&tmp).unwrap();
-        fs::write(tmp.join("test_grep.txt"), "line 1\nline 2 with target\nline 3").unwrap();
+        fs::write(
+            tmp.join("test_grep.txt"),
+            "line 1\nline 2 with target\nline 3",
+        )
+        .unwrap();
 
         let grep_input = serde_json::json!({
             "pattern": "target",

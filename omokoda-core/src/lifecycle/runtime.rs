@@ -102,7 +102,9 @@ impl AgentRuntime {
         let agent_id = agent_id.into();
         let tier = tier.into();
         let genesis = AgentHeartbeat::genesis(&agent_id, &tier);
-        let signing_key = std::env::var("OMOKODA_HEARTBEAT_KEY").ok().filter(|k| !k.is_empty());
+        let signing_key = std::env::var("OMOKODA_HEARTBEAT_KEY")
+            .ok()
+            .filter(|k| !k.is_empty());
         Arc::new(Mutex::new(Self {
             agent_id,
             tier,

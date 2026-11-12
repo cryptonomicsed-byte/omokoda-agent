@@ -18,19 +18,15 @@ use std::time::Duration;
 /// Returns `Some(score)` in [0.0, 1.0] when the service responds, or `None`
 /// on any error (network, timeout, bad JSON) — always fail-open.
 pub async fn wisdom_hermetic_score(text: &str) -> Option<f64> {
-    let url = std::env::var("WISDOM_ENGINE_URL")
-        .unwrap_or_else(|_| "http://localhost:7704".to_string());
+    let url =
+        std::env::var("WISDOM_ENGINE_URL").unwrap_or_else(|_| "http://localhost:7704".to_string());
     let client = reqwest::Client::builder()
         .timeout(Duration::from_secs(3))
         .build()
         .ok()?;
     let body = serde_json::json!({ "text": text });
-    match client
-        .post(&format!("{}/hermetic", url))
-        .json(&body)
-        .send()
-        .await
-    {
+    let hermetic_url = format!("{}/hermetic", url);
+    match client.post(&hermetic_url).json(&body).send().await {
         Ok(resp) => {
             if let Ok(json) = resp.json::<Value>().await {
                 json["alignment"].as_f64()

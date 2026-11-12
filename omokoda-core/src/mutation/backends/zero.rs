@@ -231,6 +231,9 @@ mod tests {
 
     #[test]
     fn validate_fails_without_binary() {
+        let _zero_env = crate::tools::zero_tool::ZERO_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         // If ZERO_BIN points to a non-existent path, validation should fail gracefully.
         std::env::set_var("ZERO_BIN", "/tmp/__zero_does_not_exist_omokoda_test");
         let plan = program_plan("patch");
@@ -243,6 +246,9 @@ mod tests {
 
     #[test]
     fn validate_rejects_disallowed_subcommand() {
+        let _zero_env = crate::tools::zero_tool::ZERO_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         // Point to /bin/echo so binary resolves but subcommand check runs.
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("install");
@@ -256,6 +262,9 @@ mod tests {
 
     #[test]
     fn validate_accepts_read_subcommand_without_check() {
+        let _zero_env = crate::tools::zero_tool::ZERO_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("query");
         plan.target = r#"{"args":["query","--json"]}"#.to_string();
@@ -267,6 +276,9 @@ mod tests {
 
     #[test]
     fn apply_uses_echo_as_stub_binary() {
+        let _zero_env = crate::tools::zero_tool::ZERO_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         std::env::set_var("ZERO_BIN", "/bin/echo");
         let mut plan = program_plan("query");
         plan.target = r#"{"args":["query","--json"]}"#.to_string();

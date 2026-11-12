@@ -1,7 +1,7 @@
 //! Executor — walks an IrProgram instruction list and dispatches
 //! each opcode to MockOsovmState.
 
-use crate::{IrInstruction, mock_vm::MockOsovmState};
+use crate::{mock_vm::MockOsovmState, IrInstruction};
 
 /// Execute a slice of IrInstructions against the mock VM.
 /// Returns Ok(()) on success or Err(message) on the first fatal error.
@@ -16,7 +16,11 @@ pub fn execute(vm: &mut MockOsovmState, instructions: &[IrInstruction]) -> Resul
             Ok(ControlFlow::Halt) => return Ok(()),
             Ok(ControlFlow::Jump(target)) => {
                 if target >= instructions.len() {
-                    return Err(format!("JUMP target {} out of bounds (len={})", target, instructions.len()));
+                    return Err(format!(
+                        "JUMP target {} out of bounds (len={})",
+                        target,
+                        instructions.len()
+                    ));
                 }
                 pc = target;
                 continue;
@@ -58,7 +62,8 @@ fn dispatch(
         "JUMP_IF" => {
             let target = get_usize(args, "target")?;
             // condition: args["condition"] = true/false or 0/1
-            let cond = args.get("condition")
+            let cond = args
+                .get("condition")
                 .map(|v| match v {
                     serde_json::Value::Bool(b) => *b,
                     serde_json::Value::Number(n) => n.as_i64().unwrap_or(0) != 0,
@@ -71,14 +76,17 @@ fn dispatch(
         }
 
         // ── Stack / memory ────────────────────────────────────────────────────
-        "PUSH" | "POP" | "LOAD_CONST" | "ADD" | "SUB" | "MUL" | "DIV" | "MOD"
-        | "EQ" | "NEQ" | "LT" | "GT" | "AND" | "OR" | "NOT" | "CALL" => {
+        "PUSH" | "POP" | "LOAD_CONST" | "ADD" | "SUB" | "MUL" | "DIV" | "MOD" | "EQ" | "NEQ"
+        | "LT" | "GT" | "AND" | "OR" | "NOT" | "CALL" => {
             // Arithmetic and stack ops are no-ops in the economic sim model
         }
 
         "STORE" => {
             let key = get_str(args, "key")?;
-            let value = args.get("value").cloned().unwrap_or(serde_json::Value::Null);
+            let value = args
+                .get("value")
+                .cloned()
+                .unwrap_or(serde_json::Value::Null);
             vm.kv_store(key, value);
         }
 
@@ -91,7 +99,8 @@ fn dispatch(
         // ── Agent ops ─────────────────────────────────────────────────────────
         "AGENT_BIRTH" => {
             let agent_id = get_str(args, "agent_id").unwrap_or("did:v:agent:newborn");
-            let initial = args.get("initial_balance")
+            let initial = args
+                .get("initial_balance")
                 .and_then(|v| v.as_u64())
                 .unwrap_or(0);
             vm.balances.entry(agent_id.to_string()).or_insert(initial);
@@ -104,7 +113,8 @@ fn dispatch(
         // ── Economy ops ───────────────────────────────────────────────────────
         "TRANSFER_ASE" => {
             let to = get_str(args, "to")?;
-            let from: String = args.get("from")
+            let from: String = args
+                .get("from")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| caller_id.clone());
@@ -113,7 +123,8 @@ fn dispatch(
         }
 
         "BURN_ASE" => {
-            let from: String = args.get("from")
+            let from: String = args
+                .get("from")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| caller_id.clone());
@@ -122,7 +133,8 @@ fn dispatch(
         }
 
         "LOCK_ASE" => {
-            let from: String = args.get("from")
+            let from: String = args
+                .get("from")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| caller_id.clone());
@@ -132,7 +144,8 @@ fn dispatch(
         }
 
         "EMIT_ASE" => {
-            let to: String = args.get("to")
+            let to: String = args
+                .get("to")
                 .and_then(|v| v.as_str())
                 .map(|s| s.to_string())
                 .unwrap_or_else(|| caller_id.clone());
@@ -142,8 +155,9 @@ fn dispatch(
 
         // ── Storage ops ───────────────────────────────────────────────────────
         "STORE_BLOB" => {
-            let key  = get_str(args, "key")?;
-            let data = args.get("data")
+            let key = get_str(args, "key")?;
+            let data = args
+                .get("data")
                 .map(|v| v.to_string().into_bytes())
                 .unwrap_or_default();
             vm.blobs.insert(key.to_string(), data);
@@ -200,8 +214,10 @@ fn dispatch(
 
         unknown => {
             // Unknown opcodes are a warning-level issue, not fatal
-            eprintln!("warn: unknown opcode '{}' (0x{:02X}) at line {} — skipping",
-                unknown, instr.opcode, instr.line);
+            eprintln!(
+                "warn: unknown opcode '{}' (0x{:02X}) at line {} — skipping",
+                unknown, instr.opcode, instr.line
+            );
         }
     }
 
@@ -219,10 +235,7 @@ fn get_str<'a>(
         .ok_or_else(|| format!("missing or non-string arg '{}'", key))
 }
 
-fn get_u64(
-    args: &serde_json::Map<String, serde_json::Value>,
-    key: &str,
-) -> Result<u64, String> {
+fn get_u64(args: &serde_json::Map<String, serde_json::Value>, key: &str) -> Result<u64, String> {
     args.get(key)
         .and_then(|v| v.as_u64())
         .ok_or_else(|| format!("missing or non-u64 arg '{}'", key))

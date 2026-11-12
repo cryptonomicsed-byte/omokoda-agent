@@ -8,8 +8,8 @@ use crate::ir::OsoIR;
 
 fn load_example(name: &str) -> OsoIR {
     let path = format!("{}/src/examples/{}.json", env!("CARGO_MANIFEST_DIR"), name);
-    let bytes = std::fs::read(&path).expect(&format!("cannot read example: {}", path));
-    serde_json::from_slice(&bytes).expect(&format!("invalid JSON in {}", path))
+    let bytes = std::fs::read(&path).unwrap_or_else(|_| panic!("cannot read example: {}", path));
+    serde_json::from_slice(&bytes).unwrap_or_else(|_| panic!("invalid JSON in {}", path))
 }
 
 // ---------------------------------------------------------------------------
