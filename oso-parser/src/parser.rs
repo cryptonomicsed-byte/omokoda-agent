@@ -184,12 +184,13 @@ mod tests {
     }
 
     #[test]
+    #[allow(clippy::approx_constant)] // the parser input is the literal "3.14", not π
     fn parse_load_const_float() {
         let prog = parse("@loadConst(value=3.14)");
         assert_eq!(prog[0].opcode_name, "LOAD_CONST");
         assert_eq!(prog[0].opcode, 0x03);
         if let IrValue::Float(f) = &prog[0].args["value"] {
-            assert!((f - std::f64::consts::PI).abs() < 1e-9);
+            assert!((f - 3.14).abs() < 1e-9);
         } else {
             panic!("expected float");
         }
