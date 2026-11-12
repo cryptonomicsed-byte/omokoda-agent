@@ -20,6 +20,12 @@ use std::process::Command;
 use crate::tools::{ExecutionContext, Tool};
 use crate::usage::TokenUsage;
 
+/// Serializes tests that mutate the process-global `ZERO_BIN` env var.
+/// Tests in this module and in `mutation::backends::zero` set/remove it and
+/// otherwise race under cargo's parallel test runner.
+#[cfg(test)]
+pub(crate) static ZERO_BIN_ENV_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
+
 /// Subcommands the tool will forward. Read/verify operations plus the checked
 /// graph-edit surface. Deliberately excludes anything that would make this a
 /// package manager or installer.
@@ -260,7 +266,13 @@ mod tests {
     }
 
     #[tokio::test]
+    // Holding a std Mutex across .await is intentional here: the lock only
+    // serializes test threads that mutate ZERO_BIN; nothing else contends it.
+    #[allow(clippy::await_holding_lock)]
     async fn execute_forwards_args_via_zero_bin() {
+        let _zero_env = crate::tools::zero_tool::ZERO_BIN_ENV_LOCK
+            .lock()
+            .unwrap_or_else(|e| e.into_inner());
         // Point ZERO_BIN at /bin/echo: the tool must exec it directly with
         // the validated args, proving no shell is involved.
         std::env::set_var("OMOKODA_TEST_ZERO_BIN_GUARD", "1");
