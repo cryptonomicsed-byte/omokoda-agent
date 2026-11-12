@@ -17,6 +17,7 @@ pub mod odu;
 pub mod pet;
 pub mod poison_radar;
 pub mod safety;
+pub mod sid;
 pub mod user;
 pub mod vault;
 pub mod wallet;
@@ -25,6 +26,10 @@ pub mod x402;
 pub use credential_index::{CredentialEntry, CredentialIndex, CredentialKind};
 pub use fork::{derive_fork_entropy, fork_agent, fork_index_hmac_key, ForkResult};
 pub use vault::{CapabilityToken, IdentityVault, SealVault};
+pub use sid::{
+    acting_hash, canonical_json, emit_md, from_genesis_receipt, parse_md, sid_hash, verify,
+    FORMAT as SID_FORMAT,
+};
 
 use serde::{Deserialize, Serialize};
 

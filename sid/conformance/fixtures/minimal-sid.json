@@ -1,0 +1,47 @@
+{
+  "format": "sid/0.1",
+  "id": "sid_oracle-7",
+  "version": 1,
+  "previous_version": null,
+  "previous_hash": "none",
+  "status": "cast",
+  "born_at": "2026-11-11T01:30:00Z",
+  "updated": "2026-11-11T01:30:00Z",
+  "identity": {
+    "name": "oracle-7",
+    "type": "agent",
+    "odu_link": 4711,
+    "odu_primary": 18,
+    "odu_secondary": 103,
+    "npub": "npub1qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq2v9x",
+    "principal": null,
+    "parent": null,
+    "issuer": null
+  },
+  "genesis": {
+    "entropy_source": "ifascript/cowrie-v1",
+    "entropy_commitment": "3f786850e387550fdab836ed7e6dc881de23001b1d0c0f2d4a5c8f9e1b2a3c4d",
+    "seed_hash": "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08",
+    "keygen": "gix_kdf_v1+bipon39"
+  },
+  "time": {
+    "birth_block": 975321,
+    "birth_block_hash": "0000000000000000000159d41e23cc4ba1b2ddc7d8678337347fe9d16ceeb572",
+    "ots_proof": null,
+    "anchored": false
+  },
+  "lifecycle": {
+    "state": "cast",
+    "history": [
+      {
+        "state": "cast",
+        "at": "2026-11-11T01:30:00Z"
+      }
+    ]
+  },
+  "changelog": [
+    "v1 — cast from a cowrie reading, block 975321 (unanchored)"
+  ],
+  "acting_hash": "b8bcbda63f2b84b2f1dbdbad6f91e0bcb2e7afdecb6b4724170f84ed9bdfa22e",
+  "hash": "383ca3c27b44471b60071ae2f353ba50a2f7f2d7cf72492b8b9e9e6dc975f40e"
+}

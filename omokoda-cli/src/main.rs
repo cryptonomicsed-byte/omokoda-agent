@@ -97,6 +97,28 @@ enum Command {
     },
     /// Run the 16-station first-time setup wizard
     Onboard,
+    /// Agent birth certificate (SID) — emit, verify, or print canonical form
+    Sid {
+        #[command(subcommand)]
+        action: SidAction,
+    },
+}
+
+#[derive(Subcommand)]
+enum SidAction {
+    /// Project the steward's genesis receipt into a sid/0.1 certificate
+    Emit {
+        /// Write cert.json + SID.md here (omit to print JSON)
+        #[arg(short, long)]
+        out: Option<String>,
+        /// Name override (defaults to the receipt's symbolic address)
+        #[arg(long)]
+        name: Option<String>,
+    },
+    /// Verify a certificate (accepts cert JSON or SID.md)
+    Verify { path: String },
+    /// Print the canonical JSON and both hashes
+    Canonical { path: String },
 }
 
 #[derive(Subcommand)]
@@ -215,6 +237,10 @@ async fn main() -> Result<()> {
 
         Some(Command::Onboard) => {
             onboard::run()?;
+        }
+
+        Some(Command::Sid { action }) => {
+            cmd_sid(action)?;
         }
 
         Some(Command::Session { action }) => match action {
@@ -674,6 +700,91 @@ fn cmd_constitution(raw: bool) -> Result<()> {
 // ---------------------------------------------------------------------------
 // Identity command
 // ---------------------------------------------------------------------------
+
+/// SID — the agent's birth certificate, projected from its genesis receipt.
+///
+/// The kernel already performs the birth ceremony; this command renders that
+/// receipt as a portable, hash-chained document and verifies one. It never
+/// mints identity on its own: no receipt, no certificate.
+fn cmd_sid(action: SidAction) -> Result<()> {
+    use omokoda_core::identity::sid;
+
+    match action {
+        SidAction::Emit { out, name } => {
+            let steward = load_or_new_steward();
+            let receipt = steward.genesis_receipt().context(
+                "no genesis receipt on this steward — run `omokoda birth` first",
+            )?;
+            let cert = sid::from_genesis_receipt(receipt, name.as_deref()).map_err(anyhow::Error::msg)?;
+            let changelog: Vec<String> = cert["changelog"]
+                .as_array()
+                .map(|a| {
+                    a.iter()
+                        .filter_map(|v| v.as_str().map(str::to_string))
+                        .collect()
+                })
+                .unwrap_or_default();
+
+            match out {
+                Some(dir) => {
+                    std::fs::create_dir_all(&dir)
+                        .with_context(|| format!("creating {dir}"))?;
+                    let cpath = std::path::Path::new(&dir).join("cert.json");
+                    let mpath = std::path::Path::new(&dir).join("SID.md");
+                    std::fs::write(&cpath, serde_json::to_string_pretty(&cert)?)
+                        .with_context(|| format!("writing {}", cpath.display()))?;
+                    std::fs::write(&mpath, sid::emit_md(&cert, &changelog).map_err(anyhow::Error::msg)?)
+                        .with_context(|| format!("writing {}", mpath.display()))?;
+                    println!("{}", "SID certificate".bold().cyan());
+                    println!("{}", "─".repeat(40).dimmed());
+                    println!("{:<14} {}", "id:".bold(), cert["id"].as_str().unwrap_or("?"));
+                    println!("{:<14} {}", "status:".bold(), cert["status"].as_str().unwrap_or("?"));
+                    println!("{:<14} {}", "hash:".bold(), cert["hash"].as_str().unwrap_or("?"));
+                    println!("{:<14} {}", "odu:".bold(), format!(
+                        "{}/{}/{}",
+                        cert["identity"]["odu_primary"],
+                        cert["identity"]["odu_secondary"],
+                        cert["identity"]["odu_link"]
+                    ));
+                    println!("wrote {} and {}", cpath.display(), mpath.display());
+                }
+                None => println!("{}", serde_json::to_string_pretty(&cert)?),
+            }
+        }
+        SidAction::Verify { path } => {
+            let raw = std::fs::read_to_string(&path)
+                .with_context(|| format!("reading {path}"))?;
+            let cert: serde_json::Value = if raw.trim_start().starts_with('{') {
+                serde_json::from_str(&raw).with_context(|| format!("{path} is not JSON"))?
+            } else {
+                sid::parse_md(&raw).map_err(anyhow::Error::msg).with_context(|| format!("{path} is not SID.md"))?
+            };
+            let problems = sid::verify(&cert);
+            if problems.is_empty() {
+                println!(
+                    "{} {} — certificate verifies",
+                    "OK".green().bold(),
+                    cert["id"].as_str().unwrap_or("?")
+                );
+            } else {
+                for p in &problems {
+                    println!("  - {p}");
+                }
+                anyhow::bail!("certificate failed verification ({} problem(s))", problems.len());
+            }
+        }
+        SidAction::Canonical { path } => {
+            let raw = std::fs::read_to_string(&path)
+                .with_context(|| format!("reading {path}"))?;
+            let cert: serde_json::Value =
+                serde_json::from_str(&raw).with_context(|| format!("{path} is not JSON"))?;
+            println!("{}", sid::canonical_json(&cert).map_err(anyhow::Error::msg)?);
+            println!("hash        {}", sid::sid_hash(&cert).map_err(anyhow::Error::msg)?);
+            println!("acting_hash {}", sid::acting_hash(&cert).map_err(anyhow::Error::msg)?);
+        }
+    }
+    Ok(())
+}
 
 fn cmd_identity(raw: bool) -> Result<()> {
     let path = omokoda_home().join("identity").join("identity.json");

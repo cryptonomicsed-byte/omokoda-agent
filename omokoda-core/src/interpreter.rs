@@ -1119,6 +1119,16 @@ mod orisha_wording_tests {
 }
 
 impl Steward {
+    /// The genesis receipt assembled at birth (`AgentGenesisReceipt`), if this
+    /// steward has been born. Read-only: the receipt is the record of the
+    /// ceremony, never something a caller re-writes. SID projects it into a
+    /// portable certificate rather than duplicating any birth logic.
+    pub fn genesis_receipt(&self) -> Option<&crate::genesis::receipt::AgentGenesisReceipt> {
+        self.agent
+            .as_ref()
+            .and_then(|a| a.snapshot.genesis_receipt.as_ref())
+    }
+
     pub fn birth(&mut self, name: String, metadata: Vec<MetadataPair>) -> Result<(), String> {
         use crate::identity::vault::SealVault;
         use crate::memory::odu_keys::OduKeys;

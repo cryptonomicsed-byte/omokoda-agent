@@ -33,3 +33,8 @@ OSOVM/
 organism-core/
 study/
 build.log
+
+# secrets — never commit
+.env
+.env.*
+!.env.example

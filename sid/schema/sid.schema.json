@@ -1,0 +1,126 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/cryptonomicsed-byte/sid/schema/sid.schema.json",
+  "title": "SID — Sovereign ID / Super Intelligence Document",
+  "description": "Agent birth certificate, format sid/0.1. Schema validity alone does not prove the hash or the chain — run verifySid() as well.",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["format", "id", "version", "hash", "acting_hash", "status", "born_at", "identity"],
+  "properties": {
+    "format": { "const": "sid/0.1" },
+    "id": { "type": "string", "pattern": "^sid_[a-z0-9][a-z0-9-]*$", "maxLength": 96 },
+    "version": { "type": "integer", "minimum": 1 },
+    "previous_version": { "type": ["integer", "null"], "minimum": 1 },
+    "previous_hash": {
+      "oneOf": [
+        { "type": "null" },
+        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        { "const": "none" }
+      ]
+    },
+    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "acting_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+    "status": { "enum": ["cast", "live", "suspended", "retired"] },
+    "born_at": { "type": "string", "format": "date-time" },
+    "updated": { "type": "string", "format": "date-time" },
+
+    "identity": {
+      "type": "object",
+      "required": ["name", "type", "odu_link", "odu_primary", "odu_secondary"],
+      "properties": {
+        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
+        "type": { "const": "agent" },
+        "odu_link": { "type": "integer", "minimum": 0, "maximum": 65535 },
+        "odu_primary": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "odu_secondary": { "type": "integer", "minimum": 0, "maximum": 255 },
+        "npub": { "type": "string", "pattern": "^npub1[0-9a-z]{20,}$" },
+        "principal": { "type": ["string", "null"] },
+        "parent": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^sid_[a-z0-9][a-z0-9-]*$" }
+          ]
+        },
+        "issuer": { "type": ["string", "null"] },
+        "description": { "type": "string", "maxLength": 500 }
+      }
+    },
+
+    "genesis": {
+      "type": "object",
+      "required": ["entropy_source", "entropy_commitment", "seed_hash", "keygen"],
+      "properties": {
+        "entropy_source": { "type": "string" },
+        "entropy_commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "seed_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
+        "keygen": { "type": "string" }
+      }
+    },
+
+    "time": {
+      "type": "object",
+      "properties": {
+        "birth_block": { "type": "integer", "minimum": 0 },
+        "birth_block_hash": { "type": "string" },
+        "ots_proof": { "type": ["string", "null"] },
+        "anchored": { "type": "boolean" }
+      }
+    },
+
+    "capabilities": {
+      "type": "object",
+      "properties": {
+        "skills": { "type": "array", "items": { "type": "string" } },
+        "permissions": { "type": "array", "items": { "type": "string" } },
+        "namespaces": { "type": "array", "items": { "type": "string" } }
+      }
+    },
+
+    "memory": {
+      "type": "object",
+      "properties": {
+        "locator": { "type": ["string", "null"] },
+        "namespace_root": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          ]
+        }
+      }
+    },
+
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "trace_chain_head": {
+          "oneOf": [
+            { "type": "null" },
+            { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+          ]
+        },
+        "profile_id": { "type": ["string", "null"] }
+      }
+    },
+
+    "lifecycle": {
+      "type": "object",
+      "properties": {
+        "state": { "enum": ["cast", "live", "suspended", "retired"] },
+        "history": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "required": ["state", "at"],
+            "properties": {
+              "state": { "enum": ["cast", "live", "suspended", "retired"] },
+              "at": { "type": "string", "format": "date-time" }
+            }
+          }
+        }
+      }
+    },
+
+    "changelog": { "type": "array", "items": { "type": "string" } },
+    "appendix": { "type": "object" }
+  }
+}
