@@ -25,12 +25,8 @@ pub async fn wisdom_hermetic_score(text: &str) -> Option<f64> {
         .build()
         .ok()?;
     let body = serde_json::json!({ "text": text });
-    match client
-        .post(format!("{}/hermetic", url))
-        .json(&body)
-        .send()
-        .await
-    {
+    let hermetic_url = format!("{}/hermetic", url);
+    match client.post(&hermetic_url).json(&body).send().await {
         Ok(resp) => {
             if let Ok(json) = resp.json::<Value>().await {
                 json["alignment"].as_f64()

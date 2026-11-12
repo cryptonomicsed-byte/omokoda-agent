@@ -842,7 +842,6 @@ mod gix_bridge_tests {
 
     #[test]
     fn authority_contract_passes_valid_envelope() {
-        use crate::memory::engine::MemoryTier;
         let (env, prov) = authority_envelope_and_provenance("valid memory");
         let result = verify_authority_contract(&env, &prov, None);
         assert!(result.is_ok(), "expected Ok, got {:?}", result);

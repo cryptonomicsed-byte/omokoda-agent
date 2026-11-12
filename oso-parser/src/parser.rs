@@ -189,7 +189,7 @@ mod tests {
         assert_eq!(prog[0].opcode_name, "LOAD_CONST");
         assert_eq!(prog[0].opcode, 0x03);
         if let IrValue::Float(f) = &prog[0].args["value"] {
-            assert!((f - 3.14).abs() < 1e-9);
+            assert!((f - std::f64::consts::PI).abs() < 1e-9);
         } else {
             panic!("expected float");
         }

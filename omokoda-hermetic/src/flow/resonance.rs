@@ -72,7 +72,7 @@ mod tests {
     fn resonance_multiplier_in_range() {
         let m = ResonanceEngine::current_multiplier();
         assert!(
-            m >= 0.8 && m <= 1.2,
+            (0.8..=1.2).contains(&m),
             "multiplier {m} out of range [0.8, 1.2]"
         );
     }
