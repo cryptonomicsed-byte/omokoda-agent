@@ -312,6 +312,30 @@ pub fn from_genesis_receipt_with(
         }
         identity.insert("odu".into(), Value::Object(odu));
     }
+    // Digital Calabash: `odu_link` is not a pair of numbers, it IS a composed
+    // Odù in the 65,536 space (compose_id(top, bottom)). Resolving it records
+    // the reading the agent actually carries — including which of the 16
+    // Action Vessels governs it (composed Odù inherit their TOP base-Odù's
+    // vessel, so the 16 structure the whole space).
+    {
+        let composed = ifascript::calabash::resolve(r.composed_odu);
+        let mut cal = Map::new();
+        cal.insert("id".into(), json!(composed.odu_id));
+        cal.insert("top".into(), json!(composed.top));
+        cal.insert("bottom".into(), json!(composed.bottom));
+        cal.insert("name".into(), json!(composed.name));
+        cal.insert("universal_name".into(), json!(composed.universal_name));
+        cal.insert("archetype".into(), json!(composed.archetype));
+        cal.insert("description".into(), json!(composed.description));
+        cal.insert("vessel".into(), json!(format!("{:?}", composed.vessel)));
+        cal.insert(
+            "interpretation_type".into(),
+            json!(composed.interpretation_type),
+        );
+        cal.insert("prescriptions".into(), json!(composed.prescriptions));
+        cal.insert("taboos".into(), json!(composed.taboos));
+        identity.insert("calabash".into(), Value::Object(cal));
+    }
 
     let history = vec![json!({ "state": "cast", "at": born_at })];
 
@@ -673,6 +697,26 @@ pub fn verify(cert: &Value) -> Vec<String> {
                 }
             }
             _ => e.push("identity.odu_primary/odu_secondary/odu_link must be integers".into()),
+        }
+        // The Calabash reading is derived from the address, so it must agree
+        // with it. Data-only: no corpus needed to check this.
+        if let Some(cal) = i.get("calabash") {
+            let cid = cal.get("id").and_then(Value::as_u64);
+            let ctop = cal.get("top").and_then(Value::as_u64);
+            let cbot = cal.get("bottom").and_then(Value::as_u64);
+            match (cid, ctop, cbot, p, s, l) {
+                (Some(cid), Some(ctop), Some(cbot), Some(p), Some(s), Some(l)) => {
+                    if cid != l || ctop != p || cbot != s {
+                        e.push(format!(
+                            "identity.calabash {cid}/{ctop}/{cbot} disagrees with the Odu fields {l}/{p}/{s}"
+                        ));
+                    }
+                }
+                _ => e.push("identity.calabash id/top/bottom must be integers".into()),
+            }
+            if cal.get("vessel").and_then(Value::as_str).unwrap_or("").is_empty() {
+                e.push("identity.calabash.vessel must name one of the 16 Action Vessels".into());
+            }
         }
     } else {
         e.push("identity is required".into());
@@ -1109,6 +1153,12 @@ mod tests {
             ifascript::get_odu(18).universal_name
         );
         assert!(!cert["identity"]["odu"]["vessel"].as_str().unwrap().is_empty());
+        // Digital Calabash: the composed Odù resolved from the 16-bit address
+        assert_eq!(cert["identity"]["calabash"]["id"], 4711);
+        assert_eq!(cert["identity"]["calabash"]["top"], 18);
+        assert_eq!(cert["identity"]["calabash"]["bottom"], 103);
+        assert_eq!(cert["identity"]["calabash"]["interpretation_type"], "composed");
+        assert!(!cert["identity"]["calabash"]["vessel"].as_str().unwrap().is_empty());
         // Bipon39's own proofs are first-class under genesis
         assert_eq!(cert["genesis"]["bipon"]["harmonic_signature"], "c".repeat(64));
         assert_eq!(cert["genesis"]["bipon"]["derivation_root_id"], "d".repeat(64));
@@ -1158,6 +1208,17 @@ mod tests {
         cert["identity"]["name"] = json!("impostor");
         let problems = verify(&cert);
         assert!(problems.iter().any(|p| p.contains("hash does not match")), "{problems:?}");
+    }
+
+    #[test]
+    fn calabash_reading_must_match_the_address() {
+        let mut cert = from_genesis_receipt(&receipt(), None).unwrap();
+        cert["identity"]["calabash"]["bottom"] = json!(1); // no longer 103
+        let problems = verify(&cert);
+        assert!(
+            problems.iter().any(|p| p.contains("calabash")),
+            "{problems:?}"
+        );
     }
 
     #[test]

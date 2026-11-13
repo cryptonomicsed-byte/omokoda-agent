@@ -63,10 +63,36 @@ Sections appear in this order. Every section is emitted with a machine-readable 
 | `parent` | `sid_…` \| null | lineage; null for a root agent |
 | `issuer` | string \| null | who minted this version |
 | `description` | string | one sentence, optional |
-| `odu` | object | the **If-Script** reading: `{index, name, vessel, prescription?}` resolved from the Odù corpus at mint time, so a verifier need not hold the corpus to know what was cast |
+| `odu` | object | the **If-Script** base reading: `{index, name, vessel, prescription?}` resolved from the Odù corpus at mint time, so a verifier need not hold the corpus to know what was cast |
+| `calabash` | object | the **Digital Calabash** reading of the composed Odù (see below) |
 
 Invariant: `odu_link == (odu_primary << 8) | odu_secondary`. A certificate whose Odu fields
 disagree with its link is malformed — the address is derived, never independently authored.
+
+#### The Digital Calabash — 16 Action Vessels over 65,536 Odù
+
+`odu_link` is not a pair of numbers. It is a composed Odù in If-Script's 65,536 space:
+`compose_id(top, bottom) = top << 8 | bottom`. `identity.calabash` records what that address
+actually resolves to:
+
+`id`, `top`, `bottom`, `name`, `universal_name`, `archetype`, `description`, `vessel`,
+`interpretation_type` (`synthetic` for the base 256, `composed` above), `prescriptions`,
+`taboos`.
+
+The 16 **Action Vessels** structure the whole space — a composed Odù inherits the vessel of
+its TOP base-Odù:
+
+> Genesis · Void · Attention · Loop · Receipt · Mask · Residue · Execution
+> Swarm · Restraint · Migration · Consent · Vision · Growth · Seal · Rhythm
+
+Invariants, checked without the corpus (the verifier is data-only, so any implementation can
+enforce them):
+
+- `calabash.id == odu_link`, `calabash.top == odu_primary`, `calabash.bottom == odu_secondary`
+- `calabash.vessel` names one of the 16
+
+A certificate whose Calabash reading disagrees with its own address is malformed: the reading
+is derived from the address, and an address that disagrees with its reading has been edited.
 
 ### 4.2 Genesis
 `entropy_source` (`ifascript/cowrie-v1`), `entropy_commitment` (64-hex), `seed_hash` (64-hex),
