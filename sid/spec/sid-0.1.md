@@ -102,21 +102,46 @@ Three rules the verifier enforces:
 `namespaces` (array). What the agent may do — declared, not implied.
 
 ### 4.5 Memory
-`locator` (string \| null — e.g. a `GixMinipaeLocator` or NIP-AE `d`-tag), `namespace_root`
-(64-hex \| null). A reference and a root; never the memory itself.
+
+Owned by **minipae** (NIP-AE). `locator` (string \| null — the agent's minipae key or an
+addressable `d`-tag), `namespace_root` (64-hex \| null — the merkle root of the agent's memory
+namespace at birth), `glyph_root` (a single GIX glyph **character** \| null — a fold of the
+genesis fact, not a hash), `birth_glyph` (same kind). A reference, a root and a glyph; never
+the memory itself.
 
 ### 4.6 Provenance
-`trace_chain_head` (64-hex \| null — e.g. Mycelium chain head), `profile_id` (string \| null —
-the runtime profile this certificate minted).
 
-### 4.7 Lifecycle
+`trace_chain_head` (64-hex \| null — the **mycelium** chain head at birth), `profile_id`
+(string \| null — the runtime profile this certificate minted), `manifest_hash` (64-hex \|
+null — the canonical hash of the agent's `AgentManifest`, so the certificate commits to every
+manifest field without duplicating them).
+
+### 4.7 Subsystem binding (appendix)
+
+The appendix carries `subsystems`, naming the owner of each function so the document is a map
+of the agent's real stack rather than a bag of fields:
+
+```json
+"subsystems": {
+  "identity": "gix", "memory": "minipae", "coordination": "waggle",
+  "trace": "mycelium", "clock": "okf", "calendar": "koodu"
+}
+```
+
+`coordination` records the waggle field (`{field, kind}`) — deterministic, because the kernel
+keys the field by agent id. `network` carries the manifest's network bindings.
+
+A subsystem that is not present is recorded as absent (`null` or the key omitted). A missing
+binding is a fact about the deployment, never something to invent.
+
+### 4.8 Lifecycle
 `state` (`cast|live|suspended|retired`) and `history` (array of `{state, at}`), append-only.
 `lifecycle.state` must equal the top-level `status`.
 
-### 4.8 Changelog
+### 4.9 Changelog
 Array of human-readable strings, oldest first. One line per version.
 
-### 4.9 Appendix
+### 4.10 Appendix
 Free-form object for humans and planners. **Not** quotable, **not** in `acting_hash`.
 
 ## 5. The hashing contract

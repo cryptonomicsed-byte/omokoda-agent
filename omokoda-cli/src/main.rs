@@ -114,6 +114,12 @@ enum SidAction {
         /// Name override (defaults to the receipt's symbolic address)
         #[arg(long)]
         name: Option<String>,
+        /// Mycelium trace chain head to bind into provenance
+        #[arg(long, env = "MYCELIUM_CHAIN_HEAD")]
+        trace_head: Option<String>,
+        /// Runtime profile id to bind into provenance
+        #[arg(long, env = "OMOKODA_PROFILE_ID")]
+        profile_id: Option<String>,
     },
     /// Verify a certificate (accepts cert JSON or SID.md)
     Verify { path: String },
@@ -722,12 +728,27 @@ fn cmd_sid(action: SidAction) -> Result<()> {
     use omokoda_core::identity::sid;
 
     match action {
-        SidAction::Emit { out, name } => {
+        SidAction::Emit {
+            out,
+            name,
+            trace_head,
+            profile_id,
+        } => {
             let steward = load_or_new_steward();
             let receipt = steward.genesis_receipt().context(
                 "no genesis receipt on this steward — run `omokoda birth` first",
             )?;
-            let cert = sid::from_genesis_receipt(receipt, name.as_deref()).map_err(anyhow::Error::msg)?;
+            // Bind every subsystem that is actually present: the manifest
+            // (capabilities + minipae memory + network), the mycelium trace
+            // head when supplied, and the runtime profile.
+            let ctx = sid::SidContext {
+                manifest: steward.agent_manifest(),
+                trace_chain_head: trace_head.as_deref(),
+                profile_id: profile_id.as_deref(),
+                waggle_field: None,
+            };
+            let cert = sid::from_genesis_receipt_with(receipt, name.as_deref(), &ctx)
+                .map_err(anyhow::Error::msg)?;
             let changelog: Vec<String> = cert["changelog"]
                 .as_array()
                 .map(|a| {

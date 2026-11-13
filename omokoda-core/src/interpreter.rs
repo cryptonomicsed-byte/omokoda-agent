@@ -1129,6 +1129,14 @@ impl Steward {
             .and_then(|a| a.snapshot.genesis_receipt.as_ref())
     }
 
+    /// The agent manifest derived at birth (identity commitments, memory
+    /// bindings, network addresses). SID commits to it by hash.
+    pub fn agent_manifest(&self) -> Option<&crate::genesis::manifest::AgentManifest> {
+        self.agent
+            .as_ref()
+            .and_then(|a| a.snapshot.agent_manifest.as_ref())
+    }
+
     pub fn birth(&mut self, name: String, metadata: Vec<MetadataPair>) -> Result<(), String> {
         use crate::identity::vault::SealVault;
         use crate::memory::odu_keys::OduKeys;

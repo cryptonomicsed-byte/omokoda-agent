@@ -199,6 +199,28 @@ pub fn sha256_hex(s: &str) -> String {
 
 // ── projection: receipt → certificate ──────────────────────────────────────
 
+/// What the agent's other systems contribute to its identity document.
+///
+/// SID is the hub, and each subsystem keeps its own authority:
+///   identity      -> GIX      (odu_link, kdf, merkle primitives)
+///   memory        -> minipae  (NIP-AE engram, memory root, glyphs)
+///   coordination  -> waggle   (stigmergic field keyed by agent id)
+///   trace         -> mycelium (external chain head)
+///   clock         -> OKF      (verified height + OTS)
+///   calendar      -> Koodu    (epoch/cycle/phase)
+///
+/// Anything not supplied is recorded as absent. A missing subsystem is a fact
+/// about the binding, never something to invent.
+#[derive(Default, Clone)]
+pub struct SidContext<'a> {
+    pub manifest: Option<&'a crate::genesis::manifest::AgentManifest>,
+    pub trace_chain_head: Option<&'a str>,
+    pub profile_id: Option<&'a str>,
+    /// The waggle field this agent deposits scent into. The kernel keys it by
+    /// agent id (`WaggleField::new(agent_id)`), so it is deterministic.
+    pub waggle_field: Option<&'a str>,
+}
+
 /// Render an `AgentGenesisReceipt` as a `sid/0.1` certificate (v1, finalized).
 ///
 /// This is the tie-in point: the ceremony stays where it is, and the receipt
@@ -206,6 +228,15 @@ pub fn sha256_hex(s: &str) -> String {
 /// the receipt — `live` only when a Bitcoin height was actually obtained,
 /// otherwise `cast` (the certificate says so rather than looking proven).
 pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Result<Value, String> {
+    from_genesis_receipt_with(r, name, &SidContext::default())
+}
+
+/// Project a receipt with the rest of the agent's systems bound in.
+pub fn from_genesis_receipt_with(
+    r: &AgentGenesisReceipt,
+    name: Option<&str>,
+    ctx: &SidContext,
+) -> Result<Value, String> {
     // A birth block recorded by the kernel's clock is a CLAIM, not a proof: the
     // proof is an OpenTimestamps attestation, which the pipeline adds later.
     // So the certificate is cast at birth even when a height is known, and
@@ -320,10 +351,37 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
             "calendar": calendar,
         },
         "memory": {
-            "locator": r.ip_root_event,
-            "namespace_root": r.memory_root,
+            // minipae: the NIP-AE address is the locator, the merkle root is
+            // the namespace. Falls back to the receipt's IP-layer root when no
+            // manifest was supplied.
+            "locator": ctx
+                .manifest
+                .map(|m| m.memory.minipae_pubkey.clone())
+                .filter(|v| !v.is_empty())
+                .or_else(|| r.ip_root_event.clone()),
+            "namespace_root": ctx
+                .manifest
+                .map(|m| m.memory.memory_root.clone())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| r.memory_root.clone()),
+            "glyph_root": ctx.manifest.map(|m| m.memory.glyph_root.clone()),
+            "birth_glyph": ctx
+                .manifest
+                .map(|m| m.memory.birth_glyph.clone())
+                .filter(|v| !v.is_empty())
+                .unwrap_or_else(|| r.birth_memory_glyph.clone()),
         },
         "lifecycle": { "state": status, "history": history },
+        "provenance": {
+            // mycelium owns traces; a null head means "not supplied", not "none".
+            "trace_chain_head": ctx.trace_chain_head,
+            "profile_id": ctx.profile_id,
+            "manifest_hash": ctx
+                .manifest
+                .and_then(|m| serde_json::to_value(m).ok())
+                .and_then(|v| canonical_json(&v).ok())
+                .map(|c| sha256_hex(&c)),
+        },
         "changelog": [format!(
             "v1 — born from genesis receipt {} at {}",
             &r.genesis_hash[..r.genesis_hash.len().min(12)],
@@ -331,6 +389,36 @@ pub fn from_genesis_receipt(r: &AgentGenesisReceipt, name: Option<&str>) -> Resu
         )],
         "appendix": appendix,
     });
+
+    // capabilities — waggle/enforcement is the gate; the root is the manifest's
+    // commitment to everything the agent may do.
+    if let Some(root) = ctx
+        .manifest
+        .map(|m| m.identity.capability_root.clone())
+        .filter(|v| !v.is_empty())
+    {
+        cert["capabilities"] = json!({ "root": root });
+    }
+
+    // appendix: which subsystem owns which function, so the document is a map
+    // of the agent's real stack rather than a list of fields.
+    cert["appendix"]["subsystems"] = json!({
+        "identity": "gix",
+        "memory": "minipae",
+        "coordination": "waggle",
+        "trace": "mycelium",
+        "clock": "okf",
+        "calendar": "koodu",
+    });
+    cert["appendix"]["coordination"] = json!({
+        "field": ctx.waggle_field.unwrap_or(r.agent_id.as_str()),
+        "kind": "waggle/stigmergic-field",
+    });
+    if let Some(m) = ctx.manifest {
+        if let Ok(net) = serde_json::to_value(&m.network) {
+            cert["appendix"]["network"] = net;
+        }
+    }
 
     finalize(&mut cert);
     let problems = verify(&cert);
@@ -927,6 +1015,59 @@ mod tests {
         let err = from_genesis_receipt(&r, None).unwrap_err();
         // projection verifies, so an inconsistent calendar is refused outright
         assert!(err.contains("calendar") || err.contains("verif"), "{err}");
+    }
+
+    #[test]
+    fn binds_every_agent_subsystem() {
+        use crate::genesis::manifest::AgentManifest;
+        let mut m = AgentManifest::default();
+        m.identity.capability_root = "ab".repeat(32);
+        m.memory.minipae_pubkey = "cd".repeat(32);
+        m.memory.memory_root = "ef".repeat(32);
+        m.memory.glyph_root = "12".repeat(32);
+        m.memory.birth_glyph = "34".repeat(32);
+        m.network.ip_root_event = Some("evt-1".into());
+
+        let ctx = SidContext {
+            manifest: Some(&m),
+            trace_chain_head: Some(&"9a".repeat(32)),
+            profile_id: Some("profile-okf"),
+            waggle_field: None,
+        };
+        let cert = from_genesis_receipt_with(&receipt(), None, &ctx).expect("projects");
+        assert!(verify(&cert).is_empty(), "{:?}", verify(&cert));
+
+        // capabilities <- manifest
+        assert_eq!(cert["capabilities"]["root"], "ab".repeat(32));
+        // memory <- minipae
+        assert_eq!(cert["memory"]["locator"], "cd".repeat(32));
+        assert_eq!(cert["memory"]["namespace_root"], "ef".repeat(32));
+        assert_eq!(cert["memory"]["glyph_root"], "12".repeat(32));
+        assert_eq!(cert["memory"]["birth_glyph"], "34".repeat(32));
+        // provenance <- mycelium + runtime profile + manifest commitment
+        assert_eq!(cert["provenance"]["trace_chain_head"], "9a".repeat(32));
+        assert_eq!(cert["provenance"]["profile_id"], "profile-okf");
+        assert!(cert["provenance"]["manifest_hash"].as_str().unwrap().len() == 64);
+        // the binding map names the owner of each function
+        assert_eq!(cert["appendix"]["subsystems"]["memory"], "minipae");
+        assert_eq!(cert["appendix"]["subsystems"]["coordination"], "waggle");
+        assert_eq!(cert["appendix"]["subsystems"]["trace"], "mycelium");
+        assert_eq!(cert["appendix"]["subsystems"]["clock"], "okf");
+        assert_eq!(cert["appendix"]["subsystems"]["calendar"], "koodu");
+        // waggle field is keyed by agent id, so it is deterministic
+        assert_eq!(cert["appendix"]["coordination"]["field"], "agent-0123456789abcdef");
+        // network bindings ride along
+        assert_eq!(cert["appendix"]["network"]["ip_root_event"], "evt-1");
+    }
+
+    #[test]
+    fn absent_subsystems_are_absent_not_invented() {
+        let cert = from_genesis_receipt(&receipt(), None).unwrap();
+        assert!(cert.get("capabilities").is_none(), "no manifest -> no capabilities");
+        assert!(cert["provenance"].get("trace_chain_head").is_none()
+            || cert["provenance"]["trace_chain_head"].is_null());
+        assert_eq!(cert["memory"]["locator"], Value::Null); // no ip_root_event, no manifest
+        assert!(verify(&cert).is_empty());
     }
 
     #[test]
