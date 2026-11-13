@@ -5,122 +5,490 @@
   "description": "Agent birth certificate, format sid/0.1. Schema validity alone does not prove the hash or the chain — run verifySid() as well.",
   "type": "object",
   "additionalProperties": true,
-  "required": ["format", "id", "version", "hash", "acting_hash", "status", "born_at", "identity"],
+  "required": [
+    "format",
+    "id",
+    "version",
+    "hash",
+    "acting_hash",
+    "status",
+    "born_at",
+    "identity"
+  ],
   "properties": {
-    "format": { "const": "sid/0.1" },
-    "id": { "type": "string", "pattern": "^sid_[a-z0-9][a-z0-9-]*$", "maxLength": 96 },
-    "version": { "type": "integer", "minimum": 1 },
-    "previous_version": { "type": ["integer", "null"], "minimum": 1 },
+    "format": {
+      "const": "sid/0.1"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^sid_[a-z0-9][a-z0-9-]*$",
+      "maxLength": 96
+    },
+    "version": {
+      "type": "integer",
+      "minimum": 1
+    },
+    "previous_version": {
+      "type": [
+        "integer",
+        "null"
+      ],
+      "minimum": 1
+    },
     "previous_hash": {
       "oneOf": [
-        { "type": "null" },
-        { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        { "const": "none" }
+        {
+          "type": "null"
+        },
+        {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        {
+          "const": "none"
+        }
       ]
     },
-    "hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "acting_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-    "status": { "enum": ["cast", "live", "suspended", "retired"] },
-    "born_at": { "type": "string", "format": "date-time" },
-    "updated": { "type": "string", "format": "date-time" },
-
+    "hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "acting_hash": {
+      "type": "string",
+      "pattern": "^[0-9a-f]{64}$"
+    },
+    "status": {
+      "enum": [
+        "cast",
+        "live",
+        "suspended",
+        "retired"
+      ]
+    },
+    "born_at": {
+      "type": "string",
+      "format": "date-time"
+    },
+    "updated": {
+      "type": "string",
+      "format": "date-time"
+    },
     "identity": {
       "type": "object",
-      "required": ["name", "type", "odu_link", "odu_primary", "odu_secondary"],
+      "required": [
+        "name",
+        "type",
+        "odu_link",
+        "odu_primary",
+        "odu_secondary"
+      ],
       "properties": {
-        "name": { "type": "string", "minLength": 1, "maxLength": 128 },
-        "type": { "const": "agent" },
-        "odu_link": { "type": "integer", "minimum": 0, "maximum": 65535 },
-        "odu_primary": { "type": "integer", "minimum": 0, "maximum": 255 },
-        "odu_secondary": { "type": "integer", "minimum": 0, "maximum": 255 },
-        "npub": { "type": "string", "pattern": "^npub1[0-9a-z]{20,}$" },
-        "principal": { "type": ["string", "null"] },
-        "parent": {
-          "oneOf": [
-            { "type": "null" },
-            { "type": "string", "pattern": "^sid_[a-z0-9][a-z0-9-]*$" }
+        "name": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 128
+        },
+        "type": {
+          "const": "agent"
+        },
+        "odu_link": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 65535
+        },
+        "odu_primary": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "odu_secondary": {
+          "type": "integer",
+          "minimum": 0,
+          "maximum": 255
+        },
+        "npub": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "pattern": "^npub1[0-9a-z]{20,}$"
+        },
+        "principal": {
+          "type": [
+            "string",
+            "null"
           ]
         },
-        "issuer": { "type": ["string", "null"] },
-        "description": { "type": "string", "maxLength": 500 }
+        "parent": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^sid_[a-z0-9][a-z0-9-]*$"
+            }
+          ]
+        },
+        "issuer": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "description": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "maxLength": 500
+        },
+        "odu": {
+          "type": "object",
+          "description": "If-Script base Odù reading resolved at mint time",
+          "properties": {
+            "index": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "name": {
+              "type": "string"
+            },
+            "vessel": {
+              "type": "string"
+            },
+            "prescription": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "index"
+          ],
+          "additionalProperties": true
+        },
+        "calabash": {
+          "type": "object",
+          "description": "Digital Calabash reading of the composed Odù (odu_link)",
+          "properties": {
+            "id": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 65535
+            },
+            "top": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "bottom": {
+              "type": "integer",
+              "minimum": 0,
+              "maximum": 255
+            },
+            "name": {
+              "type": "string"
+            },
+            "universal_name": {
+              "type": "string"
+            },
+            "archetype": {
+              "type": "string"
+            },
+            "description": {
+              "type": "string"
+            },
+            "vessel": {
+              "type": "string",
+              "description": "one of the 16 Action Vessels"
+            },
+            "interpretation_type": {
+              "enum": [
+                "synthetic",
+                "composed"
+              ]
+            },
+            "prescriptions": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            },
+            "taboos": {
+              "type": "array",
+              "items": {
+                "type": "string"
+              }
+            }
+          },
+          "required": [
+            "id",
+            "top",
+            "bottom",
+            "vessel"
+          ],
+          "additionalProperties": true
+        }
       }
     },
-
     "genesis": {
       "type": "object",
-      "required": ["entropy_source", "entropy_commitment", "seed_hash", "keygen"],
+      "required": [
+        "entropy_source",
+        "entropy_commitment",
+        "seed_hash",
+        "keygen"
+      ],
       "properties": {
-        "entropy_source": { "type": "string" },
-        "entropy_commitment": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "seed_hash": { "type": "string", "pattern": "^[0-9a-f]{64}$" },
-        "keygen": { "type": "string" }
+        "entropy_source": {
+          "type": "string"
+        },
+        "entropy_commitment": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "seed_hash": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{64}$"
+        },
+        "keygen": {
+          "type": "string"
+        },
+        "bipon": {
+          "type": "object",
+          "properties": {
+            "harmonic_signature": {
+              "type": "string"
+            },
+            "derivation_root_id": {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          },
+          "additionalProperties": true
+        }
       }
     },
-
     "time": {
       "type": "object",
       "properties": {
-        "birth_block": { "type": "integer", "minimum": 0 },
-        "birth_block_hash": { "type": "string" },
-        "ots_proof": { "type": ["string", "null"] },
-        "anchored": { "type": "boolean" }
+        "birth_block": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0,
+          "description": "null when no Bitcoin height was available at birth (gregorian fallback)"
+        },
+        "birth_block_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "ots_proof": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "anchored": {
+          "type": "boolean"
+        },
+        "clock_source": {
+          "enum": [
+            "unattested",
+            "okf"
+          ]
+        },
+        "ots_status": {
+          "enum": [
+            "pending",
+            "complete",
+            null
+          ]
+        },
+        "anchor_block": {
+          "type": [
+            "integer",
+            "null"
+          ],
+          "minimum": 0
+        },
+        "anchor_block_hash": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "calendar": {
+          "type": "object",
+          "description": "Koodu coordinates derived from the birth height",
+          "properties": {
+            "epoch": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "cycle": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "phase": {
+              "type": "integer",
+              "minimum": 0
+            },
+            "basis": {
+              "enum": [
+                "height",
+                "gregorian"
+              ]
+            }
+          },
+          "required": [
+            "epoch",
+            "cycle",
+            "phase"
+          ],
+          "additionalProperties": true
+        }
       }
     },
-
     "capabilities": {
       "type": "object",
       "properties": {
-        "skills": { "type": "array", "items": { "type": "string" } },
-        "permissions": { "type": "array", "items": { "type": "string" } },
-        "namespaces": { "type": "array", "items": { "type": "string" } }
+        "skills": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "permissions": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "namespaces": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        }
       }
     },
-
     "memory": {
       "type": "object",
       "properties": {
-        "locator": { "type": ["string", "null"] },
+        "locator": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
         "namespace_root": {
           "oneOf": [
-            { "type": "null" },
-            { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        },
+        "glyph_root": {
+          "type": [
+            "string",
+            "null"
+          ],
+          "description": "a single GIX glyph character, not a hash"
+        },
+        "birth_glyph": {
+          "type": [
+            "string",
+            "null"
           ]
         }
       }
     },
-
     "provenance": {
       "type": "object",
       "properties": {
         "trace_chain_head": {
           "oneOf": [
-            { "type": "null" },
-            { "type": "string", "pattern": "^[0-9a-f]{64}$" }
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
           ]
         },
-        "profile_id": { "type": ["string", "null"] }
+        "profile_id": {
+          "type": [
+            "string",
+            "null"
+          ]
+        },
+        "manifest_hash": {
+          "oneOf": [
+            {
+              "type": "null"
+            },
+            {
+              "type": "string",
+              "pattern": "^[0-9a-f]{64}$"
+            }
+          ]
+        }
       }
     },
-
     "lifecycle": {
       "type": "object",
       "properties": {
-        "state": { "enum": ["cast", "live", "suspended", "retired"] },
+        "state": {
+          "enum": [
+            "cast",
+            "live",
+            "suspended",
+            "retired"
+          ]
+        },
         "history": {
           "type": "array",
           "items": {
             "type": "object",
-            "required": ["state", "at"],
+            "required": [
+              "state",
+              "at"
+            ],
             "properties": {
-              "state": { "enum": ["cast", "live", "suspended", "retired"] },
-              "at": { "type": "string", "format": "date-time" }
+              "state": {
+                "enum": [
+                  "cast",
+                  "live",
+                  "suspended",
+                  "retired"
+                ]
+              },
+              "at": {
+                "type": "string",
+                "format": "date-time"
+              }
             }
           }
         }
       }
     },
-
-    "changelog": { "type": "array", "items": { "type": "string" } },
-    "appendix": { "type": "object" }
+    "changelog": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      }
+    },
+    "appendix": {
+      "type": "object"
+    }
   }
 }

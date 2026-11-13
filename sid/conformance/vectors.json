@@ -1,0 +1,108 @@
+{
+  "note": "Shared verdict vectors for sid/0.1. Both the TypeScript and the Python implementation must return the same ok/errors for every entry. 'set' is a list of [path..., value] assignments applied to the named base fixture; 'restamp' recomputes acting_hash and hash afterwards (so the vector isolates a semantic rule instead of just re-testing the hash).",
+  "vectors": [
+    { "name": "minimal-valid", "base": "minimal", "set": [], "restamp": false, "ok": true },
+    { "name": "full-valid", "base": "full", "set": [], "restamp": false, "ok": true },
+    {
+      "name": "tampered-name",
+      "base": "minimal",
+      "set": [["identity", "name", "impostor"]],
+      "restamp": false,
+      "ok": false,
+      "error": "hash does not match"
+    },
+    {
+      "name": "bad-odu-link",
+      "base": "minimal",
+      "set": [["identity", "odu_link", 1]],
+      "restamp": true,
+      "ok": false,
+      "error": "odu_link"
+    },
+    {
+      "name": "calabash-mismatch",
+      "base": "full",
+      "set": [["identity", "calabash", "bottom", 1]],
+      "restamp": true,
+      "ok": false,
+      "error": "calabash"
+    },
+    {
+      "name": "anchored-pending-proof",
+      "base": "minimal",
+      "set": [
+        ["status", "live"],
+        ["lifecycle", { "state": "live", "history": [{ "state": "live", "at": "2026-11-11T01:30:00Z" }] }],
+        ["time", "anchored", true],
+        ["time", "ots_proof", "x.ots"],
+        ["time", "ots_status", "pending"],
+        ["time", "clock_source", "okf"]
+      ],
+      "restamp": true,
+      "ok": false,
+      "error": "ots_status"
+    },
+    {
+      "name": "anchored-wrong-clock",
+      "base": "minimal",
+      "set": [
+        ["status", "live"],
+        ["lifecycle", { "state": "live", "history": [{ "state": "live", "at": "2026-11-11T01:30:00Z" }] }],
+        ["time", "anchored", true],
+        ["time", "ots_proof", "x.ots"],
+        ["time", "ots_status", "complete"],
+        ["time", "clock_source", "unattested"]
+      ],
+      "restamp": true,
+      "ok": false,
+      "error": "clock_source"
+    },
+    {
+      "name": "anchored-complete-okf",
+      "base": "minimal",
+      "set": [
+        ["status", "live"],
+        ["lifecycle", { "state": "live", "history": [{ "state": "live", "at": "2026-11-11T01:30:00Z" }] }],
+        ["time", "anchored", true],
+        ["time", "ots_proof", "x.ots"],
+        ["time", "ots_status", "complete"],
+        ["time", "clock_source", "okf"],
+        ["time", "calendar", { "epoch": 3, "cycle": 37, "phase": 4, "basis": "height" }]
+      ],
+      "restamp": true,
+      "ok": true
+    },
+    {
+      "name": "v1-carrying-a-chain",
+      "base": "minimal",
+      "set": [["previous_hash", "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"]],
+      "restamp": true,
+      "ok": false,
+      "error": "previous_hash"
+    },
+    {
+      "name": "secret-in-genesis",
+      "base": "minimal",
+      "set": [["genesis", "seed", "deadbeef"]],
+      "restamp": true,
+      "ok": false,
+      "error": "must not carry seed"
+    },
+    {
+      "name": "calendar-non-integer",
+      "base": "full",
+      "set": [["time", "calendar", "phase", 1.5]],
+      "restamp": true,
+      "ok": false,
+      "error": "calendar.phase"
+    },
+    {
+      "name": "version-zero",
+      "base": "minimal",
+      "set": [["version", 0]],
+      "restamp": true,
+      "ok": false,
+      "error": "version must be an integer"
+    }
+  ]
+}

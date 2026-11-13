@@ -6,13 +6,46 @@ nothing about the hash or the chain.
 | # | Check | Enforced by |
 |---|---|---|
 | 1 | `schema/sid.schema.json` validates | Ajv (`npm test`) |
-| 2 | `hash` recomputes from the canonical body | `verifySid()` |
-| 3 | `acting_hash` recomputes from the acting keys | `verifySid()` |
-| 4 | `identity.odu_link == (odu_primary << 8) \| odu_secondary` | `verifySid()` |
-| 5 | `previous_version`/`previous_hash` follow §6 chain rules | `verifySid()`, and `verifySid(cert, previous)` for the link |
-| 6 | `lifecycle.state == status` | `verifySid()` |
-| 7 | `time.anchored == true` implies `time.ots_proof` | `verifySid()` |
-| 8 | no `seed`/`mnemonic`/`private_key`/`nsec`/`secret` in `genesis` or `identity` | `verifySid()` |
+| 2 | `hash` recomputes from the canonical body | `verifySid()` / `verify_sid()` |
+| 3 | `acting_hash` recomputes from the acting keys | `verifySid()` / `verify_sid()` |
+| 4 | `identity.odu_link == (odu_primary << 8) \| odu_secondary` | both |
+| 5 | `identity.calabash` agrees with the Odu fields, `vessel` non-empty | both |
+| 6 | `previous_version`/`previous_hash` follow §6 chain rules | both, and `verifySid(cert, previous)` for the link |
+| 7 | `lifecycle.state == status` | both |
+| 8 | `time.anchored` requires `ots_proof` **and** `ots_status: "complete"` **and** `clock_source: "okf"` | both |
+| 9 | `time.calendar.{epoch,cycle,phase}` are non-negative integers | both |
+| 10 | no `seed`/`mnemonic`/`private_key`/`nsec`/`secret` in `genesis` or `identity` | both |
+
+Every rule is **data-only** — no Odù corpus, no network, no clock — so any
+implementation can enforce all ten against a certificate it received from
+someone else.
+
+## Verification parity — `conformance/vectors.json`
+
+One vector file, two implementations, one expected verdict each. The TypeScript
+suite runs it (`npm test`); the Python runner is:
+
+```sh
+python3 conformance/run_vectors.py
+```
+
+Both must produce the same `ok` and the same error for every vector. A
+disagreement means one implementation is wrong, which is exactly what a
+standard is supposed to make impossible to miss.
+
+Vectors cover: valid minimal/full, a tampered acting field, a bad `odu_link`, a
+Calabash reading that contradicts its address, an anchored certificate on a
+pending proof, one with the wrong clock, a correctly anchored one, a v1 carrying
+a chain, a secret in `genesis`, a non-integer calendar coordinate, and a
+zero version.
+
+## Schema nullability
+
+A field that is legitimately absent must be nullable in the schema. `time.birth_block`
+is `null` on a Gregorian-fallback birth, and `identity.npub`/`principal` are null
+for an unbound agent — a schema that demands an integer there rejects a real
+certificate while the verifier accepts it. Both must agree, or the standard is
+wrong in a way that only shows up on live data.
 
 ## Fixtures
 
