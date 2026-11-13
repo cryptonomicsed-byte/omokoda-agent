@@ -279,7 +279,14 @@ pub fn from_genesis_receipt_with(
     identity.insert("odu_link".into(), json!(r.composed_odu));
     identity.insert("odu_primary".into(), json!(r.primary_odu));
     identity.insert("odu_secondary".into(), json!(odu_secondary));
-    identity.insert("npub".into(), Value::Null);
+    // Nostr is a BINDING, never the identity: the npub comes from the manifest's
+    // network section and stays in its own field. `principal` above is the
+    // gatekeeper's derivation root, a different thing entirely.
+    let npub = ctx
+        .manifest
+        .and_then(|m| m.network.nostr_pubkey.clone())
+        .filter(|v| !v.is_empty());
+    identity.insert("npub".into(), json!(npub));
     identity.insert("principal".into(), json!(r.derivation_root_id));
     identity.insert("parent".into(), Value::Null);
     identity.insert("issuer".into(), Value::Null);
@@ -287,6 +294,24 @@ pub fn from_genesis_receipt_with(
         "description".into(),
         json!(format!("{} · {}", r.temperament, r.orisha_alignment)),
     );
+    // If-Script: the primary index is a number until it is resolved against the
+    // Odù corpus. Recording the sign makes the reading part of the identity,
+    // so a verifier does not need the corpus to know what was cast.
+    {
+        let sign = crate::identity::odu::OduIdentity {
+            primary_index: r.primary_odu,
+            mnemonic: String::new(),
+        }
+        .sign();
+        let mut odu = Map::new();
+        odu.insert("index".into(), json!(sign.index));
+        odu.insert("name".into(), json!(sign.name));
+        odu.insert("vessel".into(), json!(sign.vessel));
+        if let Some(p) = sign.prescription {
+            odu.insert("prescription".into(), json!(p));
+        }
+        identity.insert("odu".into(), Value::Object(odu));
+    }
 
     let history = vec![json!({ "state": "cast", "at": born_at })];
 
@@ -338,6 +363,12 @@ pub fn from_genesis_receipt_with(
             "entropy_commitment": r.birth_entropy_commitment,
             "seed_hash": r.derivation_root_id,
             "keygen": "bipon39+derivation_root",
+            // Bipon39's own proof: the harmonic signature and the root every
+            // child key derives from.
+            "bipon": {
+                "harmonic_signature": r.harmonic_signature,
+                "derivation_root_id": r.derivation_root_id,
+            },
         },
         "time": {
             // clock — OKF's authority
@@ -409,6 +440,13 @@ pub fn from_genesis_receipt_with(
         "trace": "mycelium",
         "clock": "okf",
         "calendar": "koodu",
+    });
+    // ip-layer — the Nostr root event (kind 31900) is the agent's address on
+    // the network; it is a binding of the identity, not the identity.
+    cert["appendix"]["ip_layer"] = json!({
+        "root_event": r.ip_root_event,
+        "event_kind": 31900,
+        "npub": npub,
     });
     cert["appendix"]["coordination"] = json!({
         "field": ctx.waggle_field.unwrap_or(r.agent_id.as_str()),
@@ -1027,6 +1065,7 @@ mod tests {
         m.memory.glyph_root = "12".repeat(32);
         m.memory.birth_glyph = "34".repeat(32);
         m.network.ip_root_event = Some("evt-1".into());
+        m.network.nostr_pubkey = Some("npub1testpubkey".into());
 
         let ctx = SidContext {
             manifest: Some(&m),
@@ -1058,6 +1097,21 @@ mod tests {
         assert_eq!(cert["appendix"]["coordination"]["field"], "agent-0123456789abcdef");
         // network bindings ride along
         assert_eq!(cert["appendix"]["network"]["ip_root_event"], "evt-1");
+        // Nostr is a binding in its own field, never the identity
+        assert_eq!(cert["identity"]["npub"], "npub1testpubkey");
+        assert_eq!(cert["appendix"]["ip_layer"]["npub"], "npub1testpubkey");
+        assert_eq!(cert["appendix"]["ip_layer"]["event_kind"], 31900);
+        // IfáScript resolves the index against the Odù corpus
+        assert_eq!(cert["identity"]["odu"]["index"], 18);
+        // asserted against the corpus itself, not a guessed string
+        assert_eq!(
+            cert["identity"]["odu"]["name"],
+            ifascript::get_odu(18).universal_name
+        );
+        assert!(!cert["identity"]["odu"]["vessel"].as_str().unwrap().is_empty());
+        // Bipon39's own proofs are first-class under genesis
+        assert_eq!(cert["genesis"]["bipon"]["harmonic_signature"], "c".repeat(64));
+        assert_eq!(cert["genesis"]["bipon"]["derivation_root_id"], "d".repeat(64));
     }
 
     #[test]
@@ -1067,6 +1121,8 @@ mod tests {
         assert!(cert["provenance"].get("trace_chain_head").is_none()
             || cert["provenance"]["trace_chain_head"].is_null());
         assert_eq!(cert["memory"]["locator"], Value::Null); // no ip_root_event, no manifest
+        assert_eq!(cert["identity"]["npub"], Value::Null);  // no manifest -> no binding
+        assert_eq!(cert["appendix"]["ip_layer"]["root_event"], Value::Null);
         assert!(verify(&cert).is_empty());
     }
 

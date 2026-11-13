@@ -63,13 +63,16 @@ Sections appear in this order. Every section is emitted with a machine-readable 
 | `parent` | `sid_…` \| null | lineage; null for a root agent |
 | `issuer` | string \| null | who minted this version |
 | `description` | string | one sentence, optional |
+| `odu` | object | the **If-Script** reading: `{index, name, vessel, prescription?}` resolved from the Odù corpus at mint time, so a verifier need not hold the corpus to know what was cast |
 
 Invariant: `odu_link == (odu_primary << 8) | odu_secondary`. A certificate whose Odu fields
 disagree with its link is malformed — the address is derived, never independently authored.
 
 ### 4.2 Genesis
 `entropy_source` (`ifascript/cowrie-v1`), `entropy_commitment` (64-hex), `seed_hash` (64-hex),
-`keygen` (`gix_kdf_v1+bipon39`). **Hashes only.** The mnemonic, seed and keys never appear.
+`keygen` (`gix_kdf_v1+bipon39`), and `bipon` (`{harmonic_signature, derivation_root_id}` —
+Bipon39's own proofs, so the key lineage is named rather than implied). **Hashes only.** The
+mnemonic, seed and keys never appear.
 
 ### 4.3 Time
 
