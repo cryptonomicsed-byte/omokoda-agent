@@ -1,3 +1,7 @@
+//! STALE STUB — NOT the If-Script API. The live crate is the git dependency
+//! `ifascript` (rev 5dbee51); it has calabash/, odu/mod.rs and 73 files. See
+//! ../README.md. Do not extend this file or copy from it.
+
 use once_cell::sync::Lazy;
 
 pub struct Odu {
